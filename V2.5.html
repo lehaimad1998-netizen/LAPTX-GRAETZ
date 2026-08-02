@@ -1,0 +1,1764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAPTX Graetz</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#14161A;
+  --surface:#1B1E23;
+  --surface-2:#21252B;
+  --border:#2A2F37;
+  --text:#E7EAEE;
+  --text-muted:#8A93A0;
+  --trace:#33C481;
+  --trace-dim:#2A3530;
+  --amber:#E8A33D;
+  --amber-dim:#3A311F;
+  --copper:#C9784A;
+  --danger:#DB6560;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+}
+.mono{font-family:'IBM Plex Mono',monospace;}
+#app{max-width:1040px;margin:0 auto;padding:32px 20px 64px;}
+
+.header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+.header h1{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;margin:0;letter-spacing:0.02em;}
+.header h1 span{color:var(--trace);}
+.header .sub{color:var(--text-muted);font-size:13px;margin-top:4px;}
+
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;}
+.tab-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.03em;text-transform:uppercase;background:transparent;border:none;color:var(--text-muted);padding:8px 16px;border-radius:6px;cursor:pointer;transition:all .15s ease;}
+
+.tab-btn.active{background:var(--surface-2);color:var(--trace);}
+.tab-btn:hover:not(.active){color:var(--text);}
+
+.view{display:none;}
+.view.active{display:block;}
+
+.grid-2{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+@media (max-width:760px){.grid-2{grid-template-columns:1fr;}}
+
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;}
+.panel h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 16px;}
+
+label{display:block;font-size:12px;color:var(--text-muted);margin:14px 0 6px;}
+label:first-child{margin-top:0;}
+input,select,textarea{
+  width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-family:'Inter',sans-serif;font-size:16px;padding:11px 12px;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--trace);}
+textarea{resize:vertical;min-height:56px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+.btn{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.03em;text-transform:uppercase;
+  background:var(--trace);color:#0C1712;border:none;border-radius:6px;padding:14px 16px;cursor:pointer;
+  font-weight:600;width:100%;margin-top:18px;transition:opacity .15s;}
+.btn:hover{opacity:0.88;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-muted);width:auto;margin-top:0;padding:7px 12px;font-size:11px;}
+.quick-filter.active{background:var(--danger);border-color:var(--danger);color:#2A0E0C;}
+.btn-ghost:hover{color:var(--text);border-color:var(--text-muted);}
+
+.new-id-banner{background:var(--trace-dim);border:1px solid var(--trace);border-radius:8px;padding:16px;margin-bottom:16px;display:none;}
+.new-id-banner.show{display:block;}
+.new-id-banner .label{font-size:11px;color:var(--trace);text-transform:uppercase;letter-spacing:0.05em;}
+.new-id-banner .id-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px;gap:10px;}
+.new-id-banner .id-val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--text);}
+
+.search-bar{display:flex;gap:10px;margin-bottom:20px;}
+.search-bar input{flex:1;}
+.search-bar button{width:auto;margin-top:0;padding:9px 18px;}
+
+.list-controls{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.list-controls input{flex:1;min-width:160px;}
+.list-controls select{width:auto;}
+.count-tag{font-size:12px;color:var(--text-muted);}
+
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;}
+.stat-card{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;flex:1;min-width:140px;}
+.stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;}
+.stat-value{font-size:22px;font-weight:700;color:var(--trace);}
+
+.ticket-row{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px;}
+.ticket-row-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+.ticket-id{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;color:var(--trace);}
+.ticket-meta{font-size:12px;color:var(--text-muted);margin-top:3px;}
+.ticket-device{font-size:14px;margin-top:6px;}
+.overdue-flag{font-size:11px;color:var(--danger);margin-top:6px;font-weight:600;}
+.lowstock-flag{font-size:11px;color:var(--danger);font-weight:600;}
+
+.parts-catalog-panel{padding:28px;}
+.parts-catalog-panel h2{font-size:15px;}
+.parts-catalog-panel .ticket-row{padding:18px 20px;margin-bottom:14px;}
+.parts-catalog-panel .ticket-id{font-size:17px;}
+.parts-catalog-panel .ticket-meta{font-size:15px;}
+.parts-catalog-panel .lowstock-flag{font-size:13px;margin-top:8px;}
+.parts-catalog-panel .ticket-expand{font-size:15px;}
+@media (max-width:600px){
+  .parts-catalog-panel{padding:20px 16px;}
+}
+.parts-line{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px;}
+.parts-subtotal{font-size:13px;color:var(--text-muted);margin:8px 0;}
+.status-pill{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;
+  padding:4px 10px;border-radius:20px;white-space:nowrap;}
+.ticket-expand{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:none;}
+.ticket-expand.open{display:block;}
+.field-line{font-size:13px;color:var(--text-muted);margin-bottom:6px;}
+.field-line b{color:var(--text);font-weight:500;}
+.status-update-row{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap;}
+.status-update-row select{width:auto;flex:1;min-width:160px;}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-muted);}
+.empty-state .ti{font-size:28px;display:block;margin-bottom:10px;}
+
+.trace-track{display:flex;align-items:center;justify-content:space-between;margin:20px 0;}
+.trace-node-wrap{display:flex;flex-direction:column;align-items:center;flex:1;position:relative;}
+.trace-line{position:absolute;top:14px;left:-50%;width:100%;height:2px;background:var(--border);z-index:0;}
+.trace-node-wrap:first-child .trace-line{display:none;}
+.trace-line.done{background:var(--trace);}
+.trace-node{width:28px;height:28px;border-radius:50%;background:var(--surface-2);border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;z-index:1;font-size:13px;}
+.trace-node.done{background:var(--trace);border-color:var(--trace);color:#0C1712;}
+.trace-node.current{background:var(--amber);border-color:var(--amber);color:#3A2A0A;}
+.trace-label{font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px;max-width:70px;line-height:1.3;}
+.trace-label.active{color:var(--text);font-weight:500;}
+@media (max-width:600px){.trace-label{display:none;}}
+
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;margin-bottom:16px;}
+.result-card-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;}
+.customer-note{background:var(--surface-2);border-left:3px solid var(--trace);border-radius:0 6px 6px 0;padding:10px 14px;margin-top:16px;font-size:13px;}
+.customer-note .lbl{font-size:11px;color:var(--trace);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;}
+
+.disclaimer{font-size:12px;color:var(--text-muted);margin-top:24px;padding-top:16px;border-top:1px solid var(--border);}
+
+.callout{
+  background:var(--amber-dim);border:1.5px solid var(--amber);border-radius:10px;
+  padding:16px 18px;margin-top:16px;font-size:15px;font-weight:600;line-height:1.5;
+  color:var(--amber);text-align:center;
+}
+
+.lock-panel{max-width:380px;margin:60px auto;text-align:left;}
+.lock-panel h2{font-size:16px;text-transform:none;letter-spacing:0;color:var(--text);margin:0 0 6px;}
+.lock-panel .lock-sub{font-size:13px;color:var(--text-muted);margin-bottom:4px;}
+.pw-error{color:var(--danger);font-size:12px;margin-top:8px;display:none;}
+.admin-topbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px;}
+
+@media (max-width:600px){
+  #app{padding:20px 16px 48px;}
+  .header h1{font-size:22px;}
+  .header .sub{font-size:13px;}
+  .panel{padding:18px 16px;}
+  .panel h2{font-size:14px;}
+  label{font-size:13px;}
+  .btn-ghost{padding:10px 14px;font-size:12px;}
+  .tab-btn{padding:11px 16px;font-size:13px;}
+  .status-pill{font-size:12px;padding:6px 12px;}
+  .ticket-id{font-size:15px;}
+  .ticket-meta,.field-line,.customer-note{font-size:14px;}
+  .id-val{font-size:24px;}
+  .callout,.disclaimer{font-size:14px;}
+  .trace-node{width:32px;height:32px;font-size:14px;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div>
+      <h1>LAPTX<span> Graetz</span></h1>
+      <div class="sub">Assign a repair number and let customers check status by number + phone</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="tabs">
+        <button class="tab-btn" id="tab-admin" onclick="switchView('admin')">Shop desk</button>
+        <button class="tab-btn active" id="tab-register" onclick="switchView('register')">Register device</button>
+        <button class="tab-btn" id="tab-customer" onclick="switchView('customer')">Check status</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-admin">
+    <div class="panel lock-panel" id="admin-lock"></div>
+    <div id="admin-content" style="display:none;">
+    <div class="admin-topbar">
+      <button class="btn-ghost" onclick="loadAdminTickets()">Refresh</button>
+      <button class="btn-ghost" onclick="toggleChangePw()">Change password</button>
+      <button class="btn-ghost" onclick="lockAdmin()">Lock shop desk</button>
+    </div>
+    <div class="pw-error" id="save-error-banner" style="margin-bottom:14px;">Could not save. Check your connection and try again.</div>
+    <div class="panel" id="change-pw-panel" style="display:none;max-width:340px;margin-bottom:16px;">
+      <h2>Change password</h2>
+      <label>Current password</label>
+      <input type="password" id="cpw-current">
+      <label>New password</label>
+      <input type="password" id="cpw-new">
+      <label>Confirm new password</label>
+      <input type="password" id="cpw-confirm">
+      <div class="pw-error" id="cpw-error">Current password is incorrect.</div>
+      <div class="pw-error" id="cpw-mismatch" style="display:none;">New passwords don't match.</div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn" style="margin-top:0;" onclick="changeAdminPassword()">Save new password</button>
+        <button class="btn-ghost" onclick="toggleChangePw()">Cancel</button>
+      </div>
+    </div>
+
+    <div class="tabs" style="margin-bottom:16px;">
+      <button class="tab-btn active" id="subtab-tickets" onclick="switchAdminSubview('tickets')">Tickets</button>
+      <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Workshop</button>
+      <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
+      <button class="tab-btn" id="subtab-revenue" onclick="switchAdminSubview('revenue')">Revenue</button>
+    </div>
+
+    <div id="admin-tickets-subview">
+    <div class="grid-2">
+      <div class="panel">
+        <h2>New ticket</h2>
+        <div class="new-id-banner" id="created-banner">
+          <div class="label">Ticket saved</div>
+          <div class="id-row">
+            <div class="id-val mono" id="created-val"></div>
+          </div>
+          <div id="created-qr" style="margin-top:12px;"></div>
+          <button class="btn-ghost" id="print-created-btn" style="margin-top:10px;">Print sticker</button>
+        </div>
+        <label>Repair number (from your intake form)</label>
+        <input id="f-number" type="number" placeholder="320" class="mono">
+        <label>Phone number</label>
+        <input id="f-phone" placeholder="(555) 123-4567">
+        <label>Customer name (optional)</label>
+        <input id="f-name" placeholder="Jordan Lee">
+        <div class="row2">
+          <div>
+            <label>Card brand (optional)</label>
+            <input id="f-brand" placeholder="ASUS">
+          </div>
+          <div>
+            <label>Card model (optional)</label>
+            <input id="f-model" placeholder="ROG Strix RTX 4070 Ti">
+          </div>
+        </div>
+        <label>Issue (optional)</label>
+        <textarea id="f-issue" placeholder="No display output, fans at full speed"></textarea>
+        <div class="pw-error" id="ticket-form-error">Enter a repair number and phone number.</div>
+        <div class="pw-error" id="ticket-form-dupe">That repair number is already in use.</div>
+        <button class="btn" onclick="createTicket()">Save ticket</button>
+      </div>
+
+      <div class="panel">
+        <h2>All tickets</h2>
+        <div class="list-controls">
+          <input id="admin-search" placeholder="Search name, phone, ID, device..." oninput="renderAdminList()">
+          <select id="admin-filter" onchange="renderAdminList()">
+            <option value="">All statuses</option>
+          </select>
+          <select id="admin-sort" onchange="renderAdminList()">
+            <option value="newest">Newest first</option>
+            <option value="number-asc">Number: low to high</option>
+            <option value="number-desc">Number: high to low</option>
+          </select>
+          <button class="btn-ghost quick-filter" id="qf-overdue" onclick="toggleQuickFilter('overdue')">⏳ Overdue only</button>
+          <button class="btn-ghost quick-filter" id="qf-cancelled" onclick="toggleQuickFilter('cancelled')">🚫 Cancelled only</button>
+          <span class="count-tag" id="ticket-count"></span>
+        </div>
+        <div id="admin-list"></div>
+      </div>
+    </div>
+    </div>
+
+    <div id="admin-workshop-subview" style="display:none;">
+      <div class="panel">
+        <h2>Workshop — pricing &amp; payments</h2>
+        <div class="list-controls">
+          <input id="workshop-search" placeholder="Search name, phone, ID, device..." oninput="renderWorkshopList()">
+          <select id="workshop-filter" onchange="renderWorkshopList()">
+            <option value="">All payment statuses</option>
+            <option value="Unpaid">Unpaid</option>
+            <option value="Partial">Partial</option>
+            <option value="Paid">Paid</option>
+          </select>
+          <select id="workshop-sort" onchange="renderWorkshopList()">
+            <option value="newest">Newest first</option>
+            <option value="number-asc">Number: low to high</option>
+            <option value="number-desc">Number: high to low</option>
+          </select>
+          <span class="count-tag" id="workshop-count"></span>
+        </div>
+        <div id="workshop-list"></div>
+      </div>
+    </div>
+
+    <div id="admin-stock-subview" style="display:none;">
+      <div class="panel" style="max-width:520px;margin:0 auto 20px;">
+        <h2>Add part</h2>
+        <div class="new-id-banner" id="part-saved-banner">
+          <div class="label">Part saved</div>
+        </div>
+        <label>Part number</label>
+        <input id="pt-number" placeholder="FAN-4070-01" class="mono">
+        <label>Name</label>
+        <input id="pt-name" placeholder="RTX 4070 cooling fan">
+        <div class="row2">
+          <div>
+            <label>Sell price (DA)</label>
+            <input id="pt-price" type="number" placeholder="2500" class="mono">
+          </div>
+          <div>
+            <label>Cost price (DA, optional)</label>
+            <input id="pt-cost" type="number" placeholder="1500" class="mono">
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <label>Quantity in stock</label>
+            <input id="pt-qty" type="number" placeholder="10" class="mono">
+          </div>
+          <div>
+            <label>Low stock warning at</label>
+            <input id="pt-threshold" type="number" placeholder="3" class="mono">
+          </div>
+        </div>
+        <label>Box / location (optional)</label>
+        <input id="pt-box" placeholder="A" class="mono">
+        <div class="pw-error" id="part-form-error">Enter a part number, name, and quantity.</div>
+        <div class="pw-error" id="part-form-dupe">That part number already exists.</div>
+        <button class="btn" onclick="createPart()">Save part</button>
+      </div>
+
+      <div class="stat-row" style="margin-bottom:16px;">
+        <div class="stat-card">
+          <div class="stat-label">Parts in catalog</div>
+          <div class="stat-value mono" id="stat-parts-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Low stock items</div>
+          <div class="stat-value mono" id="stat-parts-lowcount">0</div>
+        </div>
+        <div class="stat-card" style="border-color:var(--danger);">
+          <div class="stat-label">Money needed to refill</div>
+          <div class="stat-value mono" id="stat-parts-refill-cost" style="color:var(--danger);">0 DA</div>
+          <div class="lowstock-flag" id="stat-parts-refill-warning" style="display:none;margin-top:6px;"></div>
+        </div>
+      </div>
+
+      <div class="panel parts-catalog-panel">
+        <h2>Parts catalog</h2>
+        <div class="list-controls">
+          <input id="parts-search" placeholder="Search part number or name..." oninput="renderPartsList()">
+          <button class="btn-ghost quick-filter" id="qf-lowstock" onclick="toggleLowStockFilter()">⚠️ Low stock only</button>
+          <span class="count-tag" id="parts-count"></span>
+        </div>
+        <div id="parts-list"></div>
+      </div>
+    </div>
+
+    <div id="admin-revenue-subview" style="display:none;">
+      <div class="panel">
+        <h2>Revenue</h2>
+        <div class="list-controls">
+          <select id="revenue-period" onchange="renderRevenue()">
+            <option value="all">All time</option>
+            <option value="today">Today</option>
+            <option value="week">This week</option>
+            <option value="month">This month</option>
+          </select>
+        </div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Based on each ticket's entry date, since payments aren't timestamped individually.</div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-label">Collected</div>
+            <div class="stat-value mono" id="stat-collected">0 DA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Outstanding</div>
+            <div class="stat-value mono" id="stat-outstanding">0 DA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Paid repairs</div>
+            <div class="stat-value mono" id="stat-paid-count">0</div>
+          </div>
+          <div class="stat-card" style="border-color:var(--trace);">
+            <div class="stat-label">Cash on hand (all time)</div>
+            <div class="stat-value mono" id="stat-cash-on-hand">0 DA</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;">
+          <div id="withdraw-idle">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input id="wd-amount" type="number" min="0" step="1" placeholder="Amount (DA)" class="mono" style="max-width:150px;">
+              <input id="wd-note" placeholder="Note (optional)" style="max-width:220px;">
+              <button class="btn-ghost" onclick="askWithdrawCustom()">💵 Withdraw amount</button>
+              <button class="btn-ghost" onclick="askWithdrawAll()">Withdraw all</button>
+            </div>
+          </div>
+          <div id="withdraw-confirm" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:13px;color:var(--danger);" id="withdraw-confirm-label"></span>
+            <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="confirmWithdraw()">Confirm</button>
+            <button class="btn-ghost" onclick="cancelWithdrawAll()">Cancel</button>
+          </div>
+          <div class="pw-error" id="wd-error">Nothing to withdraw right now.</div>
+        </div>
+
+        <h2 style="margin-top:24px;">Withdrawal history</h2>
+        <div id="withdrawals-list"></div>
+
+        <h2 style="margin-top:24px;">Paid repairs</h2>
+        <div id="revenue-list"></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="view active" id="view-register">
+    <div class="panel" id="register-shopinfo-panel" style="max-width:520px;margin:0 auto 16px;">
+      <div class="shop-name" style="font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--trace);">LAPTX GPU</div>
+      <div class="field-line" style="margin-top:10px;"><b>YALIDINE:</b> BLIDA OULED YAICHE (office)</div>
+      <div class="field-line"><b>Other company:</b> BLIDA OULED YAICHE CITE POLICE LCL N&deg;83 (home)</div>
+      <div class="field-line" style="margin-bottom:0;"><b>TEL:</b> <span class="mono">0540174110</span></div>
+    </div>
+    <div class="panel" style="max-width:520px;margin:0 auto;">
+      <div class="new-id-banner" id="register-banner">
+        <div class="label">Your repair number</div>
+        <div class="id-row">
+          <div class="id-val mono" id="register-id-val"></div>
+        </div>
+        <div id="register-qr" style="margin-top:12px;"></div>
+        <button class="btn-ghost" id="register-again-btn" style="display:none;margin-top:14px;" onclick="resetRegisterForm()">Register another device</button>
+      </div>
+      <div id="register-form-fields">
+        <h2>Register your device</h2>
+        <label>Your name</label>
+        <input id="r-name" placeholder="Jordan Lee">
+        <label>Phone number</label>
+        <input id="r-phone" placeholder="0540174110">
+        <label>Entry date</label>
+        <input id="r-entrydate" type="date">
+        <div class="row2">
+          <div>
+            <label>Card brand</label>
+            <input id="r-brand" placeholder="ASUS">
+          </div>
+          <div>
+            <label>Card model</label>
+            <input id="r-model" placeholder="ROG Strix RTX 4070 Ti">
+          </div>
+        </div>
+        <label>Describe the issue</label>
+        <textarea id="r-issue" placeholder="What's wrong with the device? Be as detailed as you can." style="min-height:100px;"></textarea>
+        <div class="callout" style="margin-top:16px;font-size:13px;">📷 Please send us a picture of the package when you send your device on WhatsApp</div>
+        <div class="pw-error" id="register-form-error">Enter your name and phone number.</div>
+        <button class="btn" onclick="registerDevice()">Submit</button>
+      </div>
+    </div>
+    <div class="callout" id="reg-callout" style="max-width:520px;margin:16px auto 0;">⚠️ You'll be given a repair number after submitting — save it along with your phone number to check your status later.</div>
+  </div>
+
+  <div class="view" id="view-customer">
+    <div class="panel" style="max-width:600px;margin:0 auto;">
+      <h2>Find your device</h2>
+      <label>Repair number</label>
+      <input id="customer-id" type="number" placeholder="320" class="mono" onkeydown="if(event.key==='Enter')customerLookup()">
+      <label>Phone number</label>
+      <input id="customer-phone" placeholder="0540174110" onkeydown="if(event.key==='Enter')customerLookup()">
+      <button class="btn" onclick="customerLookup()">Search</button>
+      <div class="pw-error" id="customer-form-error">Enter both your repair number and phone number.</div>
+      <div id="customer-results"></div>
+    </div>
+    <div class="disclaimer" style="max-width:600px;margin:16px auto 0;">Both the repair number and matching phone number are required, so a random guessed number alone can't show someone else's ticket.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SETUP — paste your Supabase project URL and anon (public) key below.
+   Project Settings > API in your Supabase dashboard.
+   ============================================================ */
+const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
+
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// action (camelCase, matches the old Apps Script actions) -> Postgres RPC function name
+const ACTION_TO_RPC = {
+  getPasswordStatus: 'get_password_status',
+  setPassword: 'set_password',
+  changePassword: 'change_password',
+  adminLogin: 'admin_login',
+  adminList: 'admin_list',
+  adminCreate: 'admin_create',
+  adminUpdateStatus: 'admin_update_status',
+  adminSaveNotes: 'admin_save_notes',
+  adminDelete: 'admin_delete',
+  adminSetPricing: 'admin_set_pricing',
+  adminEditTicket: 'admin_edit_ticket',
+  adminAddPartToTicket: 'admin_add_part_to_ticket',
+  adminRemovePartFromTicket: 'admin_remove_part_from_ticket',
+  partsList: 'parts_list',
+  partsCreate: 'parts_create',
+  partsUpdate: 'parts_update',
+  partsDelete: 'parts_delete',
+  partsAdjustStock: 'parts_adjust_stock',
+  withdrawalsList: 'withdrawals_list',
+  withdrawalCreate: 'withdrawal_create',
+  withdrawalDelete: 'withdrawal_delete',
+  customerLookup: 'customer_lookup',
+  customerRegister: 'customer_register'
+};
+
+// camelCase JS params -> snake_case p_-prefixed Postgres function args
+function toRpcParams(params){
+  const out = {};
+  Object.keys(params).forEach(k=>{
+    const snake = k.replace(/([A-Z])/g, '_$1').toLowerCase();
+    out['p_' + snake] = params[k];
+  });
+  return out;
+}
+
+async function apiGet(action, params={}){
+  if(action === 'ping') return {ok:true};
+  if(adminPasswordValue && !('password' in params) && (action.indexOf('admin')===0 || action.indexOf('parts')===0 || action.indexOf('withdrawal')===0)){
+    params = Object.assign({}, params, {password: adminPasswordValue});
+  }
+  const rpcName = ACTION_TO_RPC[action];
+  if(!rpcName) return {ok:false, error:'Unknown action: ' + action};
+  try{
+    const { data, error } = await sb.rpc(rpcName, toRpcParams(params));
+    if(error) return {ok:false, error: error.message};
+    return data;
+  }catch(e){
+    return {ok:false, error:'Network error: ' + e.message};
+  }
+}
+
+const STATUSES = ['Registered','Received','Diagnosing','Waiting for Parts','Repairing','Ready','Picked Up'];
+const PAYMENT_STATUSES = ['Unpaid','Partial','Paid'];
+function statusLabel(status){ return status; }
+function paymentStatusLabel(status){ return status; }
+
+let tickets = [];
+let expandedId = null;
+let confirmingDeleteId = null;
+let editingTicketId = null;
+let passwordExists = null;
+let adminPasswordValue = null;
+let adminAuthed = false;
+
+function switchView(v){
+  document.getElementById('view-admin').classList.toggle('active', v==='admin');
+  document.getElementById('view-register').classList.toggle('active', v==='register');
+  document.getElementById('view-customer').classList.toggle('active', v==='customer');
+  document.getElementById('tab-admin').classList.toggle('active', v==='admin');
+  document.getElementById('tab-register').classList.toggle('active', v==='register');
+  document.getElementById('tab-customer').classList.toggle('active', v==='customer');
+  if(v==='admin') updateAdminVisibility();
+  if(v==='register'){
+    const dateInput = document.getElementById('r-entrydate');
+    if(!dateInput.value) dateInput.value = new Date().toISOString().slice(0,10);
+  }
+}
+
+async function loadAdminPassword(){
+  const res = await apiGet('getPasswordStatus');
+  passwordExists = res.ok ? res.hasPassword : false;
+  renderLock();
+}
+
+function renderLock(){
+  const lock = document.getElementById('admin-lock');
+  if(!passwordExists){
+    lock.innerHTML = `<h2>Set a shop desk password</h2>
+      <div class="lock-sub">This protects the intake and ticket list from customers. Anyone with this password can access it.</div>
+      <label>New password</label>
+      <input type="password" id="new-pw" onkeydown="if(event.key==='Enter')setAdminPassword()">
+      <div class="pw-error" id="setpw-error">Enter a password.</div>
+      <button class="btn" onclick="setAdminPassword()">Set password</button>`;
+  }else{
+    lock.innerHTML = `<h2>Shop desk locked</h2>
+      <div class="lock-sub">Enter the password to continue.</div>
+      <label>Password</label>
+      <input type="password" id="pw-input" onkeydown="if(event.key==='Enter')tryUnlock()">
+      <button class="btn" onclick="tryUnlock()">Unlock</button>
+      <div class="pw-error" id="pw-error">Incorrect password.</div>`;
+  }
+}
+
+async function setAdminPassword(){
+  const val = document.getElementById('new-pw').value;
+  const err = document.getElementById('setpw-error');
+  if(!val){ err.textContent='Enter a password.'; err.style.display='block'; return; }
+  const res = await apiGet('setPassword', {password: val});
+  if(!res.ok){
+    err.textContent = res.error || 'Could not save the password. Try again.';
+    err.style.display = 'block';
+    return;
+  }
+  adminPasswordValue = val;
+  passwordExists = true;
+  adminAuthed = true;
+  updateAdminVisibility();
+}
+
+async function tryUnlock(){
+  const val = document.getElementById('pw-input').value;
+  const res = await apiGet('adminLogin', {password: val});
+  if(res.ok){
+    adminPasswordValue = val;
+    adminAuthed = true;
+    updateAdminVisibility();
+  }else{
+    document.getElementById('pw-error').style.display = 'block';
+  }
+}
+
+function toggleChangePw(){
+  const panel = document.getElementById('change-pw-panel');
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? 'block' : 'none';
+  if(opening){
+    ['cpw-current','cpw-new','cpw-confirm'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cpw-error').style.display = 'none';
+    document.getElementById('cpw-mismatch').style.display = 'none';
+  }
+}
+
+async function changeAdminPassword(){
+  const current = document.getElementById('cpw-current').value;
+  const next = document.getElementById('cpw-new').value;
+  const confirmVal = document.getElementById('cpw-confirm').value;
+  const errEl = document.getElementById('cpw-error');
+  const mismatchEl = document.getElementById('cpw-mismatch');
+  errEl.style.display = 'none';
+  mismatchEl.style.display = 'none';
+
+  if(!next){
+    mismatchEl.textContent = 'Enter a new password.';
+    mismatchEl.style.display = 'block';
+    return;
+  }
+  if(next !== confirmVal){
+    mismatchEl.textContent = "New passwords don't match.";
+    mismatchEl.style.display = 'block';
+    return;
+  }
+  const res = await apiGet('changePassword', {current: current, next: next});
+  if(!res.ok){
+    errEl.style.display = 'block';
+    return;
+  }
+  adminPasswordValue = next;
+  toggleChangePw();
+}
+
+function lockAdmin(){
+  adminAuthed = false;
+  adminPasswordValue = null;
+  updateAdminVisibility();
+}
+
+function updateAdminVisibility(){
+  const showContent = adminAuthed;
+  document.getElementById('admin-lock').style.display = showContent ? 'none' : 'block';
+  document.getElementById('admin-content').style.display = showContent ? 'block' : 'none';
+  if(showContent){
+    loadAdminTickets();
+  }else{
+    renderLock();
+  }
+}
+
+let parts = [];
+
+let withdrawals = [];
+
+async function loadAdminTickets(){
+  const res = await apiGet('adminList');
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  tickets = res.tickets;
+  populateFilterOptions();
+  renderVisibleAdminSubview();
+  await loadPartsList();
+  await loadWithdrawals();
+}
+
+// Lighter refresh for actions that only change ticket data (status, notes,
+// pricing, edits, deletes) — skips re-fetching parts and withdrawals.
+async function refreshTicketsOnly(){
+  const res = await apiGet('adminList');
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  tickets = res.tickets;
+  populateFilterOptions();
+  renderVisibleAdminSubview();
+}
+
+// For actions that change both a ticket (parts used) and stock levels —
+// skips re-fetching withdrawals, which never change here.
+async function refreshTicketsAndParts(){
+  await refreshTicketsOnly();
+  await loadPartsList();
+}
+
+async function loadPartsList(){
+  const res = await apiGet('partsList');
+  if(!res.ok) return;
+  parts = res.parts;
+  if(currentAdminSubview==='stock' || currentAdminSubview==='workshop') renderVisibleAdminSubview();
+}
+
+async function loadWithdrawals(){
+  const res = await apiGet('withdrawalsList');
+  if(!res.ok) return;
+  withdrawals = res.withdrawals;
+  if(currentAdminSubview==='revenue') renderRevenue();
+}
+
+let currentAdminSubview = 'tickets';
+
+function switchAdminSubview(v){
+  currentAdminSubview = v;
+  document.getElementById('admin-tickets-subview').style.display = v==='tickets' ? 'block' : 'none';
+  document.getElementById('admin-workshop-subview').style.display = v==='workshop' ? 'block' : 'none';
+  document.getElementById('admin-stock-subview').style.display = v==='stock' ? 'block' : 'none';
+  document.getElementById('admin-revenue-subview').style.display = v==='revenue' ? 'block' : 'none';
+  document.getElementById('subtab-tickets').classList.toggle('active', v==='tickets');
+  document.getElementById('subtab-workshop').classList.toggle('active', v==='workshop');
+  document.getElementById('subtab-stock').classList.toggle('active', v==='stock');
+  document.getElementById('subtab-revenue').classList.toggle('active', v==='revenue');
+  renderVisibleAdminSubview();
+}
+
+function renderVisibleAdminSubview(){
+  if(currentAdminSubview==='tickets') renderAdminList();
+  else if(currentAdminSubview==='workshop') renderWorkshopList();
+  else if(currentAdminSubview==='stock') renderPartsList();
+  else if(currentAdminSubview==='revenue') renderRevenue();
+}
+
+function formatPrice(price){
+  if(price === '' || price === null || price === undefined) return '';
+  const n = parseFloat(price);
+  if(isNaN(n)) return '';
+  return n.toLocaleString() + ' DA';
+}
+
+function paymentPillStyle(status){
+  if(status==='Paid') return 'background:var(--trace-dim);color:var(--trace);';
+  if(status==='Partial') return 'background:var(--amber-dim);color:var(--amber);';
+  return 'background:rgba(219,101,96,0.15);color:var(--danger);';
+}
+
+function populateFilterOptions(){
+  const sel = document.getElementById('admin-filter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All statuses</option>' +
+    STATUSES.map(s=>`<option value="${s}">${s}</option>`).join('') +
+    '<option value="Cancelled">Cancelled</option>';
+  sel.value = current;
+}
+
+function normPhone(p){ return (p||'').replace(/\D/g,''); }
+
+async function createTicket(){
+  const number = document.getElementById('f-number').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const name = document.getElementById('f-name').value.trim();
+  const brand = document.getElementById('f-brand').value.trim();
+  const model = document.getElementById('f-model').value.trim();
+  const issue = document.getElementById('f-issue').value.trim();
+
+  document.getElementById('ticket-form-error').style.display = 'none';
+  document.getElementById('ticket-form-dupe').style.display = 'none';
+
+  if(!number || !phone){
+    document.getElementById('ticket-form-error').style.display = 'block';
+    return;
+  }
+
+  const res = await apiGet('adminCreate', {id:number, phone:phone, name:name, brand:brand, model:model, issue:issue});
+  if(!res.ok){
+    if(res.error && res.error.indexOf('already in use')!==-1){
+      document.getElementById('ticket-form-dupe').style.display = 'block';
+    }else{
+      document.getElementById('save-error-banner').style.display = 'block';
+    }
+    return;
+  }
+
+  document.getElementById('created-val').textContent = '#' + number;
+  document.getElementById('created-banner').classList.add('show');
+  renderStatusQR('created-qr', number);
+  document.getElementById('print-created-btn').onclick = function(){ printSticker(number); };
+  ['f-number','f-phone','f-name','f-brand','f-model','f-issue'].forEach(id=>document.getElementById(id).value='');
+  await loadAdminTickets();
+}
+
+function printSticker(ticketId){
+  const w = window.open('', '_blank', 'width=300,height=200');
+  if(!w) return;
+  const idStr = '#' + ticketId;
+  let numSize = 15; // mm — fits comfortably up to 4 characters (e.g. #320)
+  if(idStr.length >= 5) numSize = 12;
+  if(idStr.length >= 6) numSize = 10;
+  if(idStr.length >= 7) numSize = 8.5;
+  w.document.write(
+    '<html><head><title>Sticker ' + idStr + '</title><style>' +
+    '@page{size:40mm 20mm;margin:0;}' +
+    'html,body{margin:0;padding:0;}' +
+    '.sticker{width:40mm;height:20mm;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:\'Arial\',sans-serif;overflow:hidden;}' +
+    '.sticker .lbl{font-size:3mm;letter-spacing:0.6mm;text-transform:uppercase;font-weight:700;margin-bottom:0.8mm;}' +
+    '.sticker .num{font-size:' + numSize + 'mm;font-weight:800;line-height:1;font-family:\'Courier New\',monospace;}' +
+    '</style></head><body>' +
+    '<div class="sticker"><div class="lbl">Repair</div><div class="num">' + idStr + '</div></div>' +
+    '<script>window.onload=function(){window.print();};<\/script>' +
+    '</body></html>'
+  );
+  w.document.close();
+}
+
+function renderStatusQR(containerId, ticketId){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.alignItems = 'center';
+  wrap.style.gap = '12px';
+  const qrBox = document.createElement('div');
+  wrap.appendChild(qrBox);
+  const caption = document.createElement('div');
+  caption.style.fontSize = '11px';
+  caption.style.color = 'var(--text-muted)';
+  caption.style.maxWidth = '160px';
+  caption.style.lineHeight = '1.4';
+  caption.textContent = 'Scan to check status \u2014 enter your phone number when asked.';
+  wrap.appendChild(caption);
+  el.appendChild(wrap);
+
+  const baseUrl = window.location.origin + window.location.pathname;
+  const deepLink = baseUrl + '?tab=customer&id=' + encodeURIComponent(ticketId);
+  new QRCode(qrBox, {
+    text: deepLink,
+    width: 96,
+    height: 96,
+    colorDark: '#14161A',
+    colorLight: '#ffffff'
+  });
+}
+
+async function registerDevice(){
+  const name = document.getElementById('r-name').value.trim();
+  const phone = document.getElementById('r-phone').value.trim();
+  const entryDate = document.getElementById('r-entrydate').value;
+  const brand = document.getElementById('r-brand').value.trim();
+  const model = document.getElementById('r-model').value.trim();
+  const issue = document.getElementById('r-issue').value.trim();
+  const errEl = document.getElementById('register-form-error');
+  errEl.style.display = 'none';
+
+  if(!name || !phone){
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const res = await apiGet('customerRegister', {name:name, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
+  if(!res.ok){
+    errEl.textContent = res.error || 'Something went wrong. Try again.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  document.getElementById('register-id-val').textContent = '#' + res.id;
+  document.getElementById('register-banner').classList.add('show');
+  renderStatusQR('register-qr', res.id);
+  ['r-name','r-phone','r-brand','r-model','r-issue'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('r-entrydate').value = new Date().toISOString().slice(0,10);
+
+  document.getElementById('register-shopinfo-panel').style.display = 'none';
+  document.getElementById('register-form-fields').style.display = 'none';
+  document.getElementById('reg-callout').style.display = 'none';
+  document.getElementById('register-again-btn').style.display = 'block';
+}
+
+function resetRegisterForm(){
+  document.getElementById('register-banner').classList.remove('show');
+  document.getElementById('register-qr').innerHTML = '';
+  document.getElementById('register-again-btn').style.display = 'none';
+  document.getElementById('register-shopinfo-panel').style.display = 'block';
+  document.getElementById('register-form-fields').style.display = 'block';
+  document.getElementById('reg-callout').style.display = 'block';
+}
+
+function isOverdue(t){
+  if(t.status !== 'Registered') return false;
+  const created = new Date(t.createdAt).getTime();
+  if(isNaN(created)) return false;
+  return Math.floor((Date.now() - created) / 86400000) >= 3;
+}
+
+function overdueBadge(t){
+  if(!isOverdue(t)) return '';
+  const daysSince = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000);
+  return `<div class="overdue-flag">⏳ ${daysSince}d — not received yet</div>`;
+}
+
+function statusPillStyle(status){
+  const idx = STATUSES.indexOf(status);
+  if(status==='Cancelled') return 'background:rgba(219,101,96,0.15);color:var(--danger);';
+  if(status==='Picked Up') return 'background:var(--trace-dim);color:var(--trace);';
+  if(status==='Ready') return 'background:var(--trace-dim);color:var(--trace);';
+  if(status==='Waiting for Parts') return 'background:var(--amber-dim);color:var(--amber);';
+  return 'background:var(--surface);color:var(--text-muted);border:1px solid var(--border);';
+}
+
+let quickFilter = null; // null | 'overdue' | 'cancelled'
+
+function toggleQuickFilter(name){
+  quickFilter = quickFilter===name ? null : name;
+  document.getElementById('qf-overdue').classList.toggle('active', quickFilter==='overdue');
+  document.getElementById('qf-cancelled').classList.toggle('active', quickFilter==='cancelled');
+  renderAdminList();
+}
+
+function renderAdminList(){
+  const q = document.getElementById('admin-search').value.toLowerCase();
+  const filter = document.getElementById('admin-filter').value;
+  const sortMode = document.getElementById('admin-sort').value;
+  const list = document.getElementById('admin-list');
+  document.getElementById('ticket-count').textContent = tickets.length + ' total';
+
+  let filtered = tickets.filter(t=>{
+    const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+    const matchesF = !filter || t.status===filter;
+    const matchesQuick = quickFilter==='overdue' ? isOverdue(t) : (quickFilter==='cancelled' ? t.status==='Cancelled' : true);
+    return matchesQ && matchesF && matchesQuick;
+  });
+
+  if(sortMode==='number-asc'){
+    filtered = filtered.slice().sort((a,b)=> (parseFloat(a.id) || 0) - (parseFloat(b.id) || 0));
+  }else if(sortMode==='number-desc'){
+    filtered = filtered.slice().sort((a,b)=> (parseFloat(b.id) || 0) - (parseFloat(a.id) || 0));
+  }
+  // 'newest' uses the order already returned by the server (most recently created first)
+
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No tickets match. Adjust your search or create a new ticket.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t=>{
+    const open = expandedId===t.id;
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row">
+      <div class="ticket-row-top" style="cursor:pointer;" onclick="toggleExpand('${t.id}')">
+        <div>
+          <div class="ticket-id">#${t.id}</div>
+          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+          ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          ${overdueBadge(t)}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+          ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
+        </div>
+      </div>
+      <div class="ticket-expand ${open?'open':''}">
+        ${editingTicketId===t.id ? `
+          <label>Customer name</label>
+          <input id="edit-name-${t.id}" value="${(t.customerName||'').replace(/"/g,'&quot;')}">
+          <label>Phone number</label>
+          <input id="edit-phone-${t.id}" value="${(t.phone||'').replace(/"/g,'&quot;')}">
+          <label>Entry date</label>
+          <input id="edit-entrydate-${t.id}" type="date" value="${t.entryDate||''}">
+          <div class="row2">
+            <div>
+              <label>Card brand</label>
+              <input id="edit-brand-${t.id}" value="${(t.deviceBrand||'').replace(/"/g,'&quot;')}">
+            </div>
+            <div>
+              <label>Card model</label>
+              <input id="edit-model-${t.id}" value="${(t.deviceModel||'').replace(/"/g,'&quot;')}">
+            </div>
+          </div>
+          <label>Issue</label>
+          <textarea id="edit-issue-${t.id}">${t.issue||''}</textarea>
+          <div class="pw-error" id="edit-error-${t.id}">Phone number is required.</div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn-ghost" onclick="saveTicketEdit('${t.id}')">Save changes</button>
+            <button class="btn-ghost" onclick="cancelTicketEdit()">Cancel</button>
+          </div>
+        ` : `
+          <div class="field-line"><b>Entry date:</b> ${t.entryDate || '—'}</div>
+          <div class="field-line"><b>Issue:</b> ${t.issue || '—'}</div>
+          <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
+          <button class="btn-ghost" onclick="startTicketEdit('${t.id}')">Edit ticket</button>
+        `}
+        <label>Update status</label>
+        <div class="status-update-row">
+          <select id="status-sel-${t.id}">
+            ${STATUSES.map(s=>`<option value="${s}" ${s===t.status?'selected':''}>${s}</option>`).join('')}
+            <option value="Cancelled" ${t.status==='Cancelled'?'selected':''}>Cancelled (never sent)</option>
+          </select>
+          <button class="btn-ghost" onclick="updateStatus('${t.id}')">Apply</button>
+        </div>
+        <label>Note for customer (shown on their status page)</label>
+        <textarea id="cnote-${t.id}">${t.customerNote||''}</textarea>
+        <label>Internal notes (staff only)</label>
+        <textarea id="inote-${t.id}">${t.internalNotes||''}</textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;">
+            <button class="btn-ghost" onclick="saveNotes('${t.id}')">Save notes</button>
+            <button class="btn-ghost" onclick="printSticker('${t.id}')">Print sticker</button>
+          </div>
+          ${confirmingDeleteId===t.id ? `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;color:var(--danger);">Delete this ticket?</span>
+              <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="deleteTicket('${t.id}')">Confirm delete</button>
+              <button class="btn-ghost" onclick="cancelDeleteTicket()">Cancel</button>
+            </div>
+          ` : `
+            <button class="btn-ghost" style="color:var(--danger);border-color:var(--danger);" onclick="askDeleteTicket('${t.id}')">Delete ticket</button>
+          `}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleExpand(id){
+  expandedId = expandedId===id ? null : id;
+  renderAdminList();
+}
+
+function startTicketEdit(id){
+  editingTicketId = id;
+  renderAdminList();
+}
+
+function cancelTicketEdit(){
+  editingTicketId = null;
+  renderAdminList();
+}
+
+async function saveTicketEdit(id){
+  const name = document.getElementById('edit-name-'+id).value.trim();
+  const phone = document.getElementById('edit-phone-'+id).value.trim();
+  const entryDate = document.getElementById('edit-entrydate-'+id).value;
+  const brand = document.getElementById('edit-brand-'+id).value.trim();
+  const model = document.getElementById('edit-model-'+id).value.trim();
+  const issue = document.getElementById('edit-issue-'+id).value.trim();
+  const errEl = document.getElementById('edit-error-'+id);
+  errEl.style.display = 'none';
+
+  if(!phone){
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const res = await apiGet('adminEditTicket', {id:id, name:name, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
+  if(!res.ok){
+    errEl.textContent = res.error || 'Could not save. Try again.';
+    errEl.style.display = 'block';
+    return;
+  }
+  editingTicketId = null;
+  await refreshTicketsOnly();
+}
+
+let workshopExpandedId = null;
+
+function renderWorkshopList(){
+  const searchEl = document.getElementById('workshop-search');
+  const filterEl = document.getElementById('workshop-filter');
+  const sortEl = document.getElementById('workshop-sort');
+  const list = document.getElementById('workshop-list');
+  if(!searchEl || !list) return; // subview not in DOM yet on first load
+
+  const q = searchEl.value.toLowerCase();
+  const filter = filterEl.value;
+  const sortMode = sortEl.value;
+  document.getElementById('workshop-count').textContent = tickets.length + ' total';
+
+  let filtered = tickets.filter(t=>{
+    const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+    const matchesF = !filter || (t.paymentStatus || 'Unpaid')===filter;
+    return matchesQ && matchesF;
+  });
+
+  if(sortMode==='number-asc'){
+    filtered = filtered.slice().sort((a,b)=> (parseFloat(a.id) || 0) - (parseFloat(b.id) || 0));
+  }else if(sortMode==='number-desc'){
+    filtered = filtered.slice().sort((a,b)=> (parseFloat(b.id) || 0) - (parseFloat(a.id) || 0));
+  }
+
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No tickets match.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t=>{
+    const open = workshopExpandedId===t.id;
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    const payStatus = t.paymentStatus || 'Unpaid';
+    return `
+    <div class="ticket-row">
+      <div class="ticket-row-top" style="cursor:pointer;" onclick="toggleWorkshopExpand('${t.id}')">
+        <div>
+          <div class="ticket-id">#${t.id}</div>
+          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+          ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <div class="status-pill mono" style="${paymentPillStyle(payStatus)}">${payStatus}</div>
+          <div style="font-size:13px;font-weight:600;" class="mono">${t.price ? formatPrice(t.price) : '—'}</div>
+        </div>
+      </div>
+      <div class="ticket-expand ${open?'open':''}">
+        <label>Parts used</label>
+        <div id="wparts-${t.id}">
+          ${(t.partsUsed||[]).length===0 ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">No parts attached yet.</div>' :
+            (t.partsUsed||[]).map((pu,idx)=>`
+              <div class="parts-line">
+                <span>${pu.name} (${pu.partNumber}) — ${formatPrice(pu.price)}</span>
+                <button class="btn-ghost" style="padding:4px 8px;font-size:10px;" onclick="removePartFromTicket('${t.id}', ${idx})">Remove</button>
+              </div>
+            `).join('')}
+        </div>
+        <div class="parts-subtotal">Parts subtotal: <b class="mono" id="wsubtotal-${t.id}">${formatPrice(partsSubtotal(t)) || '0 DA'}</b></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <select id="wpartsel-${t.id}" style="flex:1;">
+            <option value="">Select a part to add…</option>
+            ${parts.map(pt=>`<option value="${pt.partNumber}">${pt.partNumber} — ${pt.name} (${formatPrice(pt.price)||'no price'}, ${pt.quantity} in stock)</option>`).join('')}
+          </select>
+          <button class="btn-ghost" style="width:auto;" onclick="addPartToTicket('${t.id}')">Add</button>
+        </div>
+        <label>Repair price (labor only)</label>
+        <input id="wlabor-${t.id}" type="number" placeholder="2000" value="${t.laborPrice || ''}" class="mono" oninput="updateWorkshopTotal('${t.id}')" data-parts-subtotal="${partsSubtotal(t)}">
+        <div class="parts-subtotal">Total price (labor + parts): <b class="mono" id="wtotal-${t.id}">${formatPrice((parseFloat(t.laborPrice)||0) + partsSubtotal(t)) || '0 DA'}</b></div>
+        <div class="row2">
+          <div>
+            <select id="wpay-${t.id}">
+              ${PAYMENT_STATUSES.map(s=>`<option value="${s}" ${s===payStatus?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <input id="wpaid-${t.id}" type="number" placeholder="1500 (if partial)" value="${t.amountPaid || ''}" class="mono">
+          </div>
+        </div>
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveWorkshopPricing('${t.id}')">Save pricing</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleWorkshopExpand(id){
+  workshopExpandedId = workshopExpandedId===id ? null : id;
+  renderWorkshopList();
+}
+
+function partsSubtotal(t){
+  return (t.partsUsed||[]).reduce((sum,pu)=> sum + (parseFloat(pu.price) || 0), 0);
+}
+
+async function addPartToTicket(id){
+  const sel = document.getElementById('wpartsel-'+id);
+  const partNumber = sel.value;
+  if(!partNumber) return;
+  const res = await apiGet('adminAddPartToTicket', {id:id, partNumber:partNumber});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsAndParts();
+}
+
+async function removePartFromTicket(id, index){
+  const res = await apiGet('adminRemovePartFromTicket', {id:id, index:index});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsAndParts();
+}
+
+async function saveWorkshopPricing(id){
+  const laborPrice = document.getElementById('wlabor-'+id).value;
+  const paymentStatus = document.getElementById('wpay-'+id).value;
+  const amountPaid = document.getElementById('wpaid-'+id).value;
+  const res = await apiGet('adminSetPricing', {id:id, laborPrice:laborPrice, paymentStatus:paymentStatus, amountPaid:amountPaid});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsOnly();
+}
+
+function updateWorkshopTotal(id){
+  const laborInput = document.getElementById('wlabor-'+id);
+  const labor = parseFloat(laborInput.value) || 0;
+  const subtotal = parseFloat(laborInput.dataset.partsSubtotal) || 0;
+  document.getElementById('wtotal-'+id).textContent = formatPrice(labor + subtotal) || '0 DA';
+}
+
+let lowStockOnly = false;
+let partExpandedId = null;
+let confirmingDeletePart = null;
+
+function toggleLowStockFilter(){
+  lowStockOnly = !lowStockOnly;
+  document.getElementById('qf-lowstock').classList.toggle('active', lowStockOnly);
+  renderPartsList();
+}
+
+async function createPart(){
+  const partNumber = document.getElementById('pt-number').value.trim();
+  const name = document.getElementById('pt-name').value.trim();
+  const price = document.getElementById('pt-price').value;
+  const costPrice = document.getElementById('pt-cost').value;
+  const quantity = document.getElementById('pt-qty').value;
+  const lowStockThreshold = document.getElementById('pt-threshold').value;
+  const box = document.getElementById('pt-box').value.trim();
+  document.getElementById('part-form-error').style.display = 'none';
+  document.getElementById('part-form-dupe').style.display = 'none';
+
+  if(!partNumber || !name || quantity===''){
+    document.getElementById('part-form-error').style.display = 'block';
+    return;
+  }
+
+  const res = await apiGet('partsCreate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box});
+  if(!res.ok){
+    if(res.error && res.error.indexOf('already exists')!==-1){
+      document.getElementById('part-form-dupe').style.display = 'block';
+    }else{
+      document.getElementById('save-error-banner').style.display = 'block';
+    }
+    return;
+  }
+
+  document.getElementById('part-saved-banner').classList.add('show');
+  ['pt-number','pt-name','pt-price','pt-cost','pt-qty','pt-threshold','pt-box'].forEach(id=>document.getElementById(id).value='');
+  await loadPartsList();
+}
+
+function renderPartsList(){
+  const searchEl = document.getElementById('parts-search');
+  const list = document.getElementById('parts-list');
+  if(!searchEl || !list) return;
+  const q = searchEl.value.toLowerCase();
+  document.getElementById('parts-count').textContent = parts.length + ' total';
+
+  document.getElementById('stat-parts-total').textContent = parts.length;
+  let lowCount = 0;
+  let refillCost = 0;
+  let missingCostCount = 0;
+  parts.forEach(pt=>{
+    if(pt.lowStock){
+      lowCount++;
+      const needed = Math.max((parseFloat(pt.lowStockThreshold)||0) - (parseFloat(pt.quantity)||0), 0);
+      const cost = parseFloat(pt.costPrice);
+      if(isNaN(cost) || pt.costPrice===''){
+        missingCostCount++;
+      }else{
+        refillCost += needed * cost;
+      }
+    }
+  });
+  document.getElementById('stat-parts-lowcount').textContent = lowCount;
+  document.getElementById('stat-parts-refill-cost').textContent = formatPrice(refillCost) || '0 DA';
+  const warnEl = document.getElementById('stat-parts-refill-warning');
+  if(missingCostCount>0){
+    warnEl.textContent = '⚠️ ' + missingCostCount + ' low-stock part' + (missingCostCount>1?'s':'') + ' missing a cost price — actual total is higher';
+    warnEl.style.display = 'block';
+  }else{
+    warnEl.style.display = 'none';
+  }
+
+  let filtered = parts.filter(pt=>{
+    const matchesQ = !q || [pt.partNumber, pt.name].join(' ').toLowerCase().includes(q);
+    const matchesLow = !lowStockOnly || pt.lowStock;
+    return matchesQ && matchesLow;
+  });
+
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No parts match. Add one on the left.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(pt=>{
+    const open = partExpandedId===pt.partNumber;
+    return `
+    <div class="ticket-row">
+      <div class="ticket-row-top" style="cursor:pointer;" onclick="togglePartExpand('${pt.partNumber}')">
+        <div>
+          <div class="ticket-id mono">${pt.partNumber} ${pt.box ? `<span style="font-size:12px;color:var(--text-muted);font-weight:500;">· Box ${pt.box}</span>` : ''}</div>
+          <div class="ticket-meta">${pt.name}</div>
+          ${pt.lowStock ? `<div class="lowstock-flag">⚠️ Low stock — ${pt.quantity} left</div>` : ''}
+          ${pt.lowStock && (pt.costPrice===''||pt.costPrice==null||isNaN(parseFloat(pt.costPrice))) ? `<div class="lowstock-flag">⚠️ No cost price set</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;">
+          <div class="mono" style="font-weight:600;font-size:17px;">${formatPrice(pt.price) || '—'}</div>
+          <div style="font-size:14px;color:var(--text-muted);">Qty: ${pt.quantity}</div>
+        </div>
+      </div>
+      <div class="ticket-expand ${open?'open':''}">
+        <label>Name</label>
+        <input id="pt-edit-name-${pt.partNumber}" value="${(pt.name||'').replace(/"/g,'&quot;')}">
+        <div class="row2">
+          <div>
+            <label>Sell price (DA)</label>
+            <input id="pt-edit-price-${pt.partNumber}" type="number" value="${pt.price||''}" class="mono">
+          </div>
+          <div>
+            <label>Cost price (DA)</label>
+            <input id="pt-edit-cost-${pt.partNumber}" type="number" value="${pt.costPrice||''}" class="mono">
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <label>Quantity</label>
+            <input id="pt-edit-qty-${pt.partNumber}" type="number" value="${pt.quantity}" class="mono">
+          </div>
+          <div>
+            <label>Low stock warning at</label>
+            <input id="pt-edit-threshold-${pt.partNumber}" type="number" value="${pt.lowStockThreshold}" class="mono">
+          </div>
+        </div>
+        <label>Box / location</label>
+        <input id="pt-edit-box-${pt.partNumber}" value="${(pt.box||'').replace(/"/g,'&quot;')}" class="mono">
+        <label>Restock (add to current quantity)</label>
+        <div style="display:flex;gap:8px;">
+          <input id="pt-restock-${pt.partNumber}" type="number" placeholder="10" class="mono" style="flex:1;">
+          <button class="btn-ghost" style="width:auto;" onclick="quickRestock('${pt.partNumber}')">Add stock</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <button class="btn-ghost" onclick="savePartEdit('${pt.partNumber}')">Save changes</button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+          ${confirmingDeletePart===pt.partNumber ? `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;color:var(--danger);">Delete this part?</span>
+              <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="deletePart('${pt.partNumber}')">Confirm delete</button>
+              <button class="btn-ghost" onclick="cancelDeletePart()">Cancel</button>
+            </div>
+          ` : `
+            <button class="btn-ghost" style="color:var(--danger);border-color:var(--danger);" onclick="askDeletePart('${pt.partNumber}')">Delete part</button>
+          `}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePartExpand(partNumber){
+  partExpandedId = partExpandedId===partNumber ? null : partNumber;
+  renderPartsList();
+}
+
+async function savePartEdit(partNumber){
+  const name = document.getElementById('pt-edit-name-'+partNumber).value.trim();
+  const price = document.getElementById('pt-edit-price-'+partNumber).value;
+  const costPrice = document.getElementById('pt-edit-cost-'+partNumber).value;
+  const quantity = document.getElementById('pt-edit-qty-'+partNumber).value;
+  const lowStockThreshold = document.getElementById('pt-edit-threshold-'+partNumber).value;
+  const box = document.getElementById('pt-edit-box-'+partNumber).value.trim();
+  const res = await apiGet('partsUpdate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await loadPartsList();
+}
+
+async function quickRestock(partNumber){
+  const input = document.getElementById('pt-restock-'+partNumber);
+  const amount = parseFloat(input.value);
+  if(!amount || amount<=0){
+    input.focus();
+    return;
+  }
+  const res = await apiGet('partsAdjustStock', {partNumber:partNumber, delta:amount});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await loadPartsList();
+}
+
+function askDeletePart(partNumber){
+  confirmingDeletePart = partNumber;
+  renderPartsList();
+}
+
+function cancelDeletePart(){
+  confirmingDeletePart = null;
+  renderPartsList();
+}
+
+async function deletePart(partNumber){
+  confirmingDeletePart = null;
+  const res = await apiGet('partsDelete', {partNumber: partNumber});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await loadPartsList();
+}
+
+function ticketInPeriod(t, period){
+  if(period==='all') return true;
+  if(!t.entryDate) return false;
+  const d = new Date(t.entryDate + 'T00:00:00');
+  if(isNaN(d.getTime())) return false;
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if(period==='today'){
+    return d.getTime() === startOfToday.getTime();
+  }
+  if(period==='week'){
+    const day = startOfToday.getDay(); // 0=Sun..6=Sat
+    const diffToMonday = (day===0 ? 6 : day-1);
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfToday.getDate() - diffToMonday);
+    return d.getTime() >= startOfWeek.getTime();
+  }
+  if(period==='month'){
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return d.getTime() >= startOfMonth.getTime();
+  }
+  return true;
+}
+
+function renderRevenue(){
+  const periodEl = document.getElementById('revenue-period');
+  const list = document.getElementById('revenue-list');
+  if(!periodEl || !list) return;
+  const period = periodEl.value;
+
+  const inPeriod = tickets.filter(t=>ticketInPeriod(t, period));
+
+  let collected = 0;
+  let outstanding = 0;
+  let paidCount = 0;
+  const paidRepairs = [];
+
+  inPeriod.forEach(t=>{
+    const price = parseFloat(t.price);
+    const amountPaid = parseFloat(t.amountPaid);
+    const status = t.paymentStatus || 'Unpaid';
+    if(status==='Paid'){
+      collected += !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
+      paidCount++;
+      paidRepairs.push(t);
+    }else if(status==='Partial'){
+      const paidSoFar = !isNaN(amountPaid) ? amountPaid : 0;
+      collected += paidSoFar;
+      if(!isNaN(price)) outstanding += Math.max(price - paidSoFar, 0);
+    }else{
+      if(!isNaN(price)) outstanding += price;
+    }
+  });
+
+  document.getElementById('stat-collected').textContent = collected.toLocaleString() + ' DA';
+  document.getElementById('stat-outstanding').textContent = outstanding.toLocaleString() + ' DA';
+  document.getElementById('stat-paid-count').textContent = paidCount;
+
+  // Cash on hand is always all-time, independent of the period filter above
+  let allTimeCollected = 0;
+  tickets.forEach(t=>{
+    const price = parseFloat(t.price);
+    const amountPaid = parseFloat(t.amountPaid);
+    const status = t.paymentStatus || 'Unpaid';
+    if(status==='Paid'){
+      allTimeCollected += !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
+    }else if(status==='Partial'){
+      allTimeCollected += !isNaN(amountPaid) ? amountPaid : 0;
+    }
+  });
+  const totalWithdrawn = withdrawals.reduce((sum,w)=> sum + (parseFloat(w.amount) || 0), 0);
+  const cashOnHand = allTimeCollected - totalWithdrawn;
+  currentCashOnHand = cashOnHand;
+  document.getElementById('stat-cash-on-hand').textContent = cashOnHand.toLocaleString() + ' DA';
+
+  renderWithdrawals();
+
+  if(paidRepairs.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No paid repairs in this period.</div>';
+    return;
+  }
+
+  paidRepairs.sort((a,b)=> new Date(b.entryDate||b.createdAt) - new Date(a.entryDate||a.createdAt));
+
+  list.innerHTML = paidRepairs.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row">
+      <div class="ticket-row-top">
+        <div>
+          <div class="ticket-id">#${t.id}</div>
+          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.entryDate || '—'}</div>
+          ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+        </div>
+        <div class="status-pill mono" style="${paymentPillStyle('Paid')}">${formatPrice(t.price)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let currentCashOnHand = 0;
+let pendingWithdrawAmount = 0;
+let pendingWithdrawNote = '';
+
+function askWithdrawAll(){
+  const errEl = document.getElementById('wd-error');
+  errEl.style.display = 'none';
+  if(!currentCashOnHand || currentCashOnHand<=0){
+    errEl.style.display = 'block';
+    return;
+  }
+  pendingWithdrawAmount = currentCashOnHand;
+  pendingWithdrawNote = 'Full withdrawal';
+  document.getElementById('withdraw-confirm-label').textContent =
+    'Withdraw all cash on hand (' + formatPrice(currentCashOnHand) + ')?';
+  document.getElementById('withdraw-idle').style.display = 'none';
+  document.getElementById('withdraw-confirm').style.display = 'flex';
+}
+
+function askWithdrawCustom(){
+  const errEl = document.getElementById('wd-error');
+  errEl.style.display = 'none';
+  const amount = parseFloat(document.getElementById('wd-amount').value);
+  const note = document.getElementById('wd-note').value.trim();
+
+  if(!amount || amount<=0){
+    errEl.textContent = 'Enter a valid withdrawal amount.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(amount > currentCashOnHand){
+    errEl.textContent = 'That\'s more than the current cash on hand (' + formatPrice(currentCashOnHand) + ').';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  pendingWithdrawAmount = amount;
+  pendingWithdrawNote = note || 'Withdrawal';
+  document.getElementById('withdraw-confirm-label').textContent =
+    'Withdraw ' + formatPrice(amount) + (note ? ' — ' + note : '') + '?';
+  document.getElementById('withdraw-idle').style.display = 'none';
+  document.getElementById('withdraw-confirm').style.display = 'flex';
+}
+
+function cancelWithdrawAll(){
+  document.getElementById('withdraw-idle').style.display = 'block';
+  document.getElementById('withdraw-confirm').style.display = 'none';
+}
+
+async function confirmWithdraw(){
+  const amount = pendingWithdrawAmount;
+  const note = pendingWithdrawNote;
+  const res = await apiGet('withdrawalCreate', {amount:amount, note:note});
+  cancelWithdrawAll();
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('wd-amount').value = '';
+  document.getElementById('wd-note').value = '';
+  await loadWithdrawals();
+}
+
+let confirmingDeleteWithdrawal = null;
+
+function renderWithdrawals(){
+  const list = document.getElementById('withdrawals-list');
+  if(!list) return;
+  if(withdrawals.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No withdrawals recorded yet.</div>';
+    return;
+  }
+  list.innerHTML = withdrawals.map(w=>{
+    const date = new Date(w.timestamp);
+    const dateStr = isNaN(date.getTime()) ? '' : date.toLocaleString();
+    return `
+    <div class="ticket-row">
+      <div class="ticket-row-top">
+        <div>
+          <div class="ticket-meta">${dateStr}</div>
+          ${w.note ? `<div class="ticket-device">${w.note}</div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="mono" style="font-weight:600;color:var(--danger);">-${formatPrice(w.amount)}</div>
+          ${confirmingDeleteWithdrawal===w.id ? `
+            <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="deleteWithdrawal('${w.id}')">Confirm</button>
+            <button class="btn-ghost" onclick="cancelDeleteWithdrawal()">Cancel</button>
+          ` : `
+            <button class="btn-ghost" onclick="askDeleteWithdrawal('${w.id}')">Delete</button>
+          `}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function askDeleteWithdrawal(id){
+  confirmingDeleteWithdrawal = id;
+  renderWithdrawals();
+}
+
+function cancelDeleteWithdrawal(){
+  confirmingDeleteWithdrawal = null;
+  renderWithdrawals();
+}
+
+async function deleteWithdrawal(id){
+  confirmingDeleteWithdrawal = null;
+  const res = await apiGet('withdrawalDelete', {id:id});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await loadWithdrawals();
+}
+
+async function updateStatus(id){
+  const sel = document.getElementById('status-sel-'+id);
+  const newStatus = sel.value;
+  const res = await apiGet('adminUpdateStatus', {id:id, status:newStatus});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
+}
+
+function askDeleteTicket(id){
+  confirmingDeleteId = id;
+  renderAdminList();
+}
+
+function cancelDeleteTicket(){
+  confirmingDeleteId = null;
+  renderAdminList();
+}
+
+async function deleteTicket(id){
+  confirmingDeleteId = null;
+  if(expandedId===id) expandedId = null;
+  const res = await apiGet('adminDelete', {id:id});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
+}
+
+async function saveNotes(id){
+  const customerNote = document.getElementById('cnote-'+id).value;
+  const internalNotes = document.getElementById('inote-'+id).value;
+  const res = await apiGet('adminSaveNotes', {id:id, customerNote:customerNote, internalNotes:internalNotes});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+}
+
+function traceHtml(status){
+  if(status==='Cancelled'){
+    const msg = 'This registration was cancelled.';
+    return `<div style="text-align:center;padding:16px;color:var(--danger);font-weight:600;">${msg}</div>`;
+  }
+  const idx = STATUSES.indexOf(status);
+  return '<div class="trace-track">' + STATUSES.map((s,i)=>{
+    const done = i < idx;
+    const current = i === idx;
+    const lineDone = i <= idx && i>0;
+    return `<div class="trace-node-wrap">
+      <div class="trace-line ${lineDone?'done':''}"></div>
+      <div class="trace-node ${done?'done':''} ${current?'current':''}">${done?'✓':(i+1)}</div>
+      <div class="trace-label ${current?'active':''}">${statusLabel(s)}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function customerLookup(){
+  const idRaw = document.getElementById('customer-id').value.trim();
+  const phoneRaw = document.getElementById('customer-phone').value.trim();
+  const results = document.getElementById('customer-results');
+  const errEl = document.getElementById('customer-form-error');
+  errEl.style.display = 'none';
+
+  if(!idRaw || !phoneRaw){
+    errEl.style.display = 'block';
+    results.innerHTML = '';
+    return;
+  }
+
+  results.innerHTML = '<div class="empty-state">Searching\u2026</div>';
+
+  const res = await apiGet('customerLookup', {id: idRaw, phone: phoneRaw});
+
+  if(!res.ok || !res.ticket){
+    results.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No ticket found for that repair number and phone number combination. Double check and try again.</div>';
+    return;
+  }
+
+  const t = res.ticket;
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+  results.innerHTML = `
+    <div class="result-card">
+      <div class="result-card-head">
+        <div>
+          <div class="ticket-id mono">#${t.id}</div>
+          ${deviceLine ? `<div class="ticket-meta">${deviceLine}</div>` : ''}
+        </div>
+        <div class="status-pill mono" style="${statusPillStyle(t.status)}">${statusLabel(t.status)}</div>
+      </div>
+      ${traceHtml(t.status)}
+      <div class="field-line"><b>Entry date:</b> ${t.entryDate || new Date(t.createdAt).toLocaleDateString()}</div>
+      ${t.price ? `<div class="field-line"><b>Price:</b> ${formatPrice(t.price)} <span style="color:${t.paymentStatus==='Paid'?'var(--trace)':'var(--danger)'};font-weight:600;">(${paymentStatusLabel(t.paymentStatus||'Unpaid')})</span></div>` : ''}
+      ${t.customerNote ? `<div class="customer-note"><div class="lbl">Update from the shop</div>${t.customerNote}</div>` : ''}
+    </div>
+  `;
+}
+
+function applyDeepLink(){
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab');
+  const id = params.get('id');
+  if(tab==='customer'){
+    switchView('customer');
+    if(id) document.getElementById('customer-id').value = id;
+  }
+}
+
+applyDeepLink();
+loadAdminPassword();
+</script>
+</body>
+</html>
