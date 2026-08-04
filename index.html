@@ -361,8 +361,16 @@ textarea{resize:vertical;min-height:56px;}
             <input id="pt-threshold" type="number" placeholder="3" class="mono">
           </div>
         </div>
-        <label>Box / location (optional)</label>
-        <input id="pt-box" placeholder="A" class="mono">
+        <div class="row2">
+          <div>
+            <label>Box / location (optional)</label>
+            <input id="pt-box" placeholder="A" class="mono">
+          </div>
+          <div>
+            <label>Compartment (optional)</label>
+            <input id="pt-compartment" placeholder="5" class="mono">
+          </div>
+        </div>
         <div class="pw-error" id="part-form-error">Enter a part number, name, and quantity.</div>
         <div class="pw-error" id="part-form-dupe">That part number already exists.</div>
         <button class="btn" onclick="createPart()">Save part</button>
@@ -554,7 +562,6 @@ textarea{resize:vertical;min-height:56px;}
    ============================================================ */
 const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
-
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1531,6 +1538,7 @@ async function createPart(){
   const quantity = document.getElementById('pt-qty').value;
   const lowStockThreshold = document.getElementById('pt-threshold').value;
   const box = document.getElementById('pt-box').value.trim();
+  const compartment = document.getElementById('pt-compartment').value.trim();
   document.getElementById('part-form-error').style.display = 'none';
   document.getElementById('part-form-dupe').style.display = 'none';
 
@@ -1539,7 +1547,7 @@ async function createPart(){
     return;
   }
 
-  const res = await apiGet('partsCreate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box});
+  const res = await apiGet('partsCreate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box, compartment:compartment});
   if(!res.ok){
     if(res.error && res.error.indexOf('already exists')!==-1){
       document.getElementById('part-form-dupe').style.display = 'block';
@@ -1550,7 +1558,7 @@ async function createPart(){
   }
 
   document.getElementById('part-saved-banner').classList.add('show');
-  ['pt-number','pt-name','pt-price','pt-cost','pt-qty','pt-threshold','pt-box'].forEach(id=>document.getElementById(id).value='');
+  ['pt-number','pt-name','pt-price','pt-cost','pt-qty','pt-threshold','pt-box','pt-compartment'].forEach(id=>document.getElementById(id).value='');
   await loadPartsList();
 }
 
@@ -1604,7 +1612,7 @@ function renderPartsList(){
     <div class="ticket-row">
       <div class="ticket-row-top" style="cursor:pointer;" onclick="togglePartExpand('${pt.partNumber}')">
         <div>
-          <div class="ticket-id mono">${pt.partNumber} ${pt.box ? `<span style="font-size:12px;color:var(--text-muted);font-weight:500;">· Box ${pt.box}</span>` : ''}</div>
+          <div class="ticket-id mono">${pt.partNumber} ${(pt.box || pt.compartment) ? `<span style="font-size:12px;color:var(--text-muted);font-weight:500;">· ${[pt.box ? 'Box '+pt.box : '', pt.compartment ? 'Slot '+pt.compartment : ''].filter(Boolean).join(' · ')}</span>` : ''}</div>
           <div class="ticket-meta">${pt.name}</div>
           ${pt.lowStock ? `<div class="lowstock-flag">⚠️ Low stock — ${pt.quantity} left</div>` : ''}
           ${pt.lowStock && (pt.costPrice===''||pt.costPrice==null||isNaN(parseFloat(pt.costPrice))) ? `<div class="lowstock-flag">⚠️ No cost price set</div>` : ''}
@@ -1637,8 +1645,16 @@ function renderPartsList(){
             <input id="pt-edit-threshold-${pt.partNumber}" type="number" value="${pt.lowStockThreshold}" class="mono">
           </div>
         </div>
-        <label>Box / location</label>
-        <input id="pt-edit-box-${pt.partNumber}" value="${(pt.box||'').replace(/"/g,'&quot;')}" class="mono">
+        <div class="row2">
+          <div>
+            <label>Box / location</label>
+            <input id="pt-edit-box-${pt.partNumber}" value="${(pt.box||'').replace(/"/g,'&quot;')}" class="mono">
+          </div>
+          <div>
+            <label>Compartment</label>
+            <input id="pt-edit-compartment-${pt.partNumber}" value="${(pt.compartment||'').replace(/"/g,'&quot;')}" class="mono">
+          </div>
+        </div>
         <label>Restock (add to current quantity)</label>
         <div style="display:flex;gap:8px;">
           <input id="pt-restock-${pt.partNumber}" type="number" placeholder="10" class="mono" style="flex:1;">
@@ -1675,7 +1691,8 @@ async function savePartEdit(partNumber){
   const quantity = document.getElementById('pt-edit-qty-'+partNumber).value;
   const lowStockThreshold = document.getElementById('pt-edit-threshold-'+partNumber).value;
   const box = document.getElementById('pt-edit-box-'+partNumber).value.trim();
-  const res = await apiGet('partsUpdate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box});
+  const compartment = document.getElementById('pt-edit-compartment-'+partNumber).value.trim();
+  const res = await apiGet('partsUpdate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box, compartment:compartment});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
