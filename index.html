@@ -377,6 +377,9 @@ textarea{resize:vertical;min-height:56px;}
             <input id="pt-compartment" placeholder="5" class="mono">
           </div>
         </div>
+        <label>Category (optional)</label>
+        <input id="pt-category" placeholder="MOSFET, PWM IC, Capacitor..." list="pt-category-list">
+        <datalist id="pt-category-list"></datalist>
         <div class="pw-error" id="part-form-error">Enter a part number, name, and quantity.</div>
         <div class="pw-error" id="part-form-dupe">That part number already exists.</div>
         <button class="btn" onclick="createPart()">Save part</button>
@@ -402,6 +405,9 @@ textarea{resize:vertical;min-height:56px;}
         <h2>Parts catalog</h2>
         <div class="list-controls">
           <input id="parts-search" placeholder="Search part number or name..." oninput="renderPartsList()">
+          <select id="parts-category-filter" onchange="renderPartsList()">
+            <option value="">All categories</option>
+          </select>
           <button class="btn-ghost quick-filter" id="qf-lowstock" onclick="toggleLowStockFilter()">⚠️ Low stock only</button>
           <span class="count-tag" id="parts-count"></span>
         </div>
@@ -1555,6 +1561,7 @@ function renderPartsTable(filtered){
       <tr class="${pt.lowStock ? 'parts-table-row-low' : ''}">
         <td class="mono">${pt.partNumber}</td>
         <td>${pt.name}</td>
+        <td>${pt.category || '—'}</td>
         <td>${location}</td>
         <td class="mono">${formatPrice(pt.price) || '—'}</td>
         <td class="mono">${missingCost ? '—' : formatPrice(pt.costPrice)}</td>
@@ -1566,7 +1573,7 @@ function renderPartsTable(filtered){
 
     const editHtml = `
       <tr>
-        <td colspan="7" style="background:var(--surface-2);padding:16px;">
+        <td colspan="8" style="background:var(--surface-2);padding:16px;">
           <label>Name</label>
           <input id="pt-edit-name-${pt.partNumber}" value="${(pt.name||'').replace(/"/g,'&quot;')}">
           <div class="row2">
@@ -1599,6 +1606,8 @@ function renderPartsTable(filtered){
               <input id="pt-edit-compartment-${pt.partNumber}" value="${(pt.compartment||'').replace(/"/g,'&quot;')}" class="mono">
             </div>
           </div>
+          <label>Category</label>
+          <input id="pt-edit-category-${pt.partNumber}" value="${(pt.category||'').replace(/"/g,'&quot;')}" list="pt-category-list">
           <label>Restock (add to current quantity)</label>
           <div style="display:flex;gap:8px;">
             <input id="pt-restock-${pt.partNumber}" type="number" placeholder="10" class="mono" style="flex:1;">
@@ -1629,7 +1638,7 @@ function renderPartsTable(filtered){
       <table class="parts-table">
         <thead>
           <tr>
-            <th>Part #</th><th>Name</th><th>Location</th><th>Sell</th><th>Cost</th><th>Qty</th><th></th>
+            <th>Part #</th><th>Name</th><th>Category</th><th>Location</th><th>Sell</th><th>Cost</th><th>Qty</th><th></th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -1646,6 +1655,7 @@ async function createPart(){
   const lowStockThreshold = document.getElementById('pt-threshold').value;
   const box = document.getElementById('pt-box').value.trim();
   const compartment = document.getElementById('pt-compartment').value.trim();
+  const category = document.getElementById('pt-category').value.trim();
   document.getElementById('part-form-error').style.display = 'none';
   document.getElementById('part-form-dupe').style.display = 'none';
 
@@ -1654,7 +1664,7 @@ async function createPart(){
     return;
   }
 
-  const res = await apiGet('partsCreate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box, compartment:compartment});
+  const res = await apiGet('partsCreate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box, compartment:compartment, category:category});
   if(!res.ok){
     if(res.error && res.error.indexOf('already exists')!==-1){
       document.getElementById('part-form-dupe').style.display = 'block';
@@ -1665,7 +1675,7 @@ async function createPart(){
   }
 
   document.getElementById('part-saved-banner').classList.add('show');
-  ['pt-number','pt-name','pt-price','pt-cost','pt-qty','pt-threshold','pt-box','pt-compartment'].forEach(id=>document.getElementById(id).value='');
+  ['pt-number','pt-name','pt-price','pt-cost','pt-qty','pt-threshold','pt-box','pt-compartment','pt-category'].forEach(id=>document.getElementById(id).value='');
   await loadPartsList();
 }
 
@@ -1702,10 +1712,19 @@ function renderPartsList(){
     warnEl.style.display = 'none';
   }
 
+  // Keep the category filter dropdown and the Add-part datalist in sync with what's actually in use
+  const categories = [...new Set(parts.map(pt=>pt.category).filter(Boolean))].sort();
+  const filterEl = document.getElementById('parts-category-filter');
+  const selectedCategory = filterEl.value;
+  filterEl.innerHTML = '<option value="">All categories</option>' +
+    categories.map(c=>`<option value="${c}" ${c===selectedCategory?'selected':''}>${c}</option>`).join('');
+  document.getElementById('pt-category-list').innerHTML = categories.map(c=>`<option value="${c}">`).join('');
+
   let filtered = parts.filter(pt=>{
     const matchesQ = !q || [pt.partNumber, pt.name].join(' ').toLowerCase().includes(q);
     const matchesLow = !lowStockOnly || pt.lowStock;
-    return matchesQ && matchesLow;
+    const matchesCategory = !selectedCategory || pt.category === selectedCategory;
+    return matchesQ && matchesLow && matchesCategory;
   });
 
   if(filtered.length===0){
@@ -1729,7 +1748,8 @@ async function savePartEdit(partNumber){
   const lowStockThreshold = document.getElementById('pt-edit-threshold-'+partNumber).value;
   const box = document.getElementById('pt-edit-box-'+partNumber).value.trim();
   const compartment = document.getElementById('pt-edit-compartment-'+partNumber).value.trim();
-  const res = await apiGet('partsUpdate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box, compartment:compartment});
+  const category = document.getElementById('pt-edit-category-'+partNumber).value.trim();
+  const res = await apiGet('partsUpdate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box, compartment:compartment, category:category});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
