@@ -45,6 +45,11 @@ body{
 .tab-btn.active{background:var(--surface-2);color:var(--trace);}
 .tab-btn:hover:not(.active){color:var(--text);}
 
+.lang-toggle{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;}
+.lang-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.03em;background:transparent;border:none;color:var(--text-muted);padding:8px 14px;border-radius:6px;cursor:pointer;transition:all .15s ease;}
+.lang-btn.active{background:var(--surface-2);color:var(--trace);}
+.lang-btn:hover:not(.active){color:var(--text);}
+
 .view{display:none;}
 .view.active{display:block;}
 
@@ -68,9 +73,24 @@ textarea{resize:vertical;min-height:56px;}
   background:var(--trace);color:#0C1712;border:none;border-radius:6px;padding:14px 16px;cursor:pointer;
   font-weight:600;width:100%;margin-top:18px;transition:opacity .15s;}
 .btn:hover{opacity:0.88;}
+.btn:disabled{background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:0.6;}
+.btn:disabled:hover{opacity:0.6;}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-muted);width:auto;margin-top:0;padding:7px 12px;font-size:11px;}
 .quick-filter.active{background:var(--danger);border-color:var(--danger);color:#2A0E0C;}
 .btn-ghost:hover{color:var(--text);border-color:var(--text-muted);}
+
+.conditions-gate{display:flex;flex-direction:column;gap:10px;align-items:flex-start;margin-top:16px;padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;}
+.conditions-checkbox-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;}
+.conditions-checkbox-label input{width:auto;margin:0;accent-color:var(--trace);cursor:pointer;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+.modal-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;max-width:560px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.modal-close-btn{background:transparent;border:none;color:var(--text-muted);font-size:22px;line-height:1;cursor:pointer;padding:0 4px;}
+.modal-close-btn:hover{color:var(--text);}
+.modal-panel-body{padding:18px 20px;overflow-y:auto;font-size:14px;line-height:1.9;color:var(--text);white-space:pre-wrap;}
+.modal-panel-foot{display:flex;flex-direction:column;gap:12px;padding:16px 20px;border-top:1px solid var(--border);}
+.modal-panel-foot .btn{margin-top:0;}
 
 .new-id-banner{background:var(--trace-dim);border:1px solid var(--trace);border-radius:8px;padding:16px;margin-bottom:16px;display:none;}
 .new-id-banner.show{display:block;}
@@ -114,10 +134,16 @@ textarea{resize:vertical;min-height:56px;}
 .parts-subtotal{font-size:13px;color:var(--text-muted);margin:8px 0;}
 .status-pill{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;
   padding:4px 10px;border-radius:20px;white-space:nowrap;}
+.status-pill-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;border:none;cursor:pointer;
+  padding-right:22px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%23888'/></svg>");
+  background-repeat:no-repeat;background-position:right 8px center;}
+.status-pill-select:focus{outline:2px solid var(--trace);outline-offset:1px;}
 .ticket-expand{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:none;}
 .ticket-expand.open{display:block;}
 .field-line{font-size:13px;color:var(--text-muted);margin-bottom:6px;}
 .field-line b{color:var(--text);font-weight:500;}
+.issue-line{font-size:16px;line-height:1.5;color:var(--text);margin:10px 0 14px;white-space:pre-wrap;}
+.issue-line b{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;}
 .status-update-row{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap;}
 .status-update-row select{width:auto;flex:1;min-width:160px;}
 
@@ -168,6 +194,7 @@ textarea{resize:vertical;min-height:56px;}
   .status-pill{font-size:12px;padding:6px 12px;}
   .ticket-id{font-size:15px;}
   .ticket-meta,.field-line,.customer-note{font-size:14px;}
+  .issue-line{font-size:15px;}
   .id-val{font-size:24px;}
   .callout,.disclaimer{font-size:14px;}
   .trace-node{width:32px;height:32px;font-size:14px;}
@@ -182,6 +209,10 @@ textarea{resize:vertical;min-height:56px;}
       <div class="sub">Assign a repair number and let customers check status by number + phone</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="lang-toggle" id="lang-toggle">
+        <button class="lang-btn active" id="lang-btn-en" onclick="setLanguage('en')">EN</button>
+        <button class="lang-btn" id="lang-btn-ar" onclick="setLanguage('ar')">عربي</button>
+      </div>
       <div class="tabs">
         <button class="tab-btn" id="tab-admin" onclick="switchView('admin')">Shop desk</button>
         <button class="tab-btn active" id="tab-register" onclick="switchView('register')">Register device</button>
@@ -393,6 +424,14 @@ textarea{resize:vertical;min-height:56px;}
             <div class="stat-label">Cash on hand (all time)</div>
             <div class="stat-value mono" id="stat-cash-on-hand">0 DA</div>
           </div>
+          <div class="stat-card">
+            <div class="stat-label">Parts sold (sell value)</div>
+            <div class="stat-value mono" id="stat-parts-sold">0 DA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Parts cost (what you paid)</div>
+            <div class="stat-value mono" id="stat-parts-cost">0 DA</div>
+          </div>
         </div>
 
         <div style="margin-top:20px;">
@@ -424,60 +463,87 @@ textarea{resize:vertical;min-height:56px;}
 
   <div class="view active" id="view-register">
     <div class="panel" id="register-shopinfo-panel" style="max-width:520px;margin:0 auto 16px;">
+      <div data-i18n="delivery_info" style="font-size:20px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;margin-bottom:12px;color:var(--text);">DELIVERY INFORMATIONS</div>
       <div class="shop-name" style="font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--trace);">LAPTX GPU</div>
-      <div class="field-line" style="margin-top:10px;"><b>YALIDINE:</b> BLIDA OULED YAICHE (office)</div>
-      <div class="field-line"><b>Other company:</b> BLIDA OULED YAICHE CITE POLICE LCL N&deg;83 (home)</div>
-      <div class="field-line" style="margin-bottom:0;"><b>TEL:</b> <span class="mono">0540174110</span></div>
+      <div class="field-line" style="margin-top:10px;"><b data-i18n="yalidine_label">YALIDINE:</b> BLIDA OULED YAICHE (office)</div>
+      <div class="field-line"><b data-i18n="other_company_label">Other company:</b> BLIDA OULED YAICHE CITE POLICE LCL N&deg;83 (home)</div>
+      <div class="field-line" style="margin-bottom:0;"><b data-i18n="tel_label">TEL:</b> <span class="mono">0540174110</span></div>
     </div>
     <div class="panel" style="max-width:520px;margin:0 auto;">
       <div class="new-id-banner" id="register-banner">
-        <div class="label">Your repair number</div>
+        <div class="label" data-i18n="your_repair_number">Your repair number</div>
         <div class="id-row">
           <div class="id-val mono" id="register-id-val"></div>
         </div>
         <div id="register-qr" style="margin-top:12px;"></div>
-        <button class="btn-ghost" id="register-again-btn" style="display:none;margin-top:14px;" onclick="resetRegisterForm()">Register another device</button>
+        <button class="btn-ghost" id="register-again-btn" data-i18n="register_again" style="display:none;margin-top:14px;" onclick="resetRegisterForm()">Register another device</button>
       </div>
       <div id="register-form-fields">
-        <h2>Register your device</h2>
-        <label>Your name</label>
+        <h2 data-i18n="register_heading">Register your device</h2>
+        <label data-i18n="your_name">Your name</label>
         <input id="r-name" placeholder="Jordan Lee">
-        <label>Phone number</label>
+        <label data-i18n="phone_number">Phone number</label>
         <input id="r-phone" placeholder="0540174110">
-        <label>Entry date</label>
+        <label data-i18n="entry_date">Entry date</label>
         <input id="r-entrydate" type="date">
         <div class="row2">
           <div>
-            <label>Card brand</label>
+            <label data-i18n="card_brand">Card brand</label>
             <input id="r-brand" placeholder="ASUS">
           </div>
           <div>
-            <label>Card model</label>
+            <label data-i18n="card_model">Card model</label>
             <input id="r-model" placeholder="ROG Strix RTX 4070 Ti">
           </div>
         </div>
-        <label>Describe the issue</label>
-        <textarea id="r-issue" placeholder="What's wrong with the device? Be as detailed as you can." style="min-height:100px;"></textarea>
-        <div class="callout" style="margin-top:16px;font-size:13px;">📷 Please send us a picture of the package when you send your device on WhatsApp</div>
-        <div class="pw-error" id="register-form-error">Enter your name and phone number.</div>
-        <button class="btn" onclick="registerDevice()">Submit</button>
+        <label data-i18n="describe_issue">Describe the issue</label>
+        <textarea id="r-issue" data-i18n-placeholder="issue_placeholder" placeholder="What's wrong with the device? Be as detailed as you can." style="min-height:100px;"></textarea>
+        <div class="callout" data-i18n="callout_photo" style="margin-top:16px;font-size:13px;">📷 Please send us a picture of the package when you send your device on WhatsApp</div>
+
+        <div class="conditions-gate">
+          <button type="button" class="btn-ghost" style="width:auto;" onclick="openConditionsModal()">📄 <span data-i18n="view_conditions_btn">LAPTX Conditions</span></button>
+          <label class="conditions-checkbox-label">
+            <input type="checkbox" id="conditions-checkbox" onchange="onConditionsCheckboxChange()">
+            <span data-i18n="conditions_checkbox_label">I have read and accept the LAPTX conditions</span>
+          </label>
+        </div>
+
+        <div class="pw-error" id="register-form-error" data-i18n="form_error_register">Enter your name and phone number.</div>
+        <button class="btn" id="register-submit-btn" data-i18n="submit_btn" onclick="registerDevice()" disabled>Submit</button>
       </div>
     </div>
-    <div class="callout" id="reg-callout" style="max-width:520px;margin:16px auto 0;">⚠️ You'll be given a repair number after submitting — save it along with your phone number to check your status later.</div>
+    <div class="callout" id="reg-callout" data-i18n="reg_callout" style="max-width:520px;margin:16px auto 0;">⚠️ You'll be given a repair number after submitting — save it along with your phone number to check your status later.</div>
+  </div>
+
+  <div id="conditions-modal-overlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeConditionsModal()">
+    <div class="modal-panel">
+      <div class="modal-panel-head">
+        <div data-i18n="conditions_modal_title" style="font-weight:700;font-size:15px;">LAPTX Conditions</div>
+        <button type="button" class="modal-close-btn" onclick="closeConditionsModal()">&times;</button>
+      </div>
+      <div class="modal-panel-body" dir="rtl" lang="ar" id="conditions-modal-text"></div>
+      <div class="modal-panel-foot">
+        <label class="conditions-checkbox-label">
+          <input type="checkbox" id="conditions-checkbox-modal" onchange="onConditionsModalCheckboxChange()">
+          <span data-i18n="conditions_checkbox_label">I have read and accept the LAPTX conditions</span>
+        </label>
+        <button type="button" class="btn" data-i18n="close_btn" onclick="closeConditionsModal()">Close</button>
+      </div>
+    </div>
   </div>
 
   <div class="view" id="view-customer">
     <div class="panel" style="max-width:600px;margin:0 auto;">
-      <h2>Find your device</h2>
-      <label>Repair number</label>
+      <h2 data-i18n="find_device_heading">Find your device</h2>
+      <label data-i18n="repair_number_label">Repair number</label>
       <input id="customer-id" type="number" placeholder="320" class="mono" onkeydown="if(event.key==='Enter')customerLookup()">
-      <label>Phone number</label>
+      <label data-i18n="phone_number">Phone number</label>
       <input id="customer-phone" placeholder="0540174110" onkeydown="if(event.key==='Enter')customerLookup()">
-      <button class="btn" onclick="customerLookup()">Search</button>
-      <div class="pw-error" id="customer-form-error">Enter both your repair number and phone number.</div>
+      <button class="btn" data-i18n="search_btn" onclick="customerLookup()">Search</button>
+      <div class="pw-error" id="customer-form-error" data-i18n="form_error_status">Enter both your repair number and phone number.</div>
       <div id="customer-results"></div>
     </div>
-    <div class="disclaimer" style="max-width:600px;margin:16px auto 0;">Both the repair number and matching phone number are required, so a random guessed number alone can't show someone else's ticket.</div>
+    <div class="disclaimer" style="max-width:600px;margin:16px auto 0;" data-i18n="disclaimer_status">Both the repair number and matching phone number are required, so a random guessed number alone can't show someone else's ticket.</div>
   </div>
 </div>
 
@@ -547,8 +613,214 @@ async function apiGet(action, params={}){
 
 const STATUSES = ['Registered','Received','Diagnosing','Waiting for Parts','Repairing','Ready','Picked Up'];
 const PAYMENT_STATUSES = ['Unpaid','Partial','Paid'];
-function statusLabel(status){ return status; }
-function paymentStatusLabel(status){ return status; }
+
+/* ============================================================
+   LANGUAGE (customer-facing pages only: Register device + Check status)
+   ============================================================ */
+const I18N = {
+  en: {
+    delivery_info: 'DELIVERY INFORMATIONS',
+    yalidine_label: 'YALIDINE:',
+    other_company_label: 'Other company:',
+    tel_label: 'TEL:',
+    your_repair_number: 'Your repair number',
+    register_again: 'Register another device',
+    register_heading: 'Register your device',
+    your_name: 'Your name',
+    phone_number: 'Phone number',
+    entry_date: 'Entry date',
+    card_brand: 'Card brand',
+    card_model: 'Card model',
+    describe_issue: 'Describe the issue',
+    issue_placeholder: "What's wrong with the device? Be as detailed as you can.",
+    callout_photo: '📷 Please send us a picture of the package when you send your device on WhatsApp',
+    form_error_register: 'Enter your name and phone number.',
+    submit_btn: 'Submit',
+    reg_callout: "⚠️ You'll be given a repair number after submitting — save it along with your phone number to check your status later.",
+    find_device_heading: 'Find your device',
+    repair_number_label: 'Repair number',
+    search_btn: 'Search',
+    form_error_status: 'Enter both your repair number and phone number.',
+    disclaimer_status: "Both the repair number and matching phone number are required, so a random guessed number alone can't show someone else's ticket.",
+    searching: 'Searching…',
+    no_ticket_found: 'No ticket found for that repair number and phone number combination. Double check and try again.',
+    entry_date_field: 'Entry date:',
+    price_field: 'Price:',
+    update_from_shop: 'Update from the shop',
+    cancelled_msg: 'This registration was cancelled.',
+    view_conditions_btn: 'LAPTX Conditions',
+    conditions_checkbox_label: 'I have read and accept the LAPTX conditions',
+    conditions_modal_title: 'LAPTX Conditions',
+    close_btn: 'Close',
+    conditions_required_error: 'Please read and accept the LAPTX conditions before submitting.',
+    statuses: {
+      'Registered':'Registered','Received':'Received','Diagnosing':'Diagnosing',
+      'Waiting for Parts':'Waiting for Parts','Repairing':'Repairing','Ready':'Ready',
+      'Picked Up':'Picked Up','Cancelled':'Cancelled'
+    },
+    payment: { 'Unpaid':'Unpaid', 'Partial':'Partial', 'Paid':'Paid' }
+  },
+  ar: {
+    delivery_info: 'معلومات التسليم',
+    yalidine_label: 'ياليدين:',
+    other_company_label: 'شركة أخرى:',
+    tel_label: 'الهاتف:',
+    your_repair_number: 'رقم الإصلاح الخاص بك',
+    register_again: 'تسجيل جهاز آخر',
+    register_heading: 'سجّل جهازك',
+    your_name: 'اسمك',
+    phone_number: 'رقم الهاتف',
+    entry_date: 'تاريخ الاستلام',
+    card_brand: 'العلامة التجارية للكرت',
+    card_model: 'الموديل',
+    describe_issue: 'صف المشكلة',
+    issue_placeholder: 'ما هي المشكلة في الجهاز؟ كن دقيقاً قدر الإمكان.',
+    callout_photo: '📷 يرجى إرسال صورة للطرد عند إرسال جهازك عبر واتساب',
+    form_error_register: 'أدخل اسمك ورقم هاتفك.',
+    submit_btn: 'إرسال',
+    reg_callout: '⚠️ سيتم إعطاؤك رقم إصلاح بعد الإرسال — احتفظ به مع رقم هاتفك للتحقق من حالتك لاحقاً.',
+    find_device_heading: 'ابحث عن جهازك',
+    repair_number_label: 'رقم الإصلاح',
+    search_btn: 'بحث',
+    form_error_status: 'أدخل رقم الإصلاح ورقم الهاتف.',
+    disclaimer_status: 'رقم الإصلاح ورقم الهاتف المطابق مطلوبان معاً، لذلك لا يمكن لرقم عشوائي وحده إظهار بطاقة شخص آخر.',
+    searching: 'جارٍ البحث…',
+    no_ticket_found: 'لم يتم العثور على بطاقة بهذا الرقم ورقم الهاتف. تحقق مرة أخرى وحاول مجدداً.',
+    entry_date_field: 'تاريخ الاستلام:',
+    price_field: 'السعر:',
+    update_from_shop: 'تحديث من المحل',
+    cancelled_msg: 'تم إلغاء هذا التسجيل.',
+    view_conditions_btn: 'شروط LAPTX',
+    conditions_checkbox_label: 'لقد قرأت ووافقت على شروط LAPTX',
+    conditions_modal_title: 'شروط LAPTX',
+    close_btn: 'إغلاق',
+    conditions_required_error: 'يرجى قراءة والموافقة على شروط LAPTX قبل الإرسال.',
+    statuses: {
+      'Registered':'مسجّل','Received':'تم الاستلام','Diagnosing':'قيد الفحص',
+      'Waiting for Parts':'بانتظار القطع','Repairing':'قيد الإصلاح','Ready':'جاهز للاستلام',
+      'Picked Up':'تم التسليم','Cancelled':'ملغى'
+    },
+    payment: { 'Unpaid':'غير مدفوع', 'Partial':'مدفوع جزئياً', 'Paid':'مدفوع بالكامل' }
+  }
+};
+
+let currentLang = localStorage.getItem('laptx_lang') || 'en';
+
+function statusLabel(status){ return (I18N[currentLang].statuses[status]) || status; }
+function paymentStatusLabel(status){ return (I18N[currentLang].payment[status]) || status; }
+
+function applyLanguage(){
+  const dict = I18N[currentLang];
+  const isAr = currentLang === 'ar';
+
+  ['view-register','view-customer'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.setAttribute('dir', isAr ? 'rtl' : 'ltr');
+    el.setAttribute('lang', isAr ? 'ar' : 'en');
+  });
+
+  document.querySelectorAll('#view-register [data-i18n], #view-customer [data-i18n], #conditions-modal-overlay [data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    if(dict[key] !== undefined) el.textContent = dict[key];
+  });
+  document.querySelectorAll('#view-register [data-i18n-placeholder], #view-customer [data-i18n-placeholder]').forEach(el=>{
+    const key = el.getAttribute('data-i18n-placeholder');
+    if(dict[key] !== undefined) el.placeholder = dict[key];
+  });
+
+  document.getElementById('lang-btn-en').classList.toggle('active', currentLang==='en');
+  document.getElementById('lang-btn-ar').classList.toggle('active', currentLang==='ar');
+}
+
+function setLanguage(lang){
+  currentLang = lang;
+  localStorage.setItem('laptx_lang', lang);
+  applyLanguage();
+  // Re-render anything already on screen that includes translated text
+  if(document.getElementById('customer-results').innerHTML.trim() !== ''){
+    customerLookup();
+  }
+}
+
+/* ============================================================
+   LAPTX CONDITIONS — must be read/accepted before Submit unlocks
+   ============================================================ */
+const LAPTX_CONDITIONS_TEXT = `شروط التصليح
+التصليح يمكن ان يأخد من اسبوع الى شهر كامل حسب توفر القطع
+Garentie : 
+ فقط بعد التصليح 5 ايام
+اذا عدت يا اخي بعد هذه الايام بأي حجة كانت سيعتبر تصليح جديد و بسعر جديد طبعا
+ اعطال التغذية . ليست متعلقة كلها بالضمان لانو احتمال عندك مشكل في علبة التغذية و هي التي تحرق كارت الشاشة لذى فتفقد جيدا التغذية قبل التركيب
+----------------------------------------------
+ : اذا نجح التصليح 
+تكاليف التصليح تتضمن سعر اليد العاملة + ثمن القطع المستبدلة في حال ان الجهاز صلح   
+
+الثمن يتغير على حسب نوع الكارت بطبيعة الحال و المجهود المبذول يعني كارت اذا ذهب لمصلح من قبل يمكن ان يكلف اكثر في التشخيص
+
+تكاليف التصليح تعطى بدقة اكثر بعد التشخيص 
+لكن في الغالب تكون 
+17% prix du GPU + prix des pieces 
+يعني يمكنك اخذ فكرة
+
+----------------------------------------------
+اذا لم ينجح التصليح 
+  سيكون هناك تكلفة بقيمة [  500دج ] او اكثر في بعض الحالات " الخاصة " والتي سيتم تبليغكم عنها كتكلفة تشخيص
+
+----------------------------------------------
+
+في حال الموافقة على التصليح و على السعر . و شرعنا في تصليح الجهاز . و كان هناك تردد من الزبون . لن نرجع الى المرحلة السابقة
+
+----------------------------------------------
+Reballing :
+عملية نزع معالج وتركيبه من جديد 
+
+في حال نجاح العملية . الثمن 
+25% prix du GPU 
+
+في حال عدم نجاح العملية يدفع الزبون تكاليف مقابل المحاولة كون المشكل بداخل المعالج
+كون العملية دقيقة تأخذ وقت و جهد كبير و في بعض الاحيان نقوم بها كمرحلة اخيرة 
+
+اذا كان الكرت قديم جدا فلا 
+جدوى من هذه العملية
+
+----------------------------------------------
+ تكاليف التوصيل تكون على المستفيد من الخدمة 
+----------------------------------------------
+
+قد تتأثر ايام العمل بالمناسبات و الاعياد الدينية و في شهر رمضان
+
+يرجى من المستفيد من التصليح ان يرسل جهازه بالتوصيل الى باب المنزل اذا كان لا يريد ان يضيع جهازه . معلومات التوصيل موجودة في بداية النموذج
+
+مكالمات حجز تصليح لديها وقت محدود من 12 الى 14 و من السبت الى الخميس . اي مكالمة خارج هذا الوقت لن يرد عليها كون التقني مشغول بالتصليح لذى فيرجى التفهم
+
+----------------------------------------------
+
+بعد تصليح الجهاز ستستقبل مكالمة من الورشة في حال عدم الرد ستصلك رسال قصيرة في حال عدم التقاط الجهاز في غضون شهر نحن لسنا 
+مسؤولون عن ضياع جهازك لذى فيرجى التفهم و شكرا`;
+
+document.getElementById('conditions-modal-text').textContent = LAPTX_CONDITIONS_TEXT;
+
+function openConditionsModal(){
+  document.getElementById('conditions-modal-overlay').style.display = 'flex';
+  // keep both checkboxes in sync
+  document.getElementById('conditions-checkbox-modal').checked = document.getElementById('conditions-checkbox').checked;
+}
+
+function closeConditionsModal(){
+  document.getElementById('conditions-modal-overlay').style.display = 'none';
+}
+
+function onConditionsCheckboxChange(){
+  const checked = document.getElementById('conditions-checkbox').checked;
+  document.getElementById('conditions-checkbox-modal').checked = checked;
+  document.getElementById('register-submit-btn').disabled = !checked;
+}
+
+function onConditionsModalCheckboxChange(){
+  const checked = document.getElementById('conditions-checkbox-modal').checked;
+  document.getElementById('conditions-checkbox').checked = checked;
+  document.getElementById('register-submit-btn').disabled = !checked;
+}
 
 let tickets = [];
 let expandedId = null;
@@ -876,6 +1148,12 @@ async function registerDevice(){
   const errEl = document.getElementById('register-form-error');
   errEl.style.display = 'none';
 
+  if(!document.getElementById('conditions-checkbox').checked){
+    errEl.textContent = I18N[currentLang].conditions_required_error;
+    errEl.style.display = 'block';
+    return;
+  }
+
   if(!name || !phone){
     errEl.style.display = 'block';
     return;
@@ -883,7 +1161,7 @@ async function registerDevice(){
 
   const res = await apiGet('customerRegister', {name:name, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
   if(!res.ok){
-    errEl.textContent = res.error || 'Something went wrong. Try again.';
+    errEl.textContent = res.error || (currentLang==='ar' ? 'حدث خطأ ما. حاول مرة أخرى.' : 'Something went wrong. Try again.');
     errEl.style.display = 'block';
     return;
   }
@@ -893,6 +1171,9 @@ async function registerDevice(){
   renderStatusQR('register-qr', res.id);
   ['r-name','r-phone','r-brand','r-model','r-issue'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('r-entrydate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('conditions-checkbox').checked = false;
+  document.getElementById('conditions-checkbox-modal').checked = false;
+  document.getElementById('register-submit-btn').disabled = true;
 
   document.getElementById('register-shopinfo-panel').style.display = 'none';
   document.getElementById('register-form-fields').style.display = 'none';
@@ -907,6 +1188,9 @@ function resetRegisterForm(){
   document.getElementById('register-shopinfo-panel').style.display = 'block';
   document.getElementById('register-form-fields').style.display = 'block';
   document.getElementById('reg-callout').style.display = 'block';
+  document.getElementById('conditions-checkbox').checked = false;
+  document.getElementById('conditions-checkbox-modal').checked = false;
+  document.getElementById('register-submit-btn').disabled = true;
 }
 
 function isOverdue(t){
@@ -974,12 +1258,15 @@ function renderAdminList(){
       <div class="ticket-row-top" style="cursor:pointer;" onclick="toggleExpand('${t.id}')">
         <div>
           <div class="ticket-id">#${t.id}</div>
-          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+          <div class="ticket-meta" style="font-size:15px;">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+          <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
+            ${STATUSES.map(s=>`<option value="${s}" ${s===t.status?'selected':''}>${s}</option>`).join('')}
+            <option value="Cancelled" ${t.status==='Cancelled'?'selected':''}>Cancelled</option>
+          </select>
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
@@ -1010,7 +1297,7 @@ function renderAdminList(){
           </div>
         ` : `
           <div class="field-line"><b>Entry date:</b> ${t.entryDate || '—'}</div>
-          <div class="field-line"><b>Issue:</b> ${t.issue || '—'}</div>
+          <div class="field-line issue-line"><b>Issue:</b><br>${t.issue || '—'}</div>
           <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
           <button class="btn-ghost" onclick="startTicketEdit('${t.id}')">Edit ticket</button>
         `}
@@ -1487,6 +1774,21 @@ function renderRevenue(){
   document.getElementById('stat-outstanding').textContent = outstanding.toLocaleString() + ' DA';
   document.getElementById('stat-paid-count').textContent = paidCount;
 
+  // Parts sold (sell value) and parts cost (current cost price), scoped to the same period
+  let partsSoldValue = 0;
+  let partsCostValue = 0;
+  inPeriod.forEach(t=>{
+    (t.partsUsed || []).forEach(pu=>{
+      const sellPrice = parseFloat(pu.price);
+      if(!isNaN(sellPrice)) partsSoldValue += sellPrice;
+      const catalogPart = parts.find(p=>p.partNumber===pu.partNumber);
+      const costPrice = catalogPart ? parseFloat(catalogPart.costPrice) : NaN;
+      if(!isNaN(costPrice)) partsCostValue += costPrice;
+    });
+  });
+  document.getElementById('stat-parts-sold').textContent = partsSoldValue.toLocaleString() + ' DA';
+  document.getElementById('stat-parts-cost').textContent = partsCostValue.toLocaleString() + ' DA';
+
   // Cash on hand is always all-time, independent of the period filter above
   let allTimeCollected = 0;
   tickets.forEach(t=>{
@@ -1656,6 +1958,16 @@ async function updateStatus(id){
   await refreshTicketsOnly();
 }
 
+// Quick status change directly from the collapsed row's pill, without expanding the ticket
+async function quickUpdateStatus(id, newStatus){
+  const res = await apiGet('adminUpdateStatus', {id:id, status:newStatus});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
+}
+
 function askDeleteTicket(id){
   confirmingDeleteId = id;
   renderAdminList();
@@ -1690,7 +2002,7 @@ async function saveNotes(id){
 
 function traceHtml(status){
   if(status==='Cancelled'){
-    const msg = 'This registration was cancelled.';
+    const msg = I18N[currentLang].cancelled_msg;
     return `<div style="text-align:center;padding:16px;color:var(--danger);font-weight:600;">${msg}</div>`;
   }
   const idx = STATUSES.indexOf(status);
@@ -1719,12 +2031,12 @@ async function customerLookup(){
     return;
   }
 
-  results.innerHTML = '<div class="empty-state">Searching\u2026</div>';
+  results.innerHTML = `<div class="empty-state">${I18N[currentLang].searching}</div>`;
 
   const res = await apiGet('customerLookup', {id: idRaw, phone: phoneRaw});
 
   if(!res.ok || !res.ticket){
-    results.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No ticket found for that repair number and phone number combination. Double check and try again.</div>';
+    results.innerHTML = `<div class="empty-state"><i class="ti" style="font-size:13px;"></i>${I18N[currentLang].no_ticket_found}</div>`;
     return;
   }
 
@@ -1740,9 +2052,9 @@ async function customerLookup(){
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${statusLabel(t.status)}</div>
       </div>
       ${traceHtml(t.status)}
-      <div class="field-line"><b>Entry date:</b> ${t.entryDate || new Date(t.createdAt).toLocaleDateString()}</div>
-      ${t.price ? `<div class="field-line"><b>Price:</b> ${formatPrice(t.price)} <span style="color:${t.paymentStatus==='Paid'?'var(--trace)':'var(--danger)'};font-weight:600;">(${paymentStatusLabel(t.paymentStatus||'Unpaid')})</span></div>` : ''}
-      ${t.customerNote ? `<div class="customer-note"><div class="lbl">Update from the shop</div>${t.customerNote}</div>` : ''}
+      <div class="field-line"><b>${I18N[currentLang].entry_date_field}</b> ${t.entryDate || new Date(t.createdAt).toLocaleDateString()}</div>
+      ${t.price ? `<div class="field-line"><b>${I18N[currentLang].price_field}</b> ${formatPrice(t.price)} <span style="color:${t.paymentStatus==='Paid'?'var(--trace)':'var(--danger)'};font-weight:600;">(${paymentStatusLabel(t.paymentStatus||'Unpaid')})</span></div>` : ''}
+      ${t.customerNote ? `<div class="customer-note"><div class="lbl">${I18N[currentLang].update_from_shop}</div>${t.customerNote}</div>` : ''}
     </div>
   `;
 }
@@ -1757,6 +2069,7 @@ function applyDeepLink(){
   }
 }
 
+applyLanguage();
 applyDeepLink();
 loadAdminPassword();
 </script>
