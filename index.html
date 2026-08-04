@@ -893,7 +893,9 @@ async function tryUnlock(){
     adminAuthed = true;
     updateAdminVisibility();
   }else{
-    document.getElementById('pw-error').style.display = 'block';
+    const errEl = document.getElementById('pw-error');
+    errEl.textContent = res.error || 'Incorrect password.';
+    errEl.style.display = 'block';
   }
 }
 
