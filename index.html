@@ -130,6 +130,12 @@ textarea{resize:vertical;min-height:56px;}
 @media (max-width:600px){
   .parts-catalog-panel{padding:20px 16px;}
 }
+
+.parts-table{width:100%;border-collapse:collapse;font-size:14px;white-space:nowrap;}
+.parts-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);padding:8px 12px;border-bottom:1px solid var(--border);}
+.parts-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+.parts-table tbody tr:hover{background:var(--surface-2);}
+.parts-table-row-low{background:rgba(219,101,96,0.08);}
 .parts-line{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px;}
 .parts-subtotal{font-size:13px;color:var(--text-muted);margin:8px 0;}
 .status-pill{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;
@@ -563,6 +569,7 @@ textarea{resize:vertical;min-height:56px;}
 const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
 
+
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // action (camelCase, matches the old Apps Script actions) -> Postgres RPC function name
@@ -589,6 +596,7 @@ const ACTION_TO_RPC = {
   withdrawalCreate: 'withdrawal_create',
   withdrawalDelete: 'withdrawal_delete',
   customerLookup: 'customer_lookup',
+  customerConfirmPickup: 'customer_confirm_pickup',
   customerRegister: 'customer_register'
 };
 
@@ -660,6 +668,8 @@ const I18N = {
     conditions_modal_title: 'LAPTX Conditions',
     close_btn: 'Close',
     conditions_required_error: 'Please read and accept the LAPTX conditions before submitting.',
+    confirm_pickup_btn: '✅ I received my device',
+    pickup_confirmed_msg: 'Thanks for confirming — glad it made it back to you safely!',
     statuses: {
       'Registered':'Registered','Received':'Received','Diagnosing':'Diagnosing',
       'Waiting for Parts':'Waiting for Parts','Repairing':'Repairing','Ready':'Ready',
@@ -702,6 +712,8 @@ const I18N = {
     conditions_modal_title: 'شروط LAPTX',
     close_btn: 'إغلاق',
     conditions_required_error: 'يرجى قراءة والموافقة على شروط LAPTX قبل الإرسال.',
+    confirm_pickup_btn: '✅ لقد استلمت جهازي',
+    pickup_confirmed_msg: 'شكراً لتأكيدك — سعداء بوصول جهازك بأمان!',
     statuses: {
       'Registered':'مسجّل','Received':'تم الاستلام','Diagnosing':'قيد الفحص',
       'Waiting for Parts':'بانتظار القطع','Repairing':'قيد الإصلاح','Ready':'جاهز للاستلام',
@@ -1312,11 +1324,15 @@ function renderAdminList(){
         `}
         <label>Update status</label>
         <div class="status-update-row">
-          <select id="status-sel-${t.id}">
+          <select id="status-sel-${t.id}" onchange="toggleWaitingPartInput('${t.id}')">
             ${STATUSES.map(s=>`<option value="${s}" ${s===t.status?'selected':''}>${s}</option>`).join('')}
             <option value="Cancelled" ${t.status==='Cancelled'?'selected':''}>Cancelled (never sent)</option>
           </select>
           <button class="btn-ghost" onclick="updateStatus('${t.id}')">Apply</button>
+        </div>
+        <div id="waiting-part-row-${t.id}" style="display:${t.status==='Waiting for Parts' ? 'block' : 'none'};margin-top:8px;">
+          <label>Waiting for which part?</label>
+          <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
         </div>
         <label>Note for customer (shown on their status page)</label>
         <textarea id="cnote-${t.id}">${t.customerNote||''}</textarea>
@@ -1530,6 +1546,97 @@ function toggleLowStockFilter(){
   renderPartsList();
 }
 
+function renderPartsTable(filtered){
+  const rows = filtered.map(pt=>{
+    const location = [pt.box ? 'Box '+pt.box : '', pt.compartment ? 'Slot '+pt.compartment : ''].filter(Boolean).join(' · ') || '—';
+    const missingCost = pt.costPrice===''||pt.costPrice==null||isNaN(parseFloat(pt.costPrice));
+    const open = partExpandedId === pt.partNumber;
+    const rowHtml = `
+      <tr class="${pt.lowStock ? 'parts-table-row-low' : ''}">
+        <td class="mono">${pt.partNumber}</td>
+        <td>${pt.name}</td>
+        <td>${location}</td>
+        <td class="mono">${formatPrice(pt.price) || '—'}</td>
+        <td class="mono">${missingCost ? '—' : formatPrice(pt.costPrice)}</td>
+        <td class="mono">${pt.quantity}${pt.lowStock ? ' ⚠️' : ''}</td>
+        <td><button class="btn-ghost" style="width:auto;padding:5px 10px;font-size:10px;" onclick="togglePartExpand('${pt.partNumber}')">${open ? 'Close' : 'Edit'}</button></td>
+      </tr>`;
+
+    if(!open) return rowHtml;
+
+    const editHtml = `
+      <tr>
+        <td colspan="7" style="background:var(--surface-2);padding:16px;">
+          <label>Name</label>
+          <input id="pt-edit-name-${pt.partNumber}" value="${(pt.name||'').replace(/"/g,'&quot;')}">
+          <div class="row2">
+            <div>
+              <label>Sell price (DA)</label>
+              <input id="pt-edit-price-${pt.partNumber}" type="number" value="${pt.price||''}" class="mono">
+            </div>
+            <div>
+              <label>Cost price (DA)</label>
+              <input id="pt-edit-cost-${pt.partNumber}" type="number" value="${pt.costPrice||''}" class="mono">
+            </div>
+          </div>
+          <div class="row2">
+            <div>
+              <label>Quantity</label>
+              <input id="pt-edit-qty-${pt.partNumber}" type="number" value="${pt.quantity}" class="mono">
+            </div>
+            <div>
+              <label>Low stock warning at</label>
+              <input id="pt-edit-threshold-${pt.partNumber}" type="number" value="${pt.lowStockThreshold}" class="mono">
+            </div>
+          </div>
+          <div class="row2">
+            <div>
+              <label>Box / location</label>
+              <input id="pt-edit-box-${pt.partNumber}" value="${(pt.box||'').replace(/"/g,'&quot;')}" class="mono">
+            </div>
+            <div>
+              <label>Compartment</label>
+              <input id="pt-edit-compartment-${pt.partNumber}" value="${(pt.compartment||'').replace(/"/g,'&quot;')}" class="mono">
+            </div>
+          </div>
+          <label>Restock (add to current quantity)</label>
+          <div style="display:flex;gap:8px;">
+            <input id="pt-restock-${pt.partNumber}" type="number" placeholder="10" class="mono" style="flex:1;">
+            <button class="btn-ghost" style="width:auto;" onclick="quickRestock('${pt.partNumber}')">Add stock</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button class="btn-ghost" onclick="savePartEdit('${pt.partNumber}')">Close &amp; Save</button>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+            ${confirmingDeletePart===pt.partNumber ? `
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:12px;color:var(--danger);">Delete this part?</span>
+                <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="deletePart('${pt.partNumber}')">Confirm delete</button>
+                <button class="btn-ghost" onclick="cancelDeletePart()">Cancel</button>
+              </div>
+            ` : `
+              <button class="btn-ghost" style="color:var(--danger);border-color:var(--danger);" onclick="askDeletePart('${pt.partNumber}')">Delete part</button>
+            `}
+          </div>
+        </td>
+      </tr>`;
+
+    return rowHtml + editHtml;
+  }).join('');
+
+  return `
+    <div style="overflow-x:auto;">
+      <table class="parts-table">
+        <thead>
+          <tr>
+            <th>Part #</th><th>Name</th><th>Location</th><th>Sell</th><th>Cost</th><th>Qty</th><th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 async function createPart(){
   const partNumber = document.getElementById('pt-number').value.trim();
   const name = document.getElementById('pt-name').value.trim();
@@ -1606,77 +1713,7 @@ function renderPartsList(){
     return;
   }
 
-  list.innerHTML = filtered.map(pt=>{
-    const open = partExpandedId===pt.partNumber;
-    return `
-    <div class="ticket-row">
-      <div class="ticket-row-top" style="cursor:pointer;" onclick="togglePartExpand('${pt.partNumber}')">
-        <div>
-          <div class="ticket-id mono">${pt.partNumber} ${(pt.box || pt.compartment) ? `<span style="font-size:12px;color:var(--text-muted);font-weight:500;">· ${[pt.box ? 'Box '+pt.box : '', pt.compartment ? 'Slot '+pt.compartment : ''].filter(Boolean).join(' · ')}</span>` : ''}</div>
-          <div class="ticket-meta">${pt.name}</div>
-          ${pt.lowStock ? `<div class="lowstock-flag">⚠️ Low stock — ${pt.quantity} left</div>` : ''}
-          ${pt.lowStock && (pt.costPrice===''||pt.costPrice==null||isNaN(parseFloat(pt.costPrice))) ? `<div class="lowstock-flag">⚠️ No cost price set</div>` : ''}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;">
-          <div class="mono" style="font-weight:600;font-size:17px;">${formatPrice(pt.price) || '—'}</div>
-          <div style="font-size:14px;color:var(--text-muted);">Qty: ${pt.quantity}</div>
-        </div>
-      </div>
-      <div class="ticket-expand ${open?'open':''}">
-        <label>Name</label>
-        <input id="pt-edit-name-${pt.partNumber}" value="${(pt.name||'').replace(/"/g,'&quot;')}">
-        <div class="row2">
-          <div>
-            <label>Sell price (DA)</label>
-            <input id="pt-edit-price-${pt.partNumber}" type="number" value="${pt.price||''}" class="mono">
-          </div>
-          <div>
-            <label>Cost price (DA)</label>
-            <input id="pt-edit-cost-${pt.partNumber}" type="number" value="${pt.costPrice||''}" class="mono">
-          </div>
-        </div>
-        <div class="row2">
-          <div>
-            <label>Quantity</label>
-            <input id="pt-edit-qty-${pt.partNumber}" type="number" value="${pt.quantity}" class="mono">
-          </div>
-          <div>
-            <label>Low stock warning at</label>
-            <input id="pt-edit-threshold-${pt.partNumber}" type="number" value="${pt.lowStockThreshold}" class="mono">
-          </div>
-        </div>
-        <div class="row2">
-          <div>
-            <label>Box / location</label>
-            <input id="pt-edit-box-${pt.partNumber}" value="${(pt.box||'').replace(/"/g,'&quot;')}" class="mono">
-          </div>
-          <div>
-            <label>Compartment</label>
-            <input id="pt-edit-compartment-${pt.partNumber}" value="${(pt.compartment||'').replace(/"/g,'&quot;')}" class="mono">
-          </div>
-        </div>
-        <label>Restock (add to current quantity)</label>
-        <div style="display:flex;gap:8px;">
-          <input id="pt-restock-${pt.partNumber}" type="number" placeholder="10" class="mono" style="flex:1;">
-          <button class="btn-ghost" style="width:auto;" onclick="quickRestock('${pt.partNumber}')">Add stock</button>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-          <button class="btn-ghost" onclick="savePartEdit('${pt.partNumber}')">Save changes</button>
-        </div>
-        <div style="display:flex;justify-content:flex-end;margin-top:10px;">
-          ${confirmingDeletePart===pt.partNumber ? `
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:12px;color:var(--danger);">Delete this part?</span>
-              <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="deletePart('${pt.partNumber}')">Confirm delete</button>
-              <button class="btn-ghost" onclick="cancelDeletePart()">Cancel</button>
-            </div>
-          ` : `
-            <button class="btn-ghost" style="color:var(--danger);border-color:var(--danger);" onclick="askDeletePart('${pt.partNumber}')">Delete part</button>
-          `}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  list.innerHTML = renderPartsTable(filtered);
 }
 
 function togglePartExpand(partNumber){
@@ -1697,6 +1734,7 @@ async function savePartEdit(partNumber){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
   }
+  partExpandedId = null;
   await loadPartsList();
 }
 
@@ -1966,10 +2004,18 @@ async function deleteWithdrawal(id){
   await loadWithdrawals();
 }
 
+function toggleWaitingPartInput(id){
+  const sel = document.getElementById('status-sel-'+id);
+  const row = document.getElementById('waiting-part-row-'+id);
+  if(row) row.style.display = sel.value === 'Waiting for Parts' ? 'block' : 'none';
+}
+
 async function updateStatus(id){
   const sel = document.getElementById('status-sel-'+id);
   const newStatus = sel.value;
-  const res = await apiGet('adminUpdateStatus', {id:id, status:newStatus});
+  const noteEl = document.getElementById('waiting-part-'+id);
+  const note = (newStatus === 'Waiting for Parts' && noteEl) ? noteEl.value.trim() : '';
+  const res = await apiGet('adminUpdateStatus', {id:id, status:newStatus, note:note});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
@@ -1979,7 +2025,11 @@ async function updateStatus(id){
 
 // Quick status change directly from the collapsed row's pill, without expanding the ticket
 async function quickUpdateStatus(id, newStatus){
-  const res = await apiGet('adminUpdateStatus', {id:id, status:newStatus});
+  let note = '';
+  if(newStatus === 'Waiting for Parts'){
+    note = (window.prompt('Waiting for which part?', '') || '').trim();
+  }
+  const res = await apiGet('adminUpdateStatus', {id:id, status:newStatus, note:note});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
@@ -2037,6 +2087,9 @@ function traceHtml(status){
   }).join('') + '</div>';
 }
 
+let lastLookupId = null;
+let lastLookupPhone = null;
+
 async function customerLookup(){
   const idRaw = document.getElementById('customer-id').value.trim();
   const phoneRaw = document.getElementById('customer-phone').value.trim();
@@ -2059,6 +2112,9 @@ async function customerLookup(){
     return;
   }
 
+  lastLookupId = idRaw;
+  lastLookupPhone = phoneRaw;
+
   const t = res.ticket;
   const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
   results.innerHTML = `
@@ -2074,8 +2130,25 @@ async function customerLookup(){
       <div class="field-line"><b>${I18N[currentLang].entry_date_field}</b> ${t.entryDate || new Date(t.createdAt).toLocaleDateString()}</div>
       ${t.price ? `<div class="field-line"><b>${I18N[currentLang].price_field}</b> ${formatPrice(t.price)} <span style="color:${t.paymentStatus==='Paid'?'var(--trace)':'var(--danger)'};font-weight:600;">(${paymentStatusLabel(t.paymentStatus||'Unpaid')})</span></div>` : ''}
       ${t.customerNote ? `<div class="customer-note"><div class="lbl">${I18N[currentLang].update_from_shop}</div>${t.customerNote}</div>` : ''}
+      ${t.status==='Picked Up' ? (
+        t.customerConfirmedAt
+          ? `<div class="callout" style="margin-top:16px;font-size:14px;">✅ ${I18N[currentLang].pickup_confirmed_msg}</div>`
+          : `<button class="btn" id="confirm-pickup-btn" onclick="confirmPickup()" style="margin-top:16px;">${I18N[currentLang].confirm_pickup_btn}</button>`
+      ) : ''}
     </div>
   `;
+}
+
+async function confirmPickup(){
+  if(!lastLookupId || !lastLookupPhone) return;
+  const btn = document.getElementById('confirm-pickup-btn');
+  if(btn){ btn.disabled = true; btn.textContent = I18N[currentLang].searching; }
+  const res = await apiGet('customerConfirmPickup', {id: lastLookupId, phone: lastLookupPhone});
+  if(!res.ok){
+    if(btn){ btn.disabled = false; btn.textContent = I18N[currentLang].confirm_pickup_btn; }
+    return;
+  }
+  customerLookup();
 }
 
 function applyDeepLink(){
