@@ -408,26 +408,6 @@ textarea{resize:vertical;min-height:56px;}
 
     <div id="admin-workshop-subview" style="display:none;">
       <div class="panel">
-        <h2>Workshop — pricing &amp; payments</h2>
-        <div class="list-controls">
-          <input id="workshop-search" placeholder="Search name, phone, ID, device..." oninput="renderWorkshopList()">
-          <select id="workshop-filter" onchange="renderWorkshopList()">
-            <option value="">All payment statuses</option>
-            <option value="Unpaid">Unpaid</option>
-            <option value="Partial">Partial</option>
-            <option value="Paid">Paid</option>
-          </select>
-          <select id="workshop-sort" onchange="renderWorkshopList()">
-            <option value="newest">Newest first</option>
-            <option value="number-asc">Number: low to high</option>
-            <option value="number-desc">Number: high to low</option>
-          </select>
-          <span class="count-tag" id="workshop-count"></span>
-        </div>
-        <div id="workshop-list"></div>
-      </div>
-
-      <div class="panel" style="margin-top:16px;">
         <h2>Revenue</h2>
         <div class="list-controls">
           <select id="revenue-period" onchange="renderRevenue()">
@@ -487,6 +467,26 @@ textarea{resize:vertical;min-height:56px;}
 
         <h2 style="margin-top:24px;">Paid repairs</h2>
         <div id="revenue-list"></div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>Workshop — pricing &amp; payments</h2>
+        <div class="list-controls">
+          <input id="workshop-search" placeholder="Search name, phone, ID, device..." oninput="renderWorkshopList()">
+          <select id="workshop-filter" onchange="renderWorkshopList()">
+            <option value="">All payment statuses</option>
+            <option value="Unpaid">Unpaid</option>
+            <option value="Partial">Partial</option>
+            <option value="Paid">Paid</option>
+          </select>
+          <select id="workshop-sort" onchange="renderWorkshopList()">
+            <option value="newest">Newest first</option>
+            <option value="number-asc">Number: low to high</option>
+            <option value="number-desc">Number: high to low</option>
+          </select>
+          <span class="count-tag" id="workshop-count"></span>
+        </div>
+        <div id="workshop-list"></div>
       </div>
     </div>
 
@@ -689,7 +689,7 @@ textarea{resize:vertical;min-height:56px;}
    ============================================================ */
 const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
-;
+
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
