@@ -267,8 +267,8 @@ textarea{resize:vertical;min-height:56px;}
       <button class="tab-btn" id="subtab-hard" onclick="switchAdminSubview('hard')">Hard repairs</button>
       <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Workshop</button>
       <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
-      <button class="tab-btn" id="subtab-revenue" onclick="switchAdminSubview('revenue')">Revenue</button>
       <button class="tab-btn" id="subtab-done" onclick="switchAdminSubview('done')">Done repairs</button>
+      <button class="tab-btn" id="subtab-shipping" onclick="switchAdminSubview('shipping')">Pending Shipping</button>
     </div>
 
     <div id="admin-tickets-subview">
@@ -426,6 +426,68 @@ textarea{resize:vertical;min-height:56px;}
         </div>
         <div id="workshop-list"></div>
       </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>Revenue</h2>
+        <div class="list-controls">
+          <select id="revenue-period" onchange="renderRevenue()">
+            <option value="all">All time</option>
+            <option value="today">Today</option>
+            <option value="week">This week</option>
+            <option value="month">This month</option>
+          </select>
+        </div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Based on each ticket's entry date, since payments aren't timestamped individually.</div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-label">Collected</div>
+            <div class="stat-value mono" id="stat-collected">0 DA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Outstanding</div>
+            <div class="stat-value mono" id="stat-outstanding">0 DA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Paid repairs</div>
+            <div class="stat-value mono" id="stat-paid-count">0</div>
+          </div>
+          <div class="stat-card" style="border-color:var(--trace);">
+            <div class="stat-label">Cash on hand (all time)</div>
+            <div class="stat-value mono" id="stat-cash-on-hand">0 DA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Parts sold (sell value)</div>
+            <div class="stat-value mono" id="stat-parts-sold">0 DA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Parts cost (what you paid)</div>
+            <div class="stat-value mono" id="stat-parts-cost">0 DA</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;">
+          <div id="withdraw-idle">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input id="wd-amount" type="number" min="0" step="1" placeholder="Amount (DA)" class="mono" style="max-width:150px;">
+              <input id="wd-note" placeholder="Note (optional)" style="max-width:220px;">
+              <button class="btn-ghost" onclick="askWithdrawCustom()">💵 Withdraw amount</button>
+              <button class="btn-ghost" onclick="askWithdrawAll()">Withdraw all</button>
+            </div>
+          </div>
+          <div id="withdraw-confirm" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:13px;color:var(--danger);" id="withdraw-confirm-label"></span>
+            <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="confirmWithdraw()">Confirm</button>
+            <button class="btn-ghost" onclick="cancelWithdrawAll()">Cancel</button>
+          </div>
+          <div class="pw-error" id="wd-error">Nothing to withdraw right now.</div>
+        </div>
+
+        <h2 style="margin-top:24px;">Withdrawal history</h2>
+        <div id="withdrawals-list"></div>
+
+        <h2 style="margin-top:24px;">Paid repairs</h2>
+        <div id="revenue-list"></div>
+      </div>
     </div>
 
     <div id="admin-stock-subview" style="display:none;">
@@ -506,79 +568,28 @@ textarea{resize:vertical;min-height:56px;}
       </div>
     </div>
 
-    <div id="admin-revenue-subview" style="display:none;">
-      <div class="panel">
-        <h2>Revenue</h2>
-        <div class="list-controls">
-          <select id="revenue-period" onchange="renderRevenue()">
-            <option value="all">All time</option>
-            <option value="today">Today</option>
-            <option value="week">This week</option>
-            <option value="month">This month</option>
-          </select>
-        </div>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Based on each ticket's entry date, since payments aren't timestamped individually.</div>
-        <div class="stat-row">
-          <div class="stat-card">
-            <div class="stat-label">Collected</div>
-            <div class="stat-value mono" id="stat-collected">0 DA</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Outstanding</div>
-            <div class="stat-value mono" id="stat-outstanding">0 DA</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Paid repairs</div>
-            <div class="stat-value mono" id="stat-paid-count">0</div>
-          </div>
-          <div class="stat-card" style="border-color:var(--trace);">
-            <div class="stat-label">Cash on hand (all time)</div>
-            <div class="stat-value mono" id="stat-cash-on-hand">0 DA</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Parts sold (sell value)</div>
-            <div class="stat-value mono" id="stat-parts-sold">0 DA</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Parts cost (what you paid)</div>
-            <div class="stat-value mono" id="stat-parts-cost">0 DA</div>
-          </div>
-        </div>
-
-        <div style="margin-top:20px;">
-          <div id="withdraw-idle">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-              <input id="wd-amount" type="number" min="0" step="1" placeholder="Amount (DA)" class="mono" style="max-width:150px;">
-              <input id="wd-note" placeholder="Note (optional)" style="max-width:220px;">
-              <button class="btn-ghost" onclick="askWithdrawCustom()">💵 Withdraw amount</button>
-              <button class="btn-ghost" onclick="askWithdrawAll()">Withdraw all</button>
-            </div>
-          </div>
-          <div id="withdraw-confirm" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:13px;color:var(--danger);" id="withdraw-confirm-label"></span>
-            <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="confirmWithdraw()">Confirm</button>
-            <button class="btn-ghost" onclick="cancelWithdrawAll()">Cancel</button>
-          </div>
-          <div class="pw-error" id="wd-error">Nothing to withdraw right now.</div>
-        </div>
-
-        <h2 style="margin-top:24px;">Withdrawal history</h2>
-        <div id="withdrawals-list"></div>
-
-        <h2 style="margin-top:24px;">Paid repairs</h2>
-        <div id="revenue-list"></div>
-      </div>
-    </div>
 
     <div id="admin-done-subview" style="display:none;">
       <div class="panel">
         <h2>Done repairs</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs move here automatically once they've been "Picked Up" for over 30 days, to keep the main Tickets list focused on active work.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs move here automatically once they've been "Picked Up" for over 30 days, or immediately via "End task" on Not Fixable/Tests OK. Ship one whenever it's ready to go out.</div>
         <div class="list-controls">
           <input id="done-search" placeholder="Search name, phone, ID, device..." oninput="renderDoneList()">
           <span class="count-tag" id="done-count"></span>
         </div>
         <div id="done-list"></div>
+      </div>
+    </div>
+
+    <div id="admin-shipping-subview" style="display:none;">
+      <div class="panel">
+        <h2>Pending Shipping</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Devices ready to ship back to the customer. Send one back to Done repairs if it's not actually going out yet.</div>
+        <div class="list-controls">
+          <input id="shipping-search" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
+          <span class="count-tag" id="shipping-count"></span>
+        </div>
+        <div id="shipping-list"></div>
       </div>
     </div>
     </div>
@@ -678,7 +689,7 @@ textarea{resize:vertical;min-height:56px;}
    ============================================================ */
 const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
-
+;
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -701,6 +712,8 @@ const ACTION_TO_RPC = {
   adminSetTicketDiagnosed: 'admin_set_ticket_diagnosed',
   adminSaveDiagnosticNotes: 'admin_save_diagnostic_notes',
   adminSetDiagnosisResult: 'admin_set_diagnosis_result',
+  adminEndTask: 'admin_end_task',
+  adminSetPendingShipping: 'admin_set_pending_shipping',
   partsList: 'parts_list',
   partsCreate: 'parts_create',
   partsUpdate: 'parts_update',
@@ -711,6 +724,7 @@ const ACTION_TO_RPC = {
   withdrawalDelete: 'withdrawal_delete',
   customerLookup: 'customer_lookup',
   customerConfirmPickup: 'customer_confirm_pickup',
+  customerSaveShippingInfo: 'customer_save_shipping_info',
   customerRegister: 'customer_register',
   publicWeeklyIntakeCount: 'public_weekly_intake_count'
 };
@@ -742,6 +756,19 @@ async function apiGet(action, params={}){
 }
 
 const STATUSES = ['Registered','Received','Diagnosing','Waiting for Parts','Repairing','Ready','Picked Up'];
+
+const WILAYAS = [
+  '01 - Adrar','02 - Chlef','03 - Laghouat','04 - Oum El Bouaghi','05 - Batna','06 - Béjaïa','07 - Biskra',
+  '08 - Béchar','09 - Blida','10 - Bouira','11 - Tamanrasset','12 - Tébessa','13 - Tlemcen','14 - Tiaret',
+  '15 - Tizi Ouzou','16 - Alger','17 - Djelfa','18 - Jijel','19 - Sétif','20 - Saïda','21 - Skikda',
+  '22 - Sidi Bel Abbès','23 - Annaba','24 - Guelma','25 - Constantine','26 - Médéa','27 - Mostaganem',
+  "28 - M'Sila",'29 - Mascara','30 - Ouargla','31 - Oran','32 - El Bayadh','33 - Illizi',
+  '34 - Bordj Bou Arréridj','35 - Boumerdès','36 - El Tarf','37 - Tindouf','38 - Tissemsilt','39 - El Oued',
+  '40 - Khenchela','41 - Souk Ahras','42 - Tipaza','43 - Mila','44 - Aïn Defla','45 - Naâma',
+  '46 - Aïn Témouchent','47 - Ghardaïa','48 - Relizane','49 - Timimoun','50 - Bordj Badji Mokhtar',
+  '51 - Ouled Djellal','52 - Béni Abbès','53 - In Salah','54 - In Guezzam','55 - Touggourt','56 - Djanet',
+  "57 - El M'Ghair",'58 - El Meniaa'
+];
 const PAYMENT_STATUSES = ['Unpaid','Partial','Paid'];
 
 /* ============================================================
@@ -790,6 +817,13 @@ const I18N = {
     conditions_required_error: 'Please read and accept the LAPTX conditions before submitting.',
     confirm_pickup_btn: '✅ I received my device',
     pickup_confirmed_msg: 'Thanks for confirming — glad it made it back to you safely!',
+    shipping_info_heading: 'Shipping info',
+    shipping_saved_msg: 'Your shipping info is saved. You can update it anytime.',
+    wilaya_label: 'Wilaya',
+    stopdesk_label: 'Nearest Yalidine stop-desk',
+    stopdesk_placeholder: 'e.g. Blida Centre',
+    wilaya_required_error: 'Please select your wilaya.',
+    save_shipping_btn: 'Save shipping info',
     statuses: {
       'Registered':'Registered','Received':'Received','Diagnosing':'Diagnosing',
       'Waiting for Parts':'Waiting for Parts','Repairing':'Repairing','Ready':'Ready',
@@ -839,6 +873,13 @@ const I18N = {
     conditions_required_error: 'يرجى قراءة والموافقة على شروط LAPTX قبل الإرسال.',
     confirm_pickup_btn: '✅ لقد استلمت جهازي',
     pickup_confirmed_msg: 'شكراً لتأكيدك — سعداء بوصول جهازك بأمان!',
+    shipping_info_heading: 'معلومات التوصيل',
+    shipping_saved_msg: 'تم حفظ معلومات التوصيل. يمكنك تعديلها في أي وقت.',
+    wilaya_label: 'الولاية',
+    stopdesk_label: 'أقرب مكتب ياليدين',
+    stopdesk_placeholder: 'مثال: البليدة وسط',
+    wilaya_required_error: 'يرجى اختيار ولايتك.',
+    save_shipping_btn: 'حفظ معلومات التوصيل',
     statuses: {
       'Registered':'مسجّل','Received':'تم الاستلام','Diagnosing':'قيد الفحص',
       'Waiting for Parts':'بانتظار القطع','Repairing':'قيد الإصلاح','Ready':'جاهز للاستلام',
@@ -1149,7 +1190,7 @@ async function loadWithdrawals(){
   const res = await apiGet('withdrawalsList');
   if(!res.ok) return;
   withdrawals = res.withdrawals;
-  if(currentAdminSubview==='revenue') renderRevenue();
+  if(currentAdminSubview==='workshop') renderRevenue();
 }
 
 let currentAdminSubview = 'tickets';
@@ -1165,8 +1206,8 @@ function switchAdminSubview(v){
   document.getElementById('admin-testsok-subview').style.display = v==='testsok' ? 'block' : 'none';
   document.getElementById('admin-workshop-subview').style.display = v==='workshop' ? 'block' : 'none';
   document.getElementById('admin-stock-subview').style.display = v==='stock' ? 'block' : 'none';
-  document.getElementById('admin-revenue-subview').style.display = v==='revenue' ? 'block' : 'none';
   document.getElementById('admin-done-subview').style.display = v==='done' ? 'block' : 'none';
+  document.getElementById('admin-shipping-subview').style.display = v==='shipping' ? 'block' : 'none';
   document.getElementById('subtab-tickets').classList.toggle('active', v==='tickets');
   document.getElementById('subtab-scheduler').classList.toggle('active', v==='scheduler');
   document.getElementById('subtab-hard').classList.toggle('active', v==='hard');
@@ -1176,8 +1217,8 @@ function switchAdminSubview(v){
   document.getElementById('subtab-testsok').classList.toggle('active', v==='testsok');
   document.getElementById('subtab-workshop').classList.toggle('active', v==='workshop');
   document.getElementById('subtab-stock').classList.toggle('active', v==='stock');
-  document.getElementById('subtab-revenue').classList.toggle('active', v==='revenue');
   document.getElementById('subtab-done').classList.toggle('active', v==='done');
+  document.getElementById('subtab-shipping').classList.toggle('active', v==='shipping');
   renderVisibleAdminSubview();
 }
 
@@ -1189,10 +1230,10 @@ function renderVisibleAdminSubview(){
   else if(currentAdminSubview==='fixable') renderFixableList();
   else if(currentAdminSubview==='notfixable') renderNotFixableList();
   else if(currentAdminSubview==='testsok') renderTestsOkList();
-  else if(currentAdminSubview==='workshop') renderWorkshopList();
+  else if(currentAdminSubview==='workshop'){ renderWorkshopList(); renderRevenue(); }
   else if(currentAdminSubview==='stock') renderPartsList();
-  else if(currentAdminSubview==='revenue') renderRevenue();
   else if(currentAdminSubview==='done') renderDoneList();
+  else if(currentAdminSubview==='shipping') renderShippingList();
 }
 
 function formatPrice(price){
@@ -1468,6 +1509,7 @@ function renderAdminList(){
           <div class="field-line"><b>Entry date:</b> ${t.entryDate || '—'}</div>
           <div class="field-line issue-line"><b>Issue:</b><br>${t.issue || '—'}</div>
           ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
+          ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingWilaya}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
           <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
           <button class="btn-ghost" onclick="startTicketEdit('${t.id}')">Edit ticket</button>
         `}
@@ -1520,6 +1562,7 @@ function jumpToTicket(id){
 }
 
 function ticketBucket(t){
+  if(t.archived && t.pendingShipping) return {tab:'shipping', label:'Pending Shipping'};
   if(t.archived) return {tab:'done', label:'Done repairs'};
   if(t.flaggedHard) return {tab:'hard', label:'Hard repairs'};
   if(t.diagnosisResult === 'Fixable') return {tab:'fixable', label:'Fixable'};
@@ -1540,6 +1583,12 @@ function globalJumpToTicket(id){
     switchAdminSubview('done');
     document.getElementById('done-search').value = id;
     renderDoneList();
+    return;
+  }
+  if(bucket.tab === 'shipping'){
+    switchAdminSubview('shipping');
+    document.getElementById('shipping-search').value = id;
+    renderShippingList();
     return;
   }
 
@@ -1782,7 +1831,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
-      ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — back to customer</button>` : ''}
+      ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
   }).join('');
@@ -1790,7 +1839,8 @@ function renderClassifiedList(containerId, result, emptyMsg){
 
 async function endTaskBackToCustomer(id, event){
   if(event) event.stopPropagation();
-  const res = await apiGet('adminUpdateStatus', {id:id, status:'Ready', note:''});
+  if(!window.confirm('End this task and move #' + id + ' to Done repairs? This closes it out immediately.')) return;
+  const res = await apiGet('adminEndTask', {id:id});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
@@ -1838,10 +1888,20 @@ function renderHardList(){
   }).join('');
 }
 
+async function setPendingShipping(id, flag, event){
+  if(event) event.stopPropagation();
+  const res = await apiGet('adminSetPendingShipping', {id:id, flag:flag});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
+}
+
 function renderDoneList(){
   const q = document.getElementById('done-search').value.toLowerCase();
   const list = document.getElementById('done-list');
-  const done = tickets.filter(t=>t.archived);
+  const done = tickets.filter(t=>t.archived && !t.pendingShipping);
   document.getElementById('done-count').textContent = done.length + ' total';
 
   const filtered = done.filter(t=>{
@@ -1849,7 +1909,7 @@ function renderDoneList(){
   });
 
   if(filtered.length===0){
-    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No archived repairs yet — they show up here 30 days after being picked up.</div>';
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No archived repairs yet — they show up here 30 days after being picked up, or immediately via End task.</div>';
     return;
   }
 
@@ -1867,6 +1927,49 @@ function renderDoneList(){
           <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="setPendingShipping('${t.id}', true, event)">📦 Ship</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderShippingList(){
+  const q = document.getElementById('shipping-search').value.toLowerCase();
+  const list = document.getElementById('shipping-list');
+  const pending = tickets.filter(t=>t.archived && t.pendingShipping);
+  document.getElementById('shipping-count').textContent = pending.length + ' total';
+
+  const filtered = pending.filter(t=>{
+    return !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+  });
+
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing pending shipment right now.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row">
+      <div class="ticket-row-top">
+        <div>
+          <div class="ticket-id">#${t.id}</div>
+          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+          ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          ${t.shippingWilaya
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingWilaya}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
+            : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+          ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setPendingShipping('${t.id}', false, event)">↩️ Back to Done</button>
       </div>
     </div>`;
   }).join('');
@@ -2694,8 +2797,45 @@ async function customerLookup(){
           ? `<div class="callout" style="margin-top:16px;font-size:14px;">✅ ${I18N[currentLang].pickup_confirmed_msg}</div>`
           : `<button class="btn" id="confirm-pickup-btn" onclick="confirmPickup()" style="margin-top:16px;">${I18N[currentLang].confirm_pickup_btn}</button>`
       ) : ''}
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+        <h2 style="font-size:15px;margin-bottom:10px;">${I18N[currentLang].shipping_info_heading}</h2>
+        ${t.shippingWilaya ? `<div class="field-line">✅ ${I18N[currentLang].shipping_saved_msg}</div>` : ''}
+        <label>${I18N[currentLang].wilaya_label}</label>
+        <select id="ship-wilaya">
+          <option value="">—</option>
+          ${WILAYAS.map(w=>`<option value="${w}" ${t.shippingWilaya===w?'selected':''}>${w}</option>`).join('')}
+        </select>
+        <label>${I18N[currentLang].stopdesk_label}</label>
+        <input id="ship-stopdesk" placeholder="${I18N[currentLang].stopdesk_placeholder}" value="${(t.shippingStopdesk||'').replace(/"/g,'&quot;')}">
+        <div class="pw-error" id="ship-info-error">${I18N[currentLang].wilaya_required_error}</div>
+        <button class="btn" id="save-shipping-btn" onclick="saveShippingInfo()" style="margin-top:10px;">${I18N[currentLang].save_shipping_btn}</button>
+      </div>
     </div>
   `;
+}
+
+async function saveShippingInfo(){
+  if(!lastLookupId || !lastLookupPhone) return;
+  const wilaya = document.getElementById('ship-wilaya').value;
+  const stopdesk = document.getElementById('ship-stopdesk').value.trim();
+  const errEl = document.getElementById('ship-info-error');
+  errEl.style.display = 'none';
+
+  if(!wilaya){
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('save-shipping-btn');
+  btn.disabled = true;
+  const res = await apiGet('customerSaveShippingInfo', {id: lastLookupId, phone: lastLookupPhone, wilaya: wilaya, stopdesk: stopdesk});
+  btn.disabled = false;
+  if(!res.ok){
+    errEl.textContent = res.error || errEl.textContent;
+    errEl.style.display = 'block';
+    return;
+  }
+  customerLookup();
 }
 
 async function confirmPickup(){
