@@ -1288,7 +1288,7 @@ async function createTicket(){
 
   document.getElementById('created-val').textContent = '#' + number;
   document.getElementById('created-banner').classList.add('show');
-  renderStatusQR('created-qr', number);
+  renderStatusQR('created-qr', number, phone);
   document.getElementById('print-created-btn').onclick = function(){ printSticker(number); };
   ['f-number','f-phone','f-name','f-brand','f-model','f-issue'].forEach(id=>document.getElementById(id).value='');
   await loadAdminTickets();
@@ -1317,7 +1317,7 @@ function printSticker(ticketId){
   w.document.close();
 }
 
-function renderStatusQR(containerId, ticketId){
+function renderStatusQR(containerId, ticketId, phone){
   const el = document.getElementById(containerId);
   el.innerHTML = '';
   const wrap = document.createElement('div');
@@ -1331,12 +1331,13 @@ function renderStatusQR(containerId, ticketId){
   caption.style.color = 'var(--text-muted)';
   caption.style.maxWidth = '160px';
   caption.style.lineHeight = '1.4';
-  caption.textContent = 'Scan to check status \u2014 enter your phone number when asked.';
+  caption.textContent = 'Scan to see the repair status instantly.';
   wrap.appendChild(caption);
   el.appendChild(wrap);
 
   const baseUrl = window.location.origin + window.location.pathname;
-  const deepLink = baseUrl + '?tab=customer&id=' + encodeURIComponent(ticketId);
+  let deepLink = baseUrl + '?tab=customer&id=' + encodeURIComponent(ticketId);
+  if(phone) deepLink += '&phone=' + encodeURIComponent(phone);
   new QRCode(qrBox, {
     text: deepLink,
     width: 96,
@@ -1376,7 +1377,7 @@ async function registerDevice(){
 
   document.getElementById('register-id-val').textContent = '#' + res.id;
   document.getElementById('register-banner').classList.add('show');
-  renderStatusQR('register-qr', res.id);
+  renderStatusQR('register-qr', res.id, phone);
   ['r-name','r-phone','r-brand','r-model','r-issue'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('r-entrydate').value = new Date().toISOString().slice(0,10);
   document.getElementById('conditions-checkbox').checked = false;
@@ -2854,9 +2855,12 @@ function applyDeepLink(){
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab');
   const id = params.get('id');
+  const phone = params.get('phone');
   if(tab==='customer'){
     switchView('customer');
     if(id) document.getElementById('customer-id').value = id;
+    if(phone) document.getElementById('customer-phone').value = phone;
+    if(id && phone) customerLookup();
   }
 }
 
