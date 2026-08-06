@@ -1,4 +1,4 @@
-sc<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -39,7 +39,7 @@ body{
 .header h1 span{color:var(--trace);}
 .header .sub{color:var(--text-muted);font-size:13px;margin-top:4px;}
 
-.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;}
 .tab-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.03em;text-transform:uppercase;background:transparent;border:none;color:var(--text-muted);padding:8px 16px;border-radius:6px;cursor:pointer;transition:all .15s ease;}
 
 .tab-btn.active{background:var(--surface-2);color:var(--trace);}
@@ -68,6 +68,13 @@ input,select,textarea{
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--trace);}
 textarea{resize:vertical;min-height:56px;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+.price-helper{margin-top:10px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;}
+.price-convert-row{display:flex;gap:8px;margin-top:8px;align-items:center;}
+.price-convert-row input{margin:0;flex:1;}
+.price-convert-row select{margin:0;width:auto;}
+.price-convert-result{font-size:12px;color:var(--text-muted);margin-top:8px;min-height:14px;}
+.price-convert-result .rate-value{color:var(--trace);font-weight:600;}
 
 .btn{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.03em;text-transform:uppercase;
   background:var(--trace);color:#0C1712;border:none;border-radius:6px;padding:14px 16px;cursor:pointer;
@@ -197,6 +204,7 @@ textarea{resize:vertical;min-height:56px;}
   label{font-size:13px;}
   .btn-ghost{padding:10px 14px;font-size:12px;}
   .tab-btn{padding:11px 16px;font-size:13px;}
+  .subtabs .tab-btn{padding:8px 10px;font-size:11px;}
   .status-pill{font-size:12px;padding:6px 12px;}
   .ticket-id{font-size:15px;}
   .ticket-meta,.field-line,.customer-note{font-size:14px;}
@@ -257,7 +265,7 @@ textarea{resize:vertical;min-height:56px;}
       <div id="global-search-results"></div>
     </div>
 
-    <div class="tabs" style="margin-bottom:16px;">
+    <div class="tabs subtabs" style="margin-bottom:16px;">
       <button class="tab-btn active" id="subtab-tickets" onclick="switchAdminSubview('tickets')">Tickets</button>
       <button class="tab-btn" id="subtab-scheduler" onclick="switchAdminSubview('scheduler')">Dashboard</button>
       <button class="tab-btn" id="subtab-diagnosed" onclick="switchAdminSubview('diagnosed')">Diagnosed</button>
@@ -496,6 +504,25 @@ textarea{resize:vertical;min-height:56px;}
     </div>
 
     <div id="admin-stock-subview" style="display:none;">
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Exchange rates (black market)</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Used by the AliExpress price converter instead of the official bank rate. Update these whenever the Square Port-Saïd rate moves — leave a field blank to fall back to the official live rate for that currency.</div>
+        <div class="row2">
+          <div>
+            <label>1 EUR = ? DA</label>
+            <input id="rate-eur" type="number" placeholder="276" class="mono">
+          </div>
+          <div>
+            <label>1 USD = ? DA</label>
+            <input id="rate-usd" type="number" placeholder="238" class="mono">
+          </div>
+        </div>
+        <label>1 CNY = ? DA</label>
+        <input id="rate-cny" type="number" placeholder="33" class="mono" style="max-width:160px;">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveManualRates()">Save rates</button>
+        <div id="rates-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
       <div class="panel" style="max-width:520px;margin:0 auto 20px;">
         <h2>Add part</h2>
         <div class="new-id-banner" id="part-saved-banner">
@@ -512,8 +539,23 @@ textarea{resize:vertical;min-height:56px;}
           </div>
           <div>
             <label>Cost price (DA, optional)</label>
-            <input id="pt-cost" type="number" placeholder="1500" class="mono">
+            <input id="pt-cost" type="number" placeholder="1500" class="mono" oninput="autoSellPrice('pt-cost','pt-price')">
           </div>
+        </div>
+        <div class="price-helper">
+          <button type="button" class="btn-ghost" style="width:auto;" onclick="searchAliExpress('pt-number','pt-name')">🔍 Search on AliExpress</button>
+          <button type="button" class="btn-ghost" style="width:auto;" onclick="searchDatasheet('pt-number','pt-name')">📄 Find datasheet</button>
+          <div class="price-convert-row">
+            <input id="pt-convert-amount" type="number" placeholder="Price seen" class="mono">
+            <select id="pt-convert-currency">
+              <option value="EUR">EUR</option>
+              <option value="USD">USD</option>
+              <option value="CNY">CNY</option>
+            </select>
+            <input id="pt-convert-lotsize" type="number" placeholder="Pcs/lot" value="1" min="1" class="mono" style="max-width:80px;">
+            <button type="button" class="btn-ghost" style="width:auto;" onclick="convertPriceToDzd('pt-convert-amount','pt-convert-currency','pt-convert-result','pt-cost','pt-price','pt-convert-lotsize')">Convert</button>
+          </div>
+          <div id="pt-convert-result" class="price-convert-result"></div>
         </div>
         <div class="row2">
           <div>
@@ -722,6 +764,9 @@ const ACTION_TO_RPC = {
   partsList: 'parts_list',
   partsCreate: 'parts_create',
   partsUpdate: 'parts_update',
+  adminRenamePart: 'admin_rename_part',
+  getManualRates: 'get_manual_rates',
+  adminSetManualRates: 'admin_set_manual_rates',
   partsDelete: 'parts_delete',
   partsAdjustStock: 'parts_adjust_stock',
   withdrawalsList: 'withdrawals_list',
@@ -1140,6 +1185,7 @@ function updateAdminVisibility(){
   document.getElementById('admin-content').style.display = showContent ? 'block' : 'none';
   if(showContent){
     loadAdminTickets();
+    loadManualRates();
   }else{
     renderLock();
   }
@@ -2207,6 +2253,8 @@ function renderPartsTable(filtered){
     const editHtml = `
       <tr>
         <td colspan="8" style="background:var(--surface-2);padding:16px;">
+          <label>Part number</label>
+          <input id="pt-edit-partnumber-${pt.partNumber}" value="${pt.partNumber.replace(/"/g,'&quot;')}" class="mono">
           <label>Name</label>
           <input id="pt-edit-name-${pt.partNumber}" value="${(pt.name||'').replace(/"/g,'&quot;')}">
           <div class="row2">
@@ -2216,8 +2264,23 @@ function renderPartsTable(filtered){
             </div>
             <div>
               <label>Cost price (DA)</label>
-              <input id="pt-edit-cost-${pt.partNumber}" type="number" value="${pt.costPrice||''}" class="mono">
+              <input id="pt-edit-cost-${pt.partNumber}" type="number" value="${pt.costPrice||''}" class="mono" oninput="autoSellPrice('pt-edit-cost-${pt.partNumber}','pt-edit-price-${pt.partNumber}')">
             </div>
+          </div>
+          <div class="price-helper">
+            <button type="button" class="btn-ghost" style="width:auto;" onclick="searchAliExpressText('${pt.partNumber.replace(/'/g,"\\'")}', '${(pt.name||'').replace(/'/g,"\\'")}')">🔍 Search on AliExpress</button>
+            <button type="button" class="btn-ghost" style="width:auto;" onclick="searchDatasheetText('${pt.partNumber.replace(/'/g,"\\'")}')">📄 Find datasheet</button>
+            <div class="price-convert-row">
+              <input id="pt-edit-convert-amount-${pt.partNumber}" type="number" placeholder="Price seen" class="mono">
+              <select id="pt-edit-convert-currency-${pt.partNumber}">
+                <option value="EUR">EUR</option>
+                <option value="USD">USD</option>
+                <option value="CNY">CNY</option>
+              </select>
+              <input id="pt-edit-convert-lotsize-${pt.partNumber}" type="number" placeholder="Pcs/lot" value="1" min="1" class="mono" style="max-width:80px;">
+              <button type="button" class="btn-ghost" style="width:auto;" onclick="convertPriceToDzd('pt-edit-convert-amount-${pt.partNumber}','pt-edit-convert-currency-${pt.partNumber}','pt-edit-convert-result-${pt.partNumber}','pt-edit-cost-${pt.partNumber}','pt-edit-price-${pt.partNumber}','pt-edit-convert-lotsize-${pt.partNumber}')">Convert</button>
+            </div>
+            <div id="pt-edit-convert-result-${pt.partNumber}" class="price-convert-result"></div>
           </div>
           <div class="row2">
             <div>
@@ -2277,6 +2340,136 @@ function renderPartsTable(filtered){
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+/* ============================================================
+   AliExpress search + live EUR/USD/CNY -> DZD price conversion
+   ============================================================ */
+let exchangeRateCache = {}; // { EUR: {rate, fetchedAt}, USD: {...}, CNY: {...} }
+let manualRates = {EUR:'', USD:'', CNY:''};
+
+const SELL_PRICE_MULTIPLIER = 3;
+
+function autoSellPrice(costId, priceId){
+  const cost = parseFloat(document.getElementById(costId).value);
+  const priceEl = document.getElementById(priceId);
+  if(priceEl && cost > 0){
+    priceEl.value = Math.round(cost * SELL_PRICE_MULTIPLIER);
+  }
+}
+
+function searchAliExpress(numberFieldId, nameFieldId){
+  const number = document.getElementById(numberFieldId).value.trim();
+  const name = document.getElementById(nameFieldId).value.trim();
+  searchAliExpressText(number, name);
+}
+
+function searchAliExpressText(number, name){
+  const query = (name || number || '').trim();
+  if(!query){
+    alert('Enter a part number or name first.');
+    return;
+  }
+  const url = 'https://www.aliexpress.com/wholesale?SearchText=' + encodeURIComponent(query);
+  window.open(url, '_blank');
+}
+
+function searchDatasheet(numberFieldId, nameFieldId){
+  const number = document.getElementById(numberFieldId).value.trim();
+  const name = document.getElementById(nameFieldId).value.trim();
+  searchDatasheetText(number || name);
+}
+
+function searchDatasheetText(partNumber){
+  const query = (partNumber || '').trim();
+  if(!query){
+    alert('Enter a part number first.');
+    return;
+  }
+  // Datasheets are indexed by exact part number, not descriptive names —
+  // this opens a Google search you click through and download from yourself.
+  const url = 'https://www.google.com/search?q=' + encodeURIComponent(query + ' datasheet pdf');
+  window.open(url, '_blank');
+}
+
+async function loadManualRates(){
+  const res = await apiGet('getManualRates', {});
+  if(res.ok){
+    manualRates = {EUR: res.EUR||'', USD: res.USD||'', CNY: res.CNY||''};
+    if(document.getElementById('rate-eur')){
+      document.getElementById('rate-eur').value = manualRates.EUR;
+      document.getElementById('rate-usd').value = manualRates.USD;
+      document.getElementById('rate-cny').value = manualRates.CNY;
+    }
+  }
+}
+
+async function saveManualRates(){
+  const eur = document.getElementById('rate-eur').value;
+  const usd = document.getElementById('rate-usd').value;
+  const cny = document.getElementById('rate-cny').value;
+  const res = await apiGet('adminSetManualRates', {eur:eur, usd:usd, cny:cny});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  manualRates = {EUR: eur, USD: usd, CNY: cny};
+  const msg = document.getElementById('rates-saved-msg');
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+}
+
+async function getExchangeRateToDzd(currency){
+  // Prefer the manually-set black-market rate if one is entered
+  const manual = parseFloat(manualRates[currency]);
+  if(manual && manual > 0){
+    return {rate: manual, source: 'manual'};
+  }
+
+  const cached = exchangeRateCache[currency];
+  const oneHour = 60 * 60 * 1000;
+  if(cached && (Date.now() - cached.fetchedAt) < oneHour){
+    return {rate: cached.rate, source: 'official'};
+  }
+  const res = await fetch('https://open.er-api.com/v6/latest/' + currency);
+  const data = await res.json();
+  if(data.result !== 'success' || !data.rates || !data.rates.DZD){
+    throw new Error('Could not fetch exchange rate.');
+  }
+  exchangeRateCache[currency] = {rate: data.rates.DZD, fetchedAt: Date.now()};
+  return {rate: data.rates.DZD, source: 'official'};
+}
+
+async function convertPriceToDzd(amountId, currencyId, resultId, costFieldId, sellFieldId, lotSizeId){
+  const amount = parseFloat(document.getElementById(amountId).value);
+  const currency = document.getElementById(currencyId).value;
+  const resultEl = document.getElementById(resultId);
+  const lotSize = lotSizeId ? (parseFloat(document.getElementById(lotSizeId).value) || 1) : 1;
+
+  if(!amount || amount<=0){
+    resultEl.textContent = 'Enter a valid price first.';
+    return;
+  }
+
+  resultEl.textContent = 'Converting…';
+  try{
+    const {rate, source} = await getExchangeRateToDzd(currency);
+    const totalDzd = amount * rate;
+    const unitDzd = Math.round(totalDzd / lotSize);
+    const sourceLabel = source === 'manual'
+      ? '<span style="color:var(--text-muted);">your rate</span>'
+      : '<a href="https://www.exchangerate-api.com" target="_blank" style="color:var(--text-muted);">official rate via ExchangeRate-API</a>';
+    const lotNote = lotSize > 1
+      ? ' — lot of ' + lotSize + ' → <span class="rate-value">' + unitDzd.toLocaleString() + ' DA per unit</span>'
+      : '';
+    resultEl.innerHTML = amount + ' ' + currency + ' ≈ <span class="rate-value">' + Math.round(totalDzd).toLocaleString() + ' DA</span> total (1 ' + currency + ' = ' + rate.toFixed(2) + ' DA — ' + sourceLabel + ')' + lotNote;
+    if(costFieldId){
+      document.getElementById(costFieldId).value = unitDzd;
+      if(sellFieldId) autoSellPrice(costFieldId, sellFieldId);
+    }
+  }catch(e){
+    resultEl.textContent = 'Could not fetch the exchange rate. Check your connection and try again.';
+  }
 }
 
 async function createPart(){
@@ -2374,6 +2567,7 @@ function togglePartExpand(partNumber){
 }
 
 async function savePartEdit(partNumber){
+  const newPartNumber = document.getElementById('pt-edit-partnumber-'+partNumber).value.trim();
   const name = document.getElementById('pt-edit-name-'+partNumber).value.trim();
   const price = document.getElementById('pt-edit-price-'+partNumber).value;
   const costPrice = document.getElementById('pt-edit-cost-'+partNumber).value;
@@ -2382,7 +2576,18 @@ async function savePartEdit(partNumber){
   const box = document.getElementById('pt-edit-box-'+partNumber).value.trim();
   const compartment = document.getElementById('pt-edit-compartment-'+partNumber).value.trim();
   const category = document.getElementById('pt-edit-category-'+partNumber).value.trim();
-  const res = await apiGet('partsUpdate', {partNumber:partNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box, compartment:compartment, category:category});
+
+  let targetPartNumber = partNumber;
+  if(newPartNumber && newPartNumber !== partNumber){
+    const renameRes = await apiGet('adminRenamePart', {oldNumber: partNumber, newNumber: newPartNumber});
+    if(!renameRes.ok){
+      document.getElementById('save-error-banner').style.display = 'block';
+      return;
+    }
+    targetPartNumber = newPartNumber;
+  }
+
+  const res = await apiGet('partsUpdate', {partNumber:targetPartNumber, name:name, price:price, costPrice:costPrice, quantity:quantity, lowStockThreshold:lowStockThreshold, box:box, compartment:compartment, category:category});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
