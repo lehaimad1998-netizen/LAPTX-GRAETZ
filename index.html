@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+sc<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -330,7 +330,7 @@ textarea{resize:vertical;min-height:56px;}
     <div id="admin-scheduler-subview" style="display:none;">
       <div class="stat-row" style="margin-bottom:16px;">
         <div class="stat-card" id="stat-weekly-intake-card">
-          <div class="stat-label">This week's intake (Mon–Sun)</div>
+          <div class="stat-label">This week's intake (Sat–Fri)</div>
           <div class="stat-value mono" id="stat-weekly-intake">0 / 10</div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" id="stat-weekly-intake-daily"></div>
         </div>
@@ -361,7 +361,12 @@ textarea{resize:vertical;min-height:56px;}
       </div>
       <div class="panel">
         <h2>Today's queue</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">The next 3 repairs to work on, lowest repair number first — Ready, Picked Up, Cancelled, Waiting for Parts, Diagnosed, and Hard/Long-flagged tickets are excluded.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">The next 4 repairs to work on (~2h each, roughly a full day), lowest repair number first — Ready, Picked Up, Cancelled, Waiting for Parts, Diagnosed, and Hard/Long-flagged tickets are excluded.</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <button class="btn-ghost" id="scheduler-prev-day" style="width:auto;" onclick="changeSchedulerDay(-1)">◀ Previous</button>
+          <div class="mono" id="scheduler-day-label" style="font-weight:600;font-size:13px;flex:1;text-align:center;">Today</div>
+          <button class="btn-ghost" id="scheduler-next-day" style="width:auto;" onclick="changeSchedulerDay(1)">Next ▶</button>
+        </div>
         <div id="scheduler-list"></div>
       </div>
     </div>
@@ -1197,6 +1202,7 @@ let currentAdminSubview = 'tickets';
 
 function switchAdminSubview(v){
   currentAdminSubview = v;
+  if(v==='scheduler') schedulerDayOffset = 0;
   document.getElementById('admin-tickets-subview').style.display = v==='tickets' ? 'block' : 'none';
   document.getElementById('admin-scheduler-subview').style.display = v==='scheduler' ? 'block' : 'none';
   document.getElementById('admin-hard-subview').style.display = v==='hard' ? 'block' : 'none';
@@ -1662,9 +1668,9 @@ async function setTicketDiagnosed(id, flag, event){
 function renderScheduler(){
   const list = document.getElementById('scheduler-list');
 
-  // This week's intake (Monday–Sunday), based on registration timestamp
+  // This week's intake (Saturday–Friday), based on registration timestamp
   const now = new Date();
-  const dayIdx = (now.getDay() + 6) % 7; // 0 = Monday
+  const dayIdx = (now.getDay() + 1) % 7; // 0 = Saturday
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayIdx);
   const weekTickets = tickets.filter(t=>new Date(t.createdAt) >= weekStart);
   const weekCount = weekTickets.length;
@@ -1674,7 +1680,7 @@ function renderScheduler(){
   intakeCard.style.borderColor = weekCount >= 10 ? 'var(--danger)' : '';
   intakeEl.style.color = weekCount >= 10 ? 'var(--danger)' : '';
 
-  const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const dayLabels = ['Sat','Sun','Mon','Tue','Wed','Thu','Fri (off)'];
   const dayCounts = [0,0,0,0,0,0,0];
   weekTickets.forEach(t=>{
     const d = Math.floor((new Date(t.createdAt) - weekStart) / 86400000);
@@ -1701,11 +1707,23 @@ function renderScheduler(){
   const testsOkCount = tickets.filter(t=>!t.archived && t.diagnosisResult==='Tests OK' && !['Ready','Picked Up','Cancelled'].includes(t.status)).length;
   document.getElementById('stat-testsok-count').textContent = testsOkCount;
 
-  const workable = tickets
+  const allWorkable = tickets
     .filter(t=>!t.archived && !t.flaggedHard && !t.flaggedDiagnosed && !['Ready','Picked Up','Cancelled','Waiting for Parts'].includes(t.status))
     .slice()
-    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0))
-    .slice(0, 3);
+    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  const maxOffset = Math.max(0, Math.ceil(allWorkable.length / DAILY_QUEUE_SIZE) - 1);
+  if(schedulerDayOffset > maxOffset) schedulerDayOffset = maxOffset;
+  if(schedulerDayOffset < 0) schedulerDayOffset = 0;
+
+  const workable = allWorkable.slice(schedulerDayOffset*DAILY_QUEUE_SIZE, schedulerDayOffset*DAILY_QUEUE_SIZE + DAILY_QUEUE_SIZE);
+
+  const estimatedHours = workable.length * HOURS_PER_REPAIR;
+  const dayNavLabel = (schedulerDayOffset===0 ? 'Today' : (schedulerDayOffset===1 ? 'Next working day (preview)' : schedulerDayOffset + ' working days ahead (preview)'))
+    + ' · ~' + estimatedHours + 'h estimated';
+  document.getElementById('scheduler-day-label').textContent = dayNavLabel;
+  document.getElementById('scheduler-prev-day').disabled = schedulerDayOffset===0;
+  document.getElementById('scheduler-next-day').disabled = schedulerDayOffset>=maxOffset;
 
   if(workable.length===0){
     list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing in the queue — every active ticket is Ready, Picked Up, Cancelled, Waiting for Parts, Diagnosed, or flagged as Hard/Long.</div>';
@@ -1716,7 +1734,7 @@ function renderScheduler(){
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
     return `
     <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;" onclick="jumpToTicket('${t.id}')">
-      <div class="mono" style="font-size:22px;font-weight:700;color:var(--trace);min-width:28px;">${i+1}</div>
+      <div class="mono" style="font-size:22px;font-weight:700;color:var(--trace);min-width:28px;">${schedulerDayOffset*DAILY_QUEUE_SIZE + i + 1}</div>
       <div style="flex:1;">
         <div class="ticket-id">#${t.id}</div>
         <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
@@ -1728,6 +1746,11 @@ function renderScheduler(){
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard/Long</button>
     </div>`;
   }).join('');
+}
+
+function changeSchedulerDay(delta){
+  schedulerDayOffset += delta;
+  renderScheduler();
 }
 
 let diagnosedNoteOpenId = null;
@@ -2152,6 +2175,9 @@ function updateWorkshopTotal(id){
 let lowStockOnly = false;
 let partExpandedId = null;
 let confirmingDeletePart = null;
+let schedulerDayOffset = 0;
+const DAILY_QUEUE_SIZE = 4;
+const HOURS_PER_REPAIR = 2;
 
 function toggleLowStockFilter(){
   lowStockOnly = !lowStockOnly;
