@@ -125,6 +125,7 @@ textarea{resize:vertical;min-height:56px;}
 .ticket-meta{font-size:12px;color:var(--text-muted);margin-top:3px;}
 .ticket-device{font-size:14px;margin-top:6px;}
 .overdue-flag{font-size:11px;color:var(--danger);margin-top:6px;font-weight:600;}
+.returning-flag{font-size:11px;color:var(--trace);margin-top:6px;font-weight:600;}
 .lowstock-flag{font-size:11px;color:var(--danger);font-weight:600;}
 
 .parts-catalog-panel{padding:28px;}
@@ -240,6 +241,7 @@ textarea{resize:vertical;min-height:56px;}
     <div id="admin-content" style="display:none;">
     <div class="admin-topbar">
       <button class="btn-ghost" onclick="loadAdminTickets()">Refresh</button>
+      <button class="btn-ghost" onclick="exportBackup()">⬇️ Export backup</button>
       <button class="btn-ghost" onclick="toggleChangePw()">Change password</button>
       <button class="btn-ghost" onclick="lockAdmin()">Lock shop desk</button>
     </div>
@@ -294,7 +296,8 @@ textarea{resize:vertical;min-height:56px;}
         <label>Repair number (from your intake form)</label>
         <input id="f-number" type="number" placeholder="320" class="mono">
         <label>Phone number</label>
-        <input id="f-phone" placeholder="(555) 123-4567">
+        <input id="f-phone" placeholder="(555) 123-4567" oninput="checkReturningCustomer()">
+        <div id="f-returning-hint" class="returning-flag" style="display:none;margin:-8px 0 12px;"></div>
         <label>Customer name (optional)</label>
         <input id="f-name" placeholder="Jordan Lee">
         <div class="row2">
@@ -657,6 +660,16 @@ textarea{resize:vertical;min-height:56px;}
           <div class="id-val mono" id="register-id-val"></div>
         </div>
         <div id="register-qr" style="margin-top:12px;"></div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
+          <label data-i18n="package_photo_heading">📷 Photo of the package (optional)</label>
+          <div id="package-photo-idle">
+            <input type="file" id="package-photo-input" accept="image/*" capture="environment" onchange="previewPackagePhoto()">
+            <div id="package-photo-preview" style="margin-top:10px;"></div>
+            <button class="btn-ghost" id="package-photo-upload-btn" style="display:none;margin-top:10px;" onclick="uploadPackagePhoto()" data-i18n="upload_photo_btn">Upload photo</button>
+            <div class="pw-error" id="package-photo-error"></div>
+          </div>
+          <div id="package-photo-done" style="display:none;font-size:13px;color:var(--trace);">✅ <span data-i18n="photo_uploaded_msg">Photo uploaded — thanks!</span></div>
+        </div>
         <button class="btn-ghost" id="register-again-btn" data-i18n="register_again" style="display:none;margin-top:14px;" onclick="resetRegisterForm()">Register another device</button>
       </div>
       <div id="register-form-fields">
@@ -775,6 +788,7 @@ const ACTION_TO_RPC = {
   customerLookup: 'customer_lookup',
   customerConfirmPickup: 'customer_confirm_pickup',
   customerSaveShippingInfo: 'customer_save_shipping_info',
+  customerSavePackagePhoto: 'customer_save_package_photo',
   customerRegister: 'customer_register',
   publicWeeklyIntakeCount: 'public_weekly_intake_count'
 };
@@ -869,6 +883,9 @@ const I18N = {
     pickup_confirmed_msg: 'Thanks for confirming — glad it made it back to you safely!',
     shipping_info_heading: 'Shipping info',
     shipping_saved_msg: 'Your shipping info is saved. You can update it anytime.',
+    package_photo_heading: '📷 Photo of the package (optional)',
+    upload_photo_btn: 'Upload photo',
+    photo_uploaded_msg: 'Photo uploaded — thanks!',
     wilaya_label: 'Wilaya',
     stopdesk_label: 'Nearest Yalidine stop-desk',
     stopdesk_placeholder: 'e.g. Blida Centre',
@@ -925,6 +942,9 @@ const I18N = {
     pickup_confirmed_msg: 'شكراً لتأكيدك — سعداء بوصول جهازك بأمان!',
     shipping_info_heading: 'معلومات التوصيل',
     shipping_saved_msg: 'تم حفظ معلومات التوصيل. يمكنك تعديلها في أي وقت.',
+    package_photo_heading: '📷 صورة الطرد (اختياري)',
+    upload_photo_btn: 'رفع الصورة',
+    photo_uploaded_msg: 'تم رفع الصورة — شكراً لك!',
     wilaya_label: 'الولاية',
     stopdesk_label: 'أقرب مكتب ياليدين',
     stopdesk_placeholder: 'مثال: البليدة وسط',
@@ -1058,6 +1078,68 @@ function onConditionsModalCheckboxChange(){
 }
 
 let tickets = [];
+
+/* ============================================================
+   Data backup — exports tickets, parts, and withdrawals as CSV
+   ============================================================ */
+function csvEscape(val){
+  if(val === null || val === undefined) return '';
+  let s = typeof val === 'object' ? JSON.stringify(val) : String(val);
+  if(s.indexOf('"')!==-1 || s.indexOf(',')!==-1 || s.indexOf('\n')!==-1){
+    s = '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function arrayToCsv(data, columns){
+  const header = columns.map(c=>csvEscape(c.label)).join(',');
+  const rows = data.map(row => columns.map(c => csvEscape(row[c.key])).join(','));
+  return [header, ...rows].join('\r\n');
+}
+
+function downloadCsv(filename, csvContent){
+  const blob = new Blob(['\uFEFF' + csvContent], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function exportBackup(){
+  const dateStr = new Date().toISOString().slice(0,10);
+
+  const ticketColumns = [
+    {key:'id', label:'ID'}, {key:'customerName', label:'Name'}, {key:'phone', label:'Phone'},
+    {key:'deviceBrand', label:'Brand'}, {key:'deviceModel', label:'Model'}, {key:'issue', label:'Issue'},
+    {key:'entryDate', label:'Entry Date'}, {key:'status', label:'Status'}, {key:'createdAt', label:'Created At'},
+    {key:'customerNote', label:'Customer Note'}, {key:'internalNotes', label:'Internal Notes'},
+    {key:'diagnosticNotes', label:'Diagnostic Notes'}, {key:'diagnosisResult', label:'Diagnosis Result'},
+    {key:'price', label:'Price'}, {key:'paymentStatus', label:'Payment Status'}, {key:'amountPaid', label:'Amount Paid'},
+    {key:'waitingForPart', label:'Waiting For Part'}, {key:'archived', label:'Archived'},
+    {key:'flaggedHard', label:'Flagged Hard'}, {key:'flaggedDiagnosed', label:'Flagged Diagnosed'},
+    {key:'pendingShipping', label:'Pending Shipping'}, {key:'shippingWilaya', label:'Shipping Wilaya'},
+    {key:'shippingStopdesk', label:'Shipping Stop-desk'}, {key:'customerConfirmedAt', label:'Customer Confirmed At'},
+    {key:'partsUsed', label:'Parts Used (JSON)'}, {key:'history', label:'Status History (JSON)'}
+  ];
+
+  const partColumns = [
+    {key:'partNumber', label:'Part Number'}, {key:'name', label:'Name'}, {key:'category', label:'Category'},
+    {key:'price', label:'Sell Price'}, {key:'costPrice', label:'Cost Price'}, {key:'quantity', label:'Quantity'},
+    {key:'lowStockThreshold', label:'Low Stock Threshold'}, {key:'box', label:'Box'}, {key:'compartment', label:'Compartment'}
+  ];
+
+  const withdrawalColumns = [
+    {key:'id', label:'ID'}, {key:'timestamp', label:'Timestamp'}, {key:'amount', label:'Amount'}, {key:'note', label:'Note'}
+  ];
+
+  downloadCsv('laptx-backup-tickets-' + dateStr + '.csv', arrayToCsv(tickets, ticketColumns));
+  setTimeout(()=>downloadCsv('laptx-backup-parts-' + dateStr + '.csv', arrayToCsv(parts, partColumns)), 300);
+  setTimeout(()=>downloadCsv('laptx-backup-withdrawals-' + dateStr + '.csv', arrayToCsv(withdrawals, withdrawalColumns)), 600);
+}
 let expandedId = null;
 let confirmingDeleteId = null;
 let editingTicketId = null;
@@ -1430,6 +1512,14 @@ async function registerDevice(){
   document.getElementById('register-id-val').textContent = '#' + res.id;
   document.getElementById('register-banner').classList.add('show');
   renderStatusQR('register-qr', res.id, phone);
+  lastRegisteredId = res.id;
+  lastRegisteredPhone = phone;
+  document.getElementById('package-photo-idle').style.display = 'block';
+  document.getElementById('package-photo-done').style.display = 'none';
+  document.getElementById('package-photo-input').value = '';
+  document.getElementById('package-photo-preview').innerHTML = '';
+  document.getElementById('package-photo-upload-btn').style.display = 'none';
+  document.getElementById('package-photo-error').style.display = 'none';
   ['r-name','r-phone','r-brand','r-model','r-issue'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('r-entrydate').value = new Date().toISOString().slice(0,10);
   document.getElementById('conditions-checkbox').checked = false;
@@ -1452,6 +1542,9 @@ function resetRegisterForm(){
   document.getElementById('conditions-checkbox').checked = false;
   document.getElementById('conditions-checkbox-modal').checked = false;
   document.getElementById('register-submit-btn').disabled = true;
+  lastRegisteredId = null;
+  lastRegisteredPhone = null;
+  selectedPackagePhotoFile = null;
 }
 
 function isOverdue(t){
@@ -1461,10 +1554,45 @@ function isOverdue(t){
   return Math.floor((Date.now() - created) / 86400000) >= 3;
 }
 
+function checkReturningCustomer(){
+  const phone = document.getElementById('f-phone').value;
+  const hint = document.getElementById('f-returning-hint');
+  const count = customerRepairCount(phone, null);
+  if(count > 0){
+    hint.textContent = '👤 This phone number has ' + count + ' prior repair' + (count>1?'s':'') + ' on file.';
+    hint.style.display = 'block';
+  }else{
+    hint.style.display = 'none';
+  }
+}
+
 function overdueBadge(t){
   if(!isOverdue(t)) return '';
   const daysSince = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000);
   return `<div class="overdue-flag">⏳ ${daysSince}d — not received yet</div>`;
+}
+
+function normalizePhone(phone){
+  return (phone || '').replace(/\D/g, '');
+}
+
+function customerRepairCount(phone, excludeTicketId){
+  const digits = normalizePhone(phone);
+  if(digits.length < 6) return 0;
+  return tickets.filter(t => t.id !== excludeTicketId && normalizePhone(t.phone) === digits).length;
+}
+
+function ordinal(n){
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+function returningBadge(t){
+  const priorCount = customerRepairCount(t.phone, t.id);
+  if(priorCount === 0) return '';
+  const totalCount = priorCount + 1;
+  return `<div class="returning-flag">👤 Returning customer — ${ordinal(totalCount)} repair</div>`;
 }
 
 function statusPillStyle(status){
@@ -1523,6 +1651,7 @@ function renderAdminList(){
           <div class="ticket-meta" style="font-size:15px;">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
+          ${returningBadge(t)}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -1563,6 +1692,7 @@ function renderAdminList(){
           <div class="field-line issue-line"><b>Issue:</b><br>${t.issue || '—'}</div>
           ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
           ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingWilaya}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
+          ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
           <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
           <button class="btn-ghost" onclick="startTicketEdit('${t.id}')">Edit ticket</button>
         `}
@@ -2245,7 +2375,13 @@ function renderPartsTable(filtered){
         <td class="mono">${formatPrice(pt.price) || '—'}</td>
         <td class="mono">${missingCost ? '—' : formatPrice(pt.costPrice)}</td>
         <td class="mono">${pt.quantity}${pt.lowStock ? ' ⚠️' : ''}</td>
-        <td><button class="btn-ghost" style="width:auto;padding:5px 10px;font-size:10px;" onclick="togglePartExpand('${pt.partNumber}')">${open ? 'Close' : 'Edit'}</button></td>
+        <td>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Search on AliExpress" onclick="searchAliExpressText('${pt.partNumber.replace(/'/g,"\\'")}', '${(pt.name||'').replace(/'/g,"\\'")}')">🔍</button>
+            <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Find datasheet" onclick="searchDatasheetText('${pt.partNumber.replace(/'/g,"\\'")}')">📄</button>
+            <button class="btn-ghost" style="width:auto;padding:5px 10px;font-size:10px;" onclick="togglePartExpand('${pt.partNumber}')">${open ? 'Close' : 'Edit'}</button>
+          </div>
+        </td>
       </tr>`;
 
     if(!open) return rowHtml;
@@ -2983,6 +3119,77 @@ function traceHtml(status, diagnosisResult){
 
 let lastLookupId = null;
 let lastLookupPhone = null;
+let lastRegisteredId = null;
+let lastRegisteredPhone = null;
+let selectedPackagePhotoFile = null;
+
+function previewPackagePhoto(){
+  const input = document.getElementById('package-photo-input');
+  const preview = document.getElementById('package-photo-preview');
+  const uploadBtn = document.getElementById('package-photo-upload-btn');
+  const errEl = document.getElementById('package-photo-error');
+  errEl.style.display = 'none';
+
+  const file = input.files && input.files[0];
+  if(!file){
+    preview.innerHTML = '';
+    uploadBtn.style.display = 'none';
+    selectedPackagePhotoFile = null;
+    return;
+  }
+
+  if(!file.type.startsWith('image/')){
+    errEl.textContent = 'Please choose an image file.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(file.size > 8 * 1024 * 1024){
+    errEl.textContent = 'That image is too large (max 8MB).';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  selectedPackagePhotoFile = file;
+  const url = URL.createObjectURL(file);
+  preview.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border);">';
+  uploadBtn.style.display = 'block';
+}
+
+async function uploadPackagePhoto(){
+  if(!selectedPackagePhotoFile || !lastRegisteredId || !lastRegisteredPhone) return;
+  const errEl = document.getElementById('package-photo-error');
+  const uploadBtn = document.getElementById('package-photo-upload-btn');
+  errEl.style.display = 'none';
+  uploadBtn.disabled = true;
+  uploadBtn.textContent = 'Uploading…';
+
+  try{
+    const ext = (selectedPackagePhotoFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+    const path = lastRegisteredId + '-' + Date.now() + '.' + ext;
+
+    const { error: uploadError } = await sb.storage.from('package-photos').upload(path, selectedPackagePhotoFile, {
+      contentType: selectedPackagePhotoFile.type,
+      upsert: false
+    });
+    if(uploadError) throw uploadError;
+
+    const { data: urlData } = sb.storage.from('package-photos').getPublicUrl(path);
+    const publicUrl = urlData.publicUrl;
+
+    const res = await apiGet('customerSavePackagePhoto', {id: lastRegisteredId, phone: lastRegisteredPhone, photoUrl: publicUrl});
+    if(!res.ok){
+      throw new Error(res.error || 'Could not save the photo.');
+    }
+
+    document.getElementById('package-photo-idle').style.display = 'none';
+    document.getElementById('package-photo-done').style.display = 'block';
+  }catch(e){
+    errEl.textContent = 'Upload failed. Check your connection and try again.';
+    errEl.style.display = 'block';
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = I18N[currentLang].upload_photo_btn;
+  }
+}
 
 async function customerLookup(){
   const idRaw = document.getElementById('customer-id').value.trim();
