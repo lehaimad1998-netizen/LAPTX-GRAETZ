@@ -66,6 +66,10 @@ body{
 
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;}
 .panel h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 16px;}
+.collapsible-header{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
+.collapsible-header:hover{color:var(--text);}
+.collapse-arrow{font-size:11px;transition:transform .15s ease;}
+.collapse-arrow.collapsed{transform:rotate(-90deg);}
 
 label{display:block;font-size:12px;color:var(--text-muted);margin:14px 0 6px;}
 label:first-child{margin-top:0;}
@@ -155,10 +159,11 @@ textarea{resize:vertical;min-height:56px;}
 .parts-line{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px;}
 .parts-subtotal{font-size:13px;color:var(--text-muted);margin:8px 0;}
 .status-pill{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;
-  padding:4px 10px;border-radius:20px;white-space:nowrap;}
+  padding:3px 8px;border-radius:20px;white-space:nowrap;}
 .status-pill-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;border:none;cursor:pointer;
-  padding-right:22px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%23888'/></svg>");
-  background-repeat:no-repeat;background-position:right 8px center;}
+  padding-right:20px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%23888'/></svg>");
+  background-repeat:no-repeat;background-position:right 7px center;
+  max-width:108px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .status-pill-select:focus{outline:2px solid var(--trace);outline-offset:1px;}
 .ticket-expand{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:none;}
 .ticket-expand.open{display:block;}
@@ -277,19 +282,46 @@ textarea{resize:vertical;min-height:56px;}
 
     <div class="tabs subtabs" style="margin-bottom:16px;">
       <button class="tab-btn active" id="subtab-tickets" onclick="switchAdminSubview('tickets')">Tickets</button>
-      <button class="tab-btn" id="subtab-scheduler" onclick="switchAdminSubview('scheduler')">Dashboard</button>
       <button class="tab-btn" id="subtab-diagnosed" onclick="switchAdminSubview('diagnosed')">Diagnosed</button>
-      <button class="tab-btn" id="subtab-fixable" onclick="switchAdminSubview('fixable')">Fixable</button>
-      <button class="tab-btn" id="subtab-notfixable" onclick="switchAdminSubview('notfixable')">Not Fixable</button>
-      <button class="tab-btn" id="subtab-testsok" onclick="switchAdminSubview('testsok')">Tests OK</button>
-      <button class="tab-btn" id="subtab-hard" onclick="switchAdminSubview('hard')">Hard repairs</button>
+      <button class="tab-btn" id="subtab-tofix" onclick="switchAdminSubview('tofix')">To Fix</button>
       <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Workshop</button>
       <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
-      <button class="tab-btn" id="subtab-done" onclick="switchAdminSubview('done')">Done repairs</button>
-      <button class="tab-btn" id="subtab-shipping" onclick="switchAdminSubview('shipping')">Pending Shipping</button>
+      <button class="tab-btn" id="subtab-shipping" onclick="switchAdminSubview('shipping')">To Pick Up</button>
+      <button class="tab-btn" id="subtab-archive" onclick="switchAdminSubview('archive')">Archive</button>
     </div>
 
     <div id="admin-tickets-subview">
+    <div class="stat-row" style="margin-bottom:16px;">
+      <div class="stat-card" id="stat-weekly-intake-card">
+        <div class="stat-label">This week's intake (Sat–Fri)</div>
+        <div class="stat-value mono" id="stat-weekly-intake">0 / 10</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" id="stat-weekly-intake-daily"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active repairs in progress</div>
+        <div class="stat-value mono" id="stat-backlog-count">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Waiting for parts</div>
+        <div class="stat-value mono" id="stat-waiting-parts-count">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Diagnosed (awaiting result)</div>
+        <div class="stat-value mono" id="stat-diagnosed-count">0</div>
+      </div>
+      <div class="stat-card" style="border-color:var(--trace);">
+        <div class="stat-label">Fixable</div>
+        <div class="stat-value mono" id="stat-fixable-count" style="color:var(--trace);">0</div>
+      </div>
+      <div class="stat-card" style="border-color:var(--danger);">
+        <div class="stat-label">Not Fixable</div>
+        <div class="stat-value mono" id="stat-notfixable-count" style="color:var(--danger);">0</div>
+      </div>
+      <div class="stat-card" style="border-color:var(--trace);">
+        <div class="stat-label">Tests OK</div>
+        <div class="stat-value mono" id="stat-testsok-count" style="color:var(--trace);">0</div>
+      </div>
+    </div>
     <div class="grid-2">
       <div class="panel">
         <h2>New ticket</h2>
@@ -331,10 +363,11 @@ textarea{resize:vertical;min-height:56px;}
           <input id="admin-search" placeholder="Search name, phone, ID, device..." oninput="renderAdminList()">
           <select id="admin-filter" onchange="renderAdminList()">
             <option value="">All statuses</option>
+            <option value="Received" selected>Received</option>
           </select>
           <select id="admin-sort" onchange="renderAdminList()">
             <option value="newest">Newest first</option>
-            <option value="number-asc">Number: low to high</option>
+            <option value="number-asc" selected>Number: low to high</option>
             <option value="number-desc">Number: high to low</option>
           </select>
           <button class="btn-ghost quick-filter" id="qf-overdue" onclick="toggleQuickFilter('overdue')">⏳ Overdue only</button>
@@ -346,87 +379,63 @@ textarea{resize:vertical;min-height:56px;}
     </div>
     </div>
 
-    <div id="admin-scheduler-subview" style="display:none;">
-      <div class="stat-row" style="margin-bottom:16px;">
-        <div class="stat-card" id="stat-weekly-intake-card">
-          <div class="stat-label">This week's intake (Sat–Fri)</div>
-          <div class="stat-value mono" id="stat-weekly-intake">0 / 10</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" id="stat-weekly-intake-daily"></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Active repairs in progress</div>
-          <div class="stat-value mono" id="stat-backlog-count">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Waiting for parts</div>
-          <div class="stat-value mono" id="stat-waiting-parts-count">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Diagnosed (awaiting result)</div>
-          <div class="stat-value mono" id="stat-diagnosed-count">0</div>
-        </div>
-        <div class="stat-card" style="border-color:var(--trace);">
-          <div class="stat-label">Fixable</div>
-          <div class="stat-value mono" id="stat-fixable-count" style="color:var(--trace);">0</div>
-        </div>
-        <div class="stat-card" style="border-color:var(--danger);">
-          <div class="stat-label">Not Fixable</div>
-          <div class="stat-value mono" id="stat-notfixable-count" style="color:var(--danger);">0</div>
-        </div>
-        <div class="stat-card" style="border-color:var(--trace);">
-          <div class="stat-label">Tests OK</div>
-          <div class="stat-value mono" id="stat-testsok-count" style="color:var(--trace);">0</div>
-        </div>
-      </div>
-      <div class="panel">
-        <h2>Today's queue</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">The next 4 repairs to work on (~2h each, roughly a full day), lowest repair number first — Ready, Picked Up, Cancelled, Waiting for Parts, Diagnosed, and Hard/Long-flagged tickets are excluded.</div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-          <button class="btn-ghost" id="scheduler-prev-day" style="width:auto;" onclick="changeSchedulerDay(-1)">◀ Previous</button>
-          <div class="mono" id="scheduler-day-label" style="font-weight:600;font-size:13px;flex:1;text-align:center;">Today</div>
-          <button class="btn-ghost" id="scheduler-next-day" style="width:auto;" onclick="changeSchedulerDay(1)">Next ▶</button>
-        </div>
-        <div id="scheduler-list"></div>
-      </div>
-    </div>
-
     <div id="admin-diagnosed-subview" style="display:none;">
+      <button class="btn-ghost" style="width:auto;margin-bottom:16px;" onclick="dropAllSections()">🔽 Drop all</button>
+      <button class="btn-ghost" style="width:auto;margin-bottom:16px;margin-left:8px;" onclick="collapseAllSections()">🔼 Collapse all</button>
       <div class="panel">
-        <h2>Diagnosed</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs you've diagnosed but haven't classified yet. Mark each one Fixable, Not Fixable, or Tests OK to move it into the right tab.</div>
-        <div id="diagnosed-list"></div>
+        <h2 class="collapsible-header" onclick="toggleSection('awaiting')">Awaiting classification <span class="collapse-arrow collapsed" id="arrow-awaiting">▾</span></h2>
+        <div id="body-awaiting" style="display:none;">
+          <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs currently at "Diagnosing" that haven't been classified yet. Mark each one Fixable, Not Fixable, or Tests OK.</div>
+          <div id="diagnosed-list"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2 class="collapsible-header" onclick="toggleSection('waitingparts')">Waiting for Parts <span class="collapse-arrow collapsed" id="arrow-waitingparts">▾</span></h2>
+        <div id="body-waitingparts" style="display:none;">
+          <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs currently on hold waiting for a part to arrive.</div>
+          <div id="waitingparts-list"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2 class="collapsible-header" onclick="toggleSection('fixable')">Fixable <span class="collapse-arrow collapsed" id="arrow-fixable">▾</span></h2>
+        <div id="body-fixable" style="display:none;">
+          <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs diagnosed as fixable. Send one back to Awaiting classification if you need to reclassify it.</div>
+          <div id="fixable-list"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2 class="collapsible-header" onclick="toggleSection('notfixable')">Not Fixable <span class="collapse-arrow collapsed" id="arrow-notfixable">▾</span></h2>
+        <div id="body-notfixable" style="display:none;">
+          <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs diagnosed as not fixable. Send one back to Awaiting classification if you need to reclassify it.</div>
+          <div id="notfixable-list"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2 class="collapsible-header" onclick="toggleSection('testsok')">Tests OK <span class="collapse-arrow collapsed" id="arrow-testsok">▾</span></h2>
+        <div id="body-testsok" style="display:none;">
+          <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Cards that tested fine, no repair needed. Send one back to Awaiting classification if you need to reclassify it.</div>
+          <div id="testsok-list"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2 class="collapsible-header" onclick="toggleSection('hard')">Hard / long repairs <span class="collapse-arrow collapsed" id="arrow-hard">▾</span></h2>
+        <div id="body-hard" style="display:none;">
+          <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs that need more time or effort. Send one back to Awaiting classification, or close it out if it's done.</div>
+          <div id="hard-list"></div>
+        </div>
       </div>
     </div>
 
-    <div id="admin-fixable-subview" style="display:none;">
+    <div id="admin-tofix-subview" style="display:none;">
       <div class="panel">
-        <h2>Fixable</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs diagnosed as fixable. Send one back to Diagnosed if you need to reclassify it.</div>
-        <div id="fixable-list"></div>
-      </div>
-    </div>
-
-    <div id="admin-notfixable-subview" style="display:none;">
-      <div class="panel">
-        <h2>Not Fixable</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs diagnosed as not fixable. Send one back to Diagnosed if you need to reclassify it.</div>
-        <div id="notfixable-list"></div>
-      </div>
-    </div>
-
-    <div id="admin-testsok-subview" style="display:none;">
-      <div class="panel">
-        <h2>Tests OK</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Cards that tested fine, no repair needed. Send one back to Diagnosed if you need to reclassify it.</div>
-        <div id="testsok-list"></div>
-      </div>
-    </div>
-
-    <div id="admin-hard-subview" style="display:none;">
-      <div class="panel">
-        <h2>Hard / long repairs</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs you've pulled out of the daily queue because they need more time or effort. Send one back to the queue whenever you're ready to tackle it.</div>
-        <div id="hard-list"></div>
+        <h2>To Fix</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Fixable repairs currently in progress — log what's been done and attach parts as you go.</div>
+        <div id="tofix-list"></div>
       </div>
     </div>
 
@@ -626,23 +635,10 @@ textarea{resize:vertical;min-height:56px;}
       </div>
     </div>
 
-
-    <div id="admin-done-subview" style="display:none;">
-      <div class="panel">
-        <h2>Done repairs</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs move here automatically once they've been "Picked Up" for over 30 days, or immediately via "End task" on Not Fixable/Tests OK. Ship one whenever it's ready to go out.</div>
-        <div class="list-controls">
-          <input id="done-search" placeholder="Search name, phone, ID, device..." oninput="renderDoneList()">
-          <span class="count-tag" id="done-count"></span>
-        </div>
-        <div id="done-list"></div>
-      </div>
-    </div>
-
     <div id="admin-shipping-subview" style="display:none;">
       <div class="panel">
-        <h2>Pending Shipping</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Devices ready to ship back to the customer. Send one back to Done repairs if it's not actually going out yet.</div>
+        <h2>To Pick Up</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repaired and confirmed ready — customer just needs to come collect it. Mark it Picked Up once they do; it archives automatically.</div>
         <div class="list-controls">
           <input id="shipping-search" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
           <span class="count-tag" id="shipping-count"></span>
@@ -650,6 +646,19 @@ textarea{resize:vertical;min-height:56px;}
         <div id="shipping-list"></div>
       </div>
     </div>
+
+    <div id="admin-archive-subview" style="display:none;">
+      <div class="panel">
+        <h2>Archive</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Every device that's been picked up — full record kept here, with shipping info and pricing.</div>
+        <div class="list-controls">
+          <input id="archive-search" placeholder="Search name, phone, ID, device..." oninput="renderArchiveList()">
+          <span class="count-tag" id="archive-count"></span>
+        </div>
+        <div id="archive-list"></div>
+      </div>
+    </div>
+
     </div>
   </div>
 
@@ -772,6 +781,7 @@ const ACTION_TO_RPC = {
   adminUpdateStatus: 'admin_update_status',
   adminSaveNotes: 'admin_save_notes',
   adminDelete: 'admin_delete',
+  adminReopenToPickup: 'admin_reopen_to_pickup',
   adminSetPricing: 'admin_set_pricing',
   adminEditTicket: 'admin_edit_ticket',
   adminAddPartToTicket: 'admin_add_part_to_ticket',
@@ -827,7 +837,7 @@ async function apiGet(action, params={}){
   }
 }
 
-const STATUSES = ['Registered','Received','Diagnosing','Waiting for Parts','Repairing','Ready','Picked Up'];
+const STATUSES = ['Registered','Received','Diagnosing','Waiting for Parts','Repairing','Ready','To Pick Up','Picked Up'];
 
 const WILAYAS = [
   '01 - Adrar','02 - Chlef','03 - Laghouat','04 - Oum El Bouaghi','05 - Batna','06 - Béjaïa','07 - Biskra',
@@ -901,7 +911,7 @@ const I18N = {
     save_shipping_btn: 'Save shipping info',
     statuses: {
       'Registered':'Registered','Received':'Received','Diagnosing':'Diagnosing',
-      'Waiting for Parts':'Waiting for Parts','Repairing':'Repairing','Ready':'Ready',
+      'Waiting for Parts':'Waiting for Parts','Repairing':'Repairing','Ready':'Ready','To Pick Up':'To Pick Up',
       'Picked Up':'Picked Up','Cancelled':'Cancelled'
     },
     payment: { 'Unpaid':'Unpaid', 'Partial':'Partial', 'Paid':'Paid' }
@@ -960,7 +970,7 @@ const I18N = {
     save_shipping_btn: 'حفظ معلومات التوصيل',
     statuses: {
       'Registered':'مسجّل','Received':'تم الاستلام','Diagnosing':'قيد الفحص',
-      'Waiting for Parts':'بانتظار القطع','Repairing':'قيد الإصلاح','Ready':'جاهز للاستلام',
+      'Waiting for Parts':'بانتظار القطع','Repairing':'قيد الإصلاح','Ready':'جاهز','To Pick Up':'جاهز للاستلام',
       'Picked Up':'تم التسليم','Cancelled':'ملغى'
     },
     payment: { 'Unpaid':'غير مدفوع', 'Partial':'مدفوع جزئياً', 'Paid':'مدفوع بالكامل' }
@@ -1324,7 +1334,7 @@ async function loadPartsList(){
   const res = await apiGet('partsList');
   if(!res.ok) return;
   parts = res.parts;
-  if(currentAdminSubview==='stock' || currentAdminSubview==='workshop') renderVisibleAdminSubview();
+  if(currentAdminSubview==='stock' || currentAdminSubview==='workshop' || currentAdminSubview==='tofix') renderVisibleAdminSubview();
 }
 
 async function loadWithdrawals(){
@@ -1340,42 +1350,30 @@ function switchAdminSubview(v){
   currentAdminSubview = v;
   if(v==='scheduler') schedulerDayOffset = 0;
   document.getElementById('admin-tickets-subview').style.display = v==='tickets' ? 'block' : 'none';
-  document.getElementById('admin-scheduler-subview').style.display = v==='scheduler' ? 'block' : 'none';
-  document.getElementById('admin-hard-subview').style.display = v==='hard' ? 'block' : 'none';
   document.getElementById('admin-diagnosed-subview').style.display = v==='diagnosed' ? 'block' : 'none';
-  document.getElementById('admin-fixable-subview').style.display = v==='fixable' ? 'block' : 'none';
-  document.getElementById('admin-notfixable-subview').style.display = v==='notfixable' ? 'block' : 'none';
-  document.getElementById('admin-testsok-subview').style.display = v==='testsok' ? 'block' : 'none';
+  document.getElementById('admin-tofix-subview').style.display = v==='tofix' ? 'block' : 'none';
   document.getElementById('admin-workshop-subview').style.display = v==='workshop' ? 'block' : 'none';
   document.getElementById('admin-stock-subview').style.display = v==='stock' ? 'block' : 'none';
-  document.getElementById('admin-done-subview').style.display = v==='done' ? 'block' : 'none';
   document.getElementById('admin-shipping-subview').style.display = v==='shipping' ? 'block' : 'none';
+  document.getElementById('admin-archive-subview').style.display = v==='archive' ? 'block' : 'none';
   document.getElementById('subtab-tickets').classList.toggle('active', v==='tickets');
-  document.getElementById('subtab-scheduler').classList.toggle('active', v==='scheduler');
-  document.getElementById('subtab-hard').classList.toggle('active', v==='hard');
   document.getElementById('subtab-diagnosed').classList.toggle('active', v==='diagnosed');
-  document.getElementById('subtab-fixable').classList.toggle('active', v==='fixable');
-  document.getElementById('subtab-notfixable').classList.toggle('active', v==='notfixable');
-  document.getElementById('subtab-testsok').classList.toggle('active', v==='testsok');
+  document.getElementById('subtab-tofix').classList.toggle('active', v==='tofix');
   document.getElementById('subtab-workshop').classList.toggle('active', v==='workshop');
   document.getElementById('subtab-stock').classList.toggle('active', v==='stock');
-  document.getElementById('subtab-done').classList.toggle('active', v==='done');
   document.getElementById('subtab-shipping').classList.toggle('active', v==='shipping');
+  document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   renderVisibleAdminSubview();
 }
 
 function renderVisibleAdminSubview(){
-  if(currentAdminSubview==='tickets') renderAdminList();
-  else if(currentAdminSubview==='scheduler') renderScheduler();
-  else if(currentAdminSubview==='hard') renderHardList();
-  else if(currentAdminSubview==='diagnosed') renderDiagnosedList();
-  else if(currentAdminSubview==='fixable') renderFixableList();
-  else if(currentAdminSubview==='notfixable') renderNotFixableList();
-  else if(currentAdminSubview==='testsok') renderTestsOkList();
+  if(currentAdminSubview==='tickets'){ renderAdminList(); renderScheduler(); }
+  else if(currentAdminSubview==='diagnosed'){ renderDiagnosedList(); renderWaitingPartsList(); renderFixableList(); renderNotFixableList(); renderTestsOkList(); renderHardList(); }
+  else if(currentAdminSubview==='tofix') renderToFixList();
   else if(currentAdminSubview==='workshop'){ renderWorkshopList(); renderRevenue(); }
   else if(currentAdminSubview==='stock') renderPartsList();
-  else if(currentAdminSubview==='done') renderDoneList();
   else if(currentAdminSubview==='shipping') renderShippingList();
+  else if(currentAdminSubview==='archive') renderArchiveList();
 }
 
 function formatPrice(price){
@@ -1626,7 +1624,8 @@ function renderAdminList(){
   const filter = document.getElementById('admin-filter').value;
   const sortMode = document.getElementById('admin-sort').value;
   const list = document.getElementById('admin-list');
-  document.getElementById('ticket-count').textContent = tickets.length + ' total';
+  const activeCount = tickets.filter(t=>!t.archived).length;
+  document.getElementById('ticket-count').textContent = activeCount + ' total';
 
   let filtered = tickets.filter(t=>{
     if(t.archived) return false;
@@ -1664,9 +1663,11 @@ function renderAdminList(){
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
           <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
-            ${STATUSES.map(s=>`<option value="${s}" ${s===t.status?'selected':''}>${s}</option>`).join('')}
-            <option value="Cancelled" ${t.status==='Cancelled'?'selected':''}>Cancelled</option>
+            ${statusOptionsHtml(t.status, 'tickets')}
           </select>
+          <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
+          ${!t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" onclick="setTicketDiagnosed('${t.id}', true, event)">✅ Mark diagnosed</button>` : ''}
+          ${t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Undo diagnosed</button>` : ''}
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
@@ -1716,6 +1717,9 @@ function renderAdminList(){
           <label>Waiting for which part?</label>
           <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
         </div>
+        ${t.status==='Ready' ? `<button class="btn-ghost" style="margin-top:8px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'To Pick Up')">➡️ Move to To Pick Up</button>` : ''}
+        ${!t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="margin-top:8px;" onclick="setTicketDiagnosed('${t.id}', true, event)">✅ Mark diagnosed</button>` : ''}
+        ${t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="margin-top:8px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Undo diagnosed</button>` : ''}
         <label>Note for customer (shown on their status page)</label>
         <textarea id="cnote-${t.id}">${t.customerNote||''}</textarea>
         <label>Internal notes (staff only)</label>
@@ -1745,6 +1749,35 @@ function toggleExpand(id){
   renderAdminList();
 }
 
+function toggleSection(key){
+  const body = document.getElementById('body-'+key);
+  const arrow = document.getElementById('arrow-'+key);
+  if(!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? 'block' : 'none';
+  if(arrow) arrow.classList.toggle('collapsed', !collapsed);
+}
+
+const DIAGNOSED_SECTION_KEYS = ['awaiting','waitingparts','fixable','notfixable','testsok','hard'];
+
+function dropAllSections(){
+  DIAGNOSED_SECTION_KEYS.forEach(key=>{
+    const body = document.getElementById('body-'+key);
+    const arrow = document.getElementById('arrow-'+key);
+    if(body) body.style.display = 'block';
+    if(arrow) arrow.classList.remove('collapsed');
+  });
+}
+
+function collapseAllSections(){
+  DIAGNOSED_SECTION_KEYS.forEach(key=>{
+    const body = document.getElementById('body-'+key);
+    const arrow = document.getElementById('arrow-'+key);
+    if(body) body.style.display = 'none';
+    if(arrow) arrow.classList.add('collapsed');
+  });
+}
+
 function jumpToTicket(id){
   switchAdminSubview('tickets');
   expandedId = id;
@@ -1753,13 +1786,23 @@ function jumpToTicket(id){
 }
 
 function ticketBucket(t){
-  if(t.archived && t.pendingShipping) return {tab:'shipping', label:'Pending Shipping'};
-  if(t.archived) return {tab:'done', label:'Done repairs'};
-  if(t.flaggedHard) return {tab:'hard', label:'Hard repairs'};
-  if(t.diagnosisResult === 'Fixable') return {tab:'fixable', label:'Fixable'};
-  if(t.diagnosisResult === 'Not Fixable') return {tab:'notfixable', label:'Not Fixable'};
-  if(t.diagnosisResult === 'Tests OK') return {tab:'testsok', label:'Tests OK'};
-  if(t.flaggedDiagnosed) return {tab:'diagnosed', label:'Diagnosed'};
+  if(t.archived) return {tab:'archive', label: t.pendingShipping ? 'Archive · Pending Shipping' : 'Archive'};
+  if(t.status === 'Cancelled') return {tab:'tickets', label:'Tickets · Cancelled'};
+  if(t.status === 'To Pick Up') return {tab:'shipping', label:'To Pick Up'};
+  if(t.status === 'Ready') return {tab:'tickets', label:'Tickets · Ready'};
+  if(t.status === 'Repairing' && (t.flaggedHard || t.diagnosisResult === 'Fixable')) return {tab:'tofix', label:'To Fix'};
+  if(t.status === 'Waiting for Parts' && !t.flaggedHard) return {tab:'diagnosed', label:'Diagnosed · Waiting for Parts'};
+  if(t.flaggedHard) return {tab:'diagnosed', label:'Diagnosed · Hard/Long'};
+  if(t.diagnosisResult === 'Fixable' && t.status === 'Diagnosing') return {tab:'diagnosed', label:'Diagnosed · Fixable'};
+  if(t.diagnosisResult === 'Fixable') return {tab:'tickets', label:'Tickets (fixable, not shown in Diagnosed tab)'};
+  if(t.diagnosisResult === 'Not Fixable') return {tab:'diagnosed', label:'Diagnosed · Not Fixable'};
+  if(t.diagnosisResult === 'Tests OK') return {tab:'diagnosed', label:'Diagnosed · Tests OK'};
+  if(t.flaggedDiagnosed && !t.diagnosisResult){
+    if(t.status === 'Diagnosing') return {tab:'diagnosed', label:'Diagnosed · Awaiting classification'};
+    // Flagged diagnosed but status has moved past "Diagnosing" — not actually
+    // visible in any Diagnosed section right now, so send to the master list instead.
+    return {tab:'tickets', label:'Tickets (diagnosed, not shown in Diagnosed tab)'};
+  }
   return {tab:'tickets', label:'Tickets'};
 }
 
@@ -1767,19 +1810,20 @@ function globalJumpToTicket(id){
   const t = tickets.find(x=>x.id===id);
   if(!t) return;
   const bucket = ticketBucket(t);
+
   document.getElementById('global-search-input').value = '';
   document.getElementById('global-search-results').innerHTML = '';
 
-  if(bucket.tab === 'done'){
-    switchAdminSubview('done');
-    document.getElementById('done-search').value = id;
-    renderDoneList();
-    return;
-  }
   if(bucket.tab === 'shipping'){
     switchAdminSubview('shipping');
     document.getElementById('shipping-search').value = id;
     renderShippingList();
+    return;
+  }
+  if(bucket.tab === 'archive'){
+    switchAdminSubview('archive');
+    document.getElementById('archive-search').value = id;
+    renderArchiveList();
     return;
   }
 
@@ -1823,7 +1867,10 @@ function renderGlobalSearch(){
         <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
         ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
       </div>
-      <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+      <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
+        ${statusOptionsHtml(t.status, 'global')}
+      </select>
+          <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
       <div class="status-pill mono" style="background:var(--surface-2);color:var(--text-muted);">📍 ${bucket.label}</div>
     </div>`;
   }).join('');
@@ -1850,8 +1897,6 @@ async function setTicketDiagnosed(id, flag, event){
 }
 
 function renderScheduler(){
-  const list = document.getElementById('scheduler-list');
-
   // This week's intake (Saturday–Friday), based on registration timestamp
   const now = new Date();
   const dayIdx = (now.getDay() + 1) % 7; // 0 = Saturday
@@ -1879,7 +1924,7 @@ function renderScheduler(){
   const waitingPartsCount = tickets.filter(t=>!t.archived && t.status==='Waiting for Parts').length;
   document.getElementById('stat-waiting-parts-count').textContent = waitingPartsCount;
 
-  const diagnosedCount = tickets.filter(t=>!t.archived && t.flaggedDiagnosed && !t.diagnosisResult && !['Ready','Picked Up','Cancelled'].includes(t.status)).length;
+  const diagnosedCount = tickets.filter(t=>!t.archived && t.flaggedDiagnosed && !t.diagnosisResult && t.status==='Diagnosing').length;
   document.getElementById('stat-diagnosed-count').textContent = diagnosedCount;
 
   const fixableCount = tickets.filter(t=>!t.archived && t.diagnosisResult==='Fixable' && !['Ready','Picked Up','Cancelled'].includes(t.status)).length;
@@ -1890,46 +1935,6 @@ function renderScheduler(){
 
   const testsOkCount = tickets.filter(t=>!t.archived && t.diagnosisResult==='Tests OK' && !['Ready','Picked Up','Cancelled'].includes(t.status)).length;
   document.getElementById('stat-testsok-count').textContent = testsOkCount;
-
-  const allWorkable = tickets
-    .filter(t=>!t.archived && !t.flaggedHard && !t.flaggedDiagnosed && !['Ready','Picked Up','Cancelled','Waiting for Parts'].includes(t.status))
-    .slice()
-    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
-
-  const maxOffset = Math.max(0, Math.ceil(allWorkable.length / DAILY_QUEUE_SIZE) - 1);
-  if(schedulerDayOffset > maxOffset) schedulerDayOffset = maxOffset;
-  if(schedulerDayOffset < 0) schedulerDayOffset = 0;
-
-  const workable = allWorkable.slice(schedulerDayOffset*DAILY_QUEUE_SIZE, schedulerDayOffset*DAILY_QUEUE_SIZE + DAILY_QUEUE_SIZE);
-
-  const estimatedHours = workable.length * HOURS_PER_REPAIR;
-  const dayNavLabel = (schedulerDayOffset===0 ? 'Today' : (schedulerDayOffset===1 ? 'Next working day (preview)' : schedulerDayOffset + ' working days ahead (preview)'))
-    + ' · ~' + estimatedHours + 'h estimated';
-  document.getElementById('scheduler-day-label').textContent = dayNavLabel;
-  document.getElementById('scheduler-prev-day').disabled = schedulerDayOffset===0;
-  document.getElementById('scheduler-next-day').disabled = schedulerDayOffset>=maxOffset;
-
-  if(workable.length===0){
-    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing in the queue — every active ticket is Ready, Picked Up, Cancelled, Waiting for Parts, Diagnosed, or flagged as Hard/Long.</div>';
-    return;
-  }
-
-  list.innerHTML = workable.map((t,i)=>{
-    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
-    return `
-    <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;" onclick="jumpToTicket('${t.id}')">
-      <div class="mono" style="font-size:22px;font-weight:700;color:var(--trace);min-width:28px;">${schedulerDayOffset*DAILY_QUEUE_SIZE + i + 1}</div>
-      <div style="flex:1;">
-        <div class="ticket-id">#${t.id}</div>
-        <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
-        ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
-        ${overdueBadge(t)}
-      </div>
-      <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', true, event)">✅ Diagnosed</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard/Long</button>
-    </div>`;
-  }).join('');
 }
 
 function changeSchedulerDay(delta){
@@ -1970,7 +1975,7 @@ async function setDiagnosisResult(id, result, event){
 function renderDiagnosedList(){
   const list = document.getElementById('diagnosed-list');
   const diagnosed = tickets
-    .filter(t=>!t.archived && t.flaggedDiagnosed && !t.diagnosisResult && !['Ready','Picked Up','Cancelled'].includes(t.status))
+    .filter(t=>!t.archived && !t.flaggedHard && t.flaggedDiagnosed && !t.diagnosisResult && t.status==='Diagnosing')
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
 
@@ -1996,6 +2001,7 @@ function renderDiagnosedList(){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Fixable', event)">✅ Fixable</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Not Fixable', event)">❌ Not Fixable</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Tests OK', event)">🔧 Tests OK</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard repair</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="toggleDiagnosticNote('${t.id}', event)">${t.diagnosticNotes ? '📝 Edit note' : '📝 Add note'}</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to queue</button>
       </div>
@@ -2013,10 +2019,69 @@ function renderDiagnosedList(){
   }).join('');
 }
 
+function renderWaitingPartsList(){
+  const list = document.getElementById('waitingparts-list');
+  const waiting = tickets
+    .filter(t=>!t.archived && !t.flaggedHard && t.status==='Waiting for Parts')
+    .slice()
+    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  if(waiting.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing waiting on parts right now.</div>';
+    return;
+  }
+
+  list.innerHTML = waiting.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;flex-wrap:wrap;" onclick="jumpToTicket('${t.id}')">
+      <div style="flex:1;min-width:180px;">
+        <div class="ticket-id">#${t.id}</div>
+        <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+        ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+        ${overdueBadge(t)}
+        ${t.waitingForPart ? `<div class="lowstock-flag" style="color:var(--danger);">⏳ Waiting for: ${t.waitingForPart}</div>` : ''}
+        ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
+      </div>
+      <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderFixableSection(){
+  const list = document.getElementById('fixable-list');
+  const filtered = tickets
+    .filter(t=>!t.archived && !t.flaggedHard && t.diagnosisResult==='Fixable' && t.status==='Diagnosing')
+    .slice()
+    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No repairs classified as fixable right now.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;flex-wrap:wrap;" onclick="jumpToTicket('${t.id}')">
+      <div style="flex:1;min-width:180px;">
+        <div class="ticket-id">#${t.id}</div>
+        <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+        ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+        ${overdueBadge(t)}
+        ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
+      </div>
+      <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
+    </div>`;
+  }).join('');
+}
+
 function renderClassifiedList(containerId, result, emptyMsg){
   const list = document.getElementById(containerId);
   const filtered = tickets
-    .filter(t=>!t.archived && t.diagnosisResult===result && !['Ready','Picked Up','Cancelled'].includes(t.status))
+    .filter(t=>!t.archived && !t.flaggedHard && t.diagnosisResult===result && !['Ready','To Pick Up','Picked Up','Cancelled'].includes(t.status))
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
 
@@ -2038,7 +2103,6 @@ function renderClassifiedList(containerId, result, emptyMsg){
         ${overdueBadge(t)}
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
-      <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
@@ -2057,7 +2121,7 @@ async function endTaskBackToCustomer(id, event){
 }
 
 function renderFixableList(){
-  renderClassifiedList('fixable-list', 'Fixable', 'No repairs classified as fixable right now.');
+  renderFixableSection();
 }
 
 function renderNotFixableList(){
@@ -2068,10 +2132,139 @@ function renderTestsOkList(){
   renderClassifiedList('testsok-list', 'Tests OK', 'No repairs classified as tests OK right now.');
 }
 
+function renderReadySection(containerId, filterFn, emptyMsg){
+  const list = document.getElementById(containerId);
+  const rows = tickets
+    .filter(t=>!t.archived && t.status==='Ready' && filterFn(t))
+    .slice()
+    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  if(rows.length===0){
+    list.innerHTML = `<div class="empty-state"><i class="ti" style="font-size:13px;"></i>${emptyMsg}</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;flex-wrap:wrap;" onclick="jumpToTicket('${t.id}')">
+      <div style="flex:1;min-width:180px;">
+        <div class="ticket-id">#${t.id}</div>
+        <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+        ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+        ${overdueBadge(t)}
+        ${returningBadge(t)}
+      </div>
+      <div class="mono" style="font-size:14px;font-weight:600;color:${t.price ? 'var(--text)' : 'var(--danger)'};">${t.price ? formatPrice(t.price) : 'No price set'}</div>
+      <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
+        ${statusOptionsHtml(t.status, 'ready')}
+      </select>
+          <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'To Pick Up')">➡️ Move to To Pick Up</button>
+    </div>`;
+  }).join('');
+}
+
+function renderReadyList(){
+  renderReadySection('ready-fixable-list', t=>t.diagnosisResult==='Fixable', 'No fixable repairs waiting for pickup right now.');
+  renderReadySection('ready-notfixable-list', t=>t.diagnosisResult==='Not Fixable', 'None right now.');
+  renderReadySection('ready-other-list', t=>t.diagnosisResult!=='Fixable' && t.diagnosisResult!=='Not Fixable', 'None right now.');
+}
+
+async function addPartToTicketTF(id){
+  const sel = document.getElementById('tfpartsel-'+id);
+  const partNumber = sel.value;
+  if(!partNumber) return;
+  const res = await apiGet('adminAddPartToTicket', {id:id, partNumber:partNumber});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsAndParts();
+}
+
+async function removePartFromTicketTF(id, index){
+  const res = await apiGet('adminRemovePartFromTicket', {id:id, index:index});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsAndParts();
+}
+
+async function saveTaskNotes(id){
+  const ticket = tickets.find(x=>x.id===id);
+  const internalNotes = document.getElementById('task-note-'+id).value;
+  const res = await apiGet('adminSaveNotes', {id:id, customerNote: (ticket ? ticket.customerNote : ''), internalNotes:internalNotes});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsOnly();
+}
+
+function renderToFixList(){
+  const list = document.getElementById('tofix-list');
+  const toFix = tickets
+    .filter(t=>!t.archived && t.status==='Repairing' && (t.diagnosisResult==='Fixable' || t.flaggedHard))
+    .slice()
+    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  if(toFix.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing in progress right now. Start a task from the Fixable section in Diagnosed.</div>';
+    return;
+  }
+
+  list.innerHTML = toFix.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;" onclick="jumpToTicket('${t.id}')">
+        <div style="flex:1;min-width:180px;">
+          <div class="ticket-id">#${t.id}</div>
+          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+          ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          ${overdueBadge(t)}
+        </div>
+        <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'Ready'); event.stopPropagation();">✅ Mark Ready</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <label>What's been done</label>
+        <textarea id="task-note-${t.id}" placeholder="e.g. Replaced VRM MOSFET, reflowed core, testing under load...">${(t.internalNotes||'')}</textarea>
+        <button class="btn-ghost" style="width:auto;margin-top:8px;" onclick="saveTaskNotes('${t.id}')">Save note</button>
+
+        <label style="margin-top:14px;">Parts used</label>
+        <div id="tfparts-${t.id}">
+          ${(t.partsUsed||[]).length===0 ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">No parts attached yet.</div>' :
+            (t.partsUsed||[]).map((pu,idx)=>`
+              <div class="parts-line">
+                <span>${pu.name} (${pu.partNumber}) — ${formatPrice(pu.price)}</span>
+                <button class="btn-ghost" style="padding:4px 8px;font-size:10px;" onclick="removePartFromTicketTF('${t.id}', ${idx})">Remove</button>
+              </div>
+            `).join('')}
+        </div>
+        <div class="parts-subtotal">Parts subtotal: <b class="mono">${formatPrice(partsSubtotal(t)) || '0 DA'}</b></div>
+        <div style="display:flex;gap:8px;">
+          <select id="tfpartsel-${t.id}" style="flex:1;">
+            <option value="">Select a part to add…</option>
+            ${parts.map(pt=>`<option value="${pt.partNumber}">${pt.partNumber} — ${pt.name} (${formatPrice(pt.price)||'no price'}, ${pt.quantity} in stock)</option>`).join('')}
+          </select>
+          <button class="btn-ghost" style="width:auto;" onclick="addPartToTicketTF('${t.id}')">Add</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderHardList(){
   const list = document.getElementById('hard-list');
   const hard = tickets
-    .filter(t=>!t.archived && t.flaggedHard && !['Ready','Picked Up','Cancelled'].includes(t.status))
+    .filter(t=>!t.archived && t.flaggedHard && !['Ready','To Pick Up','Picked Up','Cancelled','Repairing'].includes(t.status))
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
 
@@ -2083,15 +2276,18 @@ function renderHardList(){
   list.innerHTML = hard.map(t=>{
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
     return `
-    <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;" onclick="jumpToTicket('${t.id}')">
-      <div style="flex:1;">
+    <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;flex-wrap:wrap;" onclick="jumpToTicket('${t.id}')">
+      <div style="flex:1;min-width:180px;">
         <div class="ticket-id">#${t.id}</div>
         <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
         ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
         ${overdueBadge(t)}
+        ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', false, event)">↩️ Back to queue</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', false, event)">↩️ Back to Diagnosed</button>
     </div>`;
   }).join('');
 }
@@ -2132,7 +2328,10 @@ function renderDoneList(){
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+          <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
+        ${statusOptionsHtml(t.status, 'ready')}
+      </select>
+          <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
@@ -2146,15 +2345,15 @@ function renderDoneList(){
 function renderShippingList(){
   const q = document.getElementById('shipping-search').value.toLowerCase();
   const list = document.getElementById('shipping-list');
-  const pending = tickets.filter(t=>t.archived && t.pendingShipping);
-  document.getElementById('shipping-count').textContent = pending.length + ' total';
+  const toPickUp = tickets.filter(t=>!t.archived && t.status==='To Pick Up');
+  document.getElementById('shipping-count').textContent = toPickUp.length + ' total';
 
-  const filtered = pending.filter(t=>{
+  const filtered = toPickUp.filter(t=>{
     return !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
   });
 
   if(filtered.length===0){
-    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing pending shipment right now.</div>';
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing waiting to be picked up right now.</div>';
     return;
   }
 
@@ -2172,12 +2371,77 @@ function renderShippingList(){
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+          <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
+        ${statusOptionsHtml(t.status, 'shipping')}
+      </select>
+          <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px;">
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setPendingShipping('${t.id}', false, event)">↩️ Back to Done</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'Picked Up')">✅ Picked up</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function reopenToPickup(id, event){
+  if(event) event.stopPropagation();
+  if(!window.confirm('Send #' + id + ' back to To Pick Up? Use this if the customer is coming another day.')) return;
+  const res = await apiGet('adminReopenToPickup', {id:id});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
+}
+
+async function deleteArchivedTicket(id, event){
+  if(event) event.stopPropagation();
+  if(!window.confirm('Permanently delete #' + id + '? This cannot be undone.')) return;
+  const res = await apiGet('adminDelete', {id:id});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
+}
+
+function renderArchiveList(){
+  const q = document.getElementById('archive-search').value.toLowerCase();
+  const list = document.getElementById('archive-list');
+  const pickedUp = tickets.filter(t=>t.archived);
+  document.getElementById('archive-count').textContent = pickedUp.length + ' total';
+
+  const filtered = pickedUp.filter(t=>{
+    return !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+  });
+
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing picked up yet.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row">
+      <div class="ticket-row-top">
+        <div>
+          <div class="ticket-id">#${t.id}</div>
+          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+          ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          ${t.shippingWilaya
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingWilaya}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
+            : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="reopenToPickup('${t.id}', event)">↩️ Back to To Pick Up</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteArchivedTicket('${t.id}', event)">🗑️ Delete</button>
       </div>
     </div>`;
   }).join('');
@@ -3037,6 +3301,36 @@ async function quickUpdateStatus(id, newStatus){
     return;
   }
   await refreshTicketsOnly();
+}
+
+// Which statuses make sense to jump to, depending on which tab you're viewing the pill from.
+// The ticket's own current status is always included even if outside this list, so the
+// dropdown never shows a mismatched/blank selection.
+const STATUS_OPTIONS_BY_CONTEXT = {
+  tickets:   STATUSES.slice(), // master list — every stage is fair game
+  diagnosed: ['Diagnosing','Waiting for Parts','Repairing','Ready'],
+  classified: ['Waiting for Parts','Repairing','Ready'],
+  hard:      ['Waiting for Parts','Repairing','Ready'],
+  shipping:  ['To Pick Up','Picked Up'],
+  global:    STATUSES.slice()
+};
+
+const STRICT_CONTEXTS = ['classified','hard']; // these never auto-add the current status as an extra option
+
+function statusOptionsHtml(currentStatus, context){
+  const base = STATUS_OPTIONS_BY_CONTEXT[context] || STATUSES;
+  const opts = base.slice();
+  const strict = STRICT_CONTEXTS.includes(context);
+  if(!strict && !opts.includes(currentStatus)) opts.push(currentStatus);
+  if(!opts.includes('Cancelled')) opts.push('Cancelled');
+  return opts.map(s=>`<option value="${s}" ${s===currentStatus?'selected':''}>${s}</option>`).join('');
+}
+
+function stepBackStatus(id, currentStatus, event){
+  if(event) event.stopPropagation();
+  const idx = STATUSES.indexOf(currentStatus);
+  if(idx <= 0) return; // already at Registered, or an unrecognized/Cancelled status — nothing to step back to
+  quickUpdateStatus(id, STATUSES[idx - 1]);
 }
 
 function askDeleteTicket(id){
