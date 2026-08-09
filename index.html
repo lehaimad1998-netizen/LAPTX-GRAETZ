@@ -2111,7 +2111,27 @@ function renderClassifiedList(containerId, result, emptyMsg){
 
 async function endTaskBackToCustomer(id, event){
   if(event) event.stopPropagation();
-  if(!window.confirm('End this task and move #' + id + ' to Done repairs? This closes it out immediately.')) return;
+  const ticket = tickets.find(x=>x.id===id);
+
+  if(ticket && ticket.diagnosisResult === 'Not Fixable'){
+    const fee = window.prompt('Diagnostic fee for #' + id + ' (DA) — leave blank to skip:', ticket.price || '500');
+    if(fee === null) return; // cancelled entirely
+    if(fee.trim() !== ''){
+      const priceRes = await apiGet('adminSetPricing', {
+        id: id,
+        laborPrice: fee.trim(),
+        paymentStatus: ticket.paymentStatus || 'Unpaid',
+        amountPaid: ticket.amountPaid || ''
+      });
+      if(!priceRes.ok){
+        document.getElementById('save-error-banner').style.display = 'block';
+        return;
+      }
+    }
+  } else {
+    if(!window.confirm('End this task and move #' + id + ' to Done repairs? This closes it out immediately.')) return;
+  }
+
   const res = await apiGet('adminEndTask', {id:id});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
@@ -2407,6 +2427,24 @@ async function deleteArchivedTicket(id, event){
   await refreshTicketsOnly();
 }
 
+async function saveArchivePrice(id, event){
+  if(event) event.stopPropagation();
+  const ticket = tickets.find(x=>x.id===id);
+  const price = document.getElementById('archive-price-'+id).value;
+  const res = await apiGet('adminSetPricing', {
+    id: id,
+    laborPrice: price,
+    paymentStatus: ticket ? (ticket.paymentStatus || 'Unpaid') : 'Unpaid',
+    amountPaid: ticket ? (ticket.amountPaid || '') : ''
+  });
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsOnly();
+}
+
 function renderArchiveList(){
   const q = document.getElementById('archive-search').value.toLowerCase();
   const list = document.getElementById('archive-list');
@@ -2431,12 +2469,16 @@ function renderArchiveList(){
           <div class="ticket-id">#${t.id}</div>
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
           ${t.shippingWilaya
             ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingWilaya}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input id="archive-price-${t.id}" type="number" value="${t.price||''}" placeholder="Price" class="mono" style="width:100px;margin:0;font-size:12px;padding:6px 8px;">
+            <button class="btn-ghost" style="width:auto;padding:6px 10px;font-size:10px;" onclick="saveArchivePrice('${t.id}', event)">Save</button>
+          </div>
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
