@@ -2226,6 +2226,23 @@ async function saveTaskNotes(id){
   await refreshTicketsOnly();
 }
 
+async function saveRepairCost(id){
+  const ticket = tickets.find(x=>x.id===id);
+  const repairCost = document.getElementById('tf-repaircost-'+id).value;
+  const res = await apiGet('adminSetPricing', {
+    id: id,
+    laborPrice: repairCost,
+    paymentStatus: ticket ? (ticket.paymentStatus || 'Unpaid') : 'Unpaid',
+    amountPaid: ticket ? (ticket.amountPaid || '') : ''
+  });
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsOnly();
+}
+
 function renderToFixList(){
   const list = document.getElementById('tofix-list');
   const toFix = tickets
@@ -2240,6 +2257,7 @@ function renderToFixList(){
 
   list.innerHTML = toFix.map(t=>{
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
     return `
     <div class="ticket-row">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;" onclick="jumpToTicket('${t.id}')">
@@ -2249,14 +2267,21 @@ function renderToFixList(){
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
         </div>
+        <div class="mono" style="font-size:15px;font-weight:700;color:var(--trace);">${formatPrice(combinedTotal) || '0 DA'}</div>
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'Ready'); event.stopPropagation();">✅ Mark Ready</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>
       </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
         <label>What's been done</label>
         <textarea id="task-note-${t.id}" placeholder="e.g. Replaced VRM MOSFET, reflowed core, testing under load...">${(t.internalNotes||'')}</textarea>
         <button class="btn-ghost" style="width:auto;margin-top:8px;" onclick="saveTaskNotes('${t.id}')">Save note</button>
+
+        <label style="margin-top:14px;">Repair cost (labor)</label>
+        <div style="display:flex;gap:8px;">
+          <input id="tf-repaircost-${t.id}" type="number" value="${t.price||''}" placeholder="0" class="mono" style="flex:1;">
+          <button class="btn-ghost" style="width:auto;" onclick="saveRepairCost('${t.id}')">Save</button>
+        </div>
 
         <label style="margin-top:14px;">Parts used</label>
         <div id="tfparts-${t.id}">
@@ -2276,6 +2301,7 @@ function renderToFixList(){
           </select>
           <button class="btn-ghost" style="width:auto;" onclick="addPartToTicketTF('${t.id}')">Add</button>
         </div>
+        <div class="parts-subtotal" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">Total (repair cost + parts): <b class="mono" style="color:var(--trace);font-size:15px;">${formatPrice(combinedTotal) || '0 DA'}</b></div>
       </div>
     </div>`;
   }).join('');
@@ -2362,6 +2388,30 @@ function renderDoneList(){
   }).join('');
 }
 
+async function markPickedUpAndPaid(id, event){
+  if(event) event.stopPropagation();
+  const ticket = tickets.find(x=>x.id===id);
+  const fullPrice = ticket ? (ticket.price || '0') : '0';
+
+  const priceRes = await apiGet('adminSetPricing', {
+    id: id,
+    laborPrice: ticket ? (ticket.price || '') : '',
+    paymentStatus: 'Paid',
+    amountPaid: fullPrice
+  });
+  if(!priceRes.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+
+  const res = await apiGet('adminUpdateStatus', {id:id, status:'Picked Up', note:''});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
+}
+
 function renderShippingList(){
   const q = document.getElementById('shipping-search').value.toLowerCase();
   const list = document.getElementById('shipping-list');
@@ -2399,7 +2449,7 @@ function renderShippingList(){
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px;">
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'Picked Up')">✅ Picked up</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>
       </div>
     </div>`;
   }).join('');
