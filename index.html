@@ -293,35 +293,39 @@ textarea{resize:vertical;min-height:56px;}
 
     <div id="admin-tickets-subview">
     <div class="stat-row" style="margin-bottom:16px;">
-      <div class="stat-card" id="stat-weekly-intake-card">
+      <div class="stat-card" id="stat-weekly-intake-card" style="cursor:pointer;" onclick="applyCounterFilter('weekly')" title="Show this week's registrations">
         <div class="stat-label">This week's intake (Sat–Fri)</div>
         <div class="stat-value mono" id="stat-weekly-intake">0 / 10</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" id="stat-weekly-intake-daily"></div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" style="cursor:pointer;" onclick="applyCounterFilter('backlog')" title="Show active repairs in progress">
         <div class="stat-label">Active repairs in progress</div>
         <div class="stat-value mono" id="stat-backlog-count">0</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" style="cursor:pointer;" onclick="applyCounterFilter('waitingparts')" title="Show repairs waiting for parts">
         <div class="stat-label">Waiting for parts</div>
         <div class="stat-value mono" id="stat-waiting-parts-count">0</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" style="cursor:pointer;" onclick="applyCounterFilter('diagnosed')" title="Show diagnosed repairs awaiting classification">
         <div class="stat-label">Diagnosed (awaiting result)</div>
         <div class="stat-value mono" id="stat-diagnosed-count">0</div>
       </div>
-      <div class="stat-card" style="border-color:var(--trace);">
+      <div class="stat-card" style="border-color:var(--trace);cursor:pointer;" onclick="applyCounterFilter('fixable')" title="Show fixable repairs">
         <div class="stat-label">Fixable</div>
         <div class="stat-value mono" id="stat-fixable-count" style="color:var(--trace);">0</div>
       </div>
-      <div class="stat-card" style="border-color:var(--danger);">
+      <div class="stat-card" style="border-color:var(--danger);cursor:pointer;" onclick="applyCounterFilter('notfixable')" title="Show not fixable repairs">
         <div class="stat-label">Not Fixable</div>
         <div class="stat-value mono" id="stat-notfixable-count" style="color:var(--danger);">0</div>
       </div>
-      <div class="stat-card" style="border-color:var(--trace);">
+      <div class="stat-card" style="border-color:var(--trace);cursor:pointer;" onclick="applyCounterFilter('testsok')" title="Show tests OK repairs">
         <div class="stat-label">Tests OK</div>
         <div class="stat-value mono" id="stat-testsok-count" style="color:var(--trace);">0</div>
       </div>
+    </div>
+    <div id="counter-filter-banner" style="display:none;margin-bottom:16px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--trace);border-radius:8px;font-size:13px;align-items:center;justify-content:space-between;">
+      <span id="counter-filter-label"></span>
+      <button class="btn-ghost" style="width:auto;padding:5px 10px;font-size:11px;" onclick="clearCounterFilter()">✕ Clear filter</button>
     </div>
     <div class="grid-2">
       <div class="panel">
@@ -520,6 +524,9 @@ textarea{resize:vertical;min-height:56px;}
 
         <h2 style="margin-top:24px;">Withdrawal history</h2>
         <div id="withdrawals-list"></div>
+
+        <h2 style="margin-top:24px;">💸 Owed</h2>
+        <div id="owed-list"></div>
 
         <h2 style="margin-top:24px;">Paid repairs</h2>
         <div id="revenue-list"></div>
@@ -1495,6 +1502,120 @@ function printSticker(ticketId){
   w.document.close();
 }
 
+function printReceipt(id){
+  const t = tickets.find(x=>x.id===id);
+  if(!t) return;
+
+  const w = window.open('', '_blank', 'width=800,height=1000');
+  if(!w) return;
+
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || '—';
+  const repairCost = parseFloat(t.price) || 0;
+  const partsList = t.partsUsed || [];
+  const partsTotal = partsList.reduce((sum,pu)=> sum + (parseFloat(pu.price)||0), 0);
+  const grandTotal = repairCost + partsTotal;
+  const today = new Date().toLocaleDateString('en-GB');
+
+  const partsRows = partsList.length===0
+    ? '<tr><td colspan="3" style="text-align:center;color:#888;padding:10px;">No parts used</td></tr>'
+    : partsList.map(pu => `
+        <tr>
+          <td>${pu.name}</td>
+          <td>${pu.partNumber}</td>
+          <td style="text-align:right;">${(parseFloat(pu.price)||0).toLocaleString()} DA</td>
+        </tr>`).join('');
+
+  const html = `<html><head><title>Receipt ${t.id}</title><style>
+    @page{size:A4;margin:20mm;}
+    *{box-sizing:border-box;}
+    body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:0;font-size:13px;}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #111;padding-bottom:16px;margin-bottom:24px;}
+    .shop-name{font-size:24px;font-weight:800;letter-spacing:0.5px;}
+    .shop-sub{font-size:12px;color:#444;margin-top:4px;}
+    .receipt-title{font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:1px;text-align:right;}
+    .receipt-meta{font-size:12px;color:#444;text-align:right;margin-top:4px;}
+    .section{margin-bottom:20px;}
+    .section-label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#666;font-weight:700;margin-bottom:6px;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+    .field{margin-bottom:6px;}
+    .field b{display:inline-block;min-width:90px;}
+    table{width:100%;border-collapse:collapse;margin-top:8px;}
+    th{text-align:left;font-size:11px;text-transform:uppercase;color:#666;border-bottom:2px solid #111;padding:6px 4px;}
+    td{padding:8px 4px;border-bottom:1px solid #ddd;}
+    .totals{margin-top:16px;margin-left:auto;width:280px;}
+    .totals-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;}
+    .totals-row.grand{border-top:2px solid #111;margin-top:6px;padding-top:10px;font-size:16px;font-weight:800;}
+    .notes-box{border:1px solid #ccc;border-radius:6px;padding:12px;font-size:12px;line-height:1.5;min-height:40px;white-space:pre-wrap;}
+    .footer{margin-top:40px;padding-top:16px;border-top:1px solid #ccc;font-size:11px;color:#666;text-align:center;}
+    .sign-line{margin-top:50px;display:flex;justify-content:space-between;}
+    .sign-box{width:200px;text-align:center;font-size:11px;color:#666;}
+    .sign-box .line{border-top:1px solid #111;margin-bottom:4px;padding-top:30px;}
+  </style></head><body>
+
+    <div class="header">
+      <div>
+        <div class="shop-name">LAPTX GPU</div>
+        <div class="shop-sub">GPU Repair Shop</div>
+        <div class="shop-sub">Tel: 0540174110</div>
+      </div>
+      <div>
+        <div class="receipt-title">Repair Receipt</div>
+        <div class="receipt-meta">Repair #${t.id}</div>
+        <div class="receipt-meta">Date: ${today}</div>
+      </div>
+    </div>
+
+    <div class="grid2 section">
+      <div>
+        <div class="section-label">Customer</div>
+        <div class="field"><b>Name:</b> ${t.customerName || '—'}</div>
+        <div class="field"><b>Phone:</b> ${t.phone || '—'}</div>
+      </div>
+      <div>
+        <div class="section-label">Device</div>
+        <div class="field"><b>Model:</b> ${deviceLine}</div>
+        <div class="field"><b>Diagnosis:</b> ${t.diagnosisResult || 'Pending'}</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Reported Issue</div>
+      <div class="notes-box">${t.issue || 'Not specified'}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Work Performed</div>
+      <div class="notes-box">${t.internalNotes || 'Not specified'}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Parts Used</div>
+      <table>
+        <thead><tr><th>Part</th><th>Part Number</th><th style="text-align:right;">Price</th></tr></thead>
+        <tbody>${partsRows}</tbody>
+      </table>
+    </div>
+
+    <div class="totals">
+      <div class="totals-row"><span>Repair cost (labor)</span><span>${repairCost.toLocaleString()} DA</span></div>
+      <div class="totals-row"><span>Parts subtotal</span><span>${partsTotal.toLocaleString()} DA</span></div>
+      <div class="totals-row grand"><span>Total</span><span>${grandTotal.toLocaleString()} DA</span></div>
+    </div>
+
+    <div class="sign-line">
+      <div class="sign-box"><div class="line"></div>Technician signature</div>
+      <div class="sign-box"><div class="line"></div>Customer signature</div>
+    </div>
+
+    <div class="footer">Thank you for choosing LAPTX GPU. Please keep this receipt for your records.</div>
+
+    <script>window.onload=function(){window.print();};<\/script>
+  </body></html>`;
+
+  w.document.write(html);
+  w.document.close();
+}
+
 function renderStatusQR(containerId, ticketId, phone){
   const el = document.getElementById(containerId);
   el.innerHTML = '';
@@ -1649,6 +1770,63 @@ function statusPillStyle(status){
 }
 
 let quickFilter = null; // null | 'overdue' | 'cancelled'
+let counterFilter = null; // null | 'weekly' | 'backlog' | 'waitingparts' | 'diagnosed' | 'fixable' | 'notfixable' | 'testsok'
+
+const COUNTER_FILTER_LABELS = {
+  weekly: '📅 Showing this week\u2019s registrations',
+  backlog: '🔧 Showing active repairs in progress',
+  waitingparts: '⏳ Showing repairs waiting for parts',
+  diagnosed: '🔍 Showing diagnosed repairs awaiting classification',
+  fixable: '✅ Showing fixable repairs',
+  notfixable: '❌ Showing not fixable repairs',
+  testsok: '🔧 Showing tests OK repairs'
+};
+
+function applyCounterFilter(name){
+  counterFilter = counterFilter===name ? null : name;
+  const banner = document.getElementById('counter-filter-banner');
+  const label = document.getElementById('counter-filter-label');
+  if(counterFilter){
+    banner.style.display = 'flex';
+    label.textContent = COUNTER_FILTER_LABELS[counterFilter] || '';
+  }else{
+    banner.style.display = 'none';
+  }
+  renderAdminList();
+}
+
+function clearCounterFilter(){
+  counterFilter = null;
+  document.getElementById('counter-filter-banner').style.display = 'none';
+  renderAdminList();
+}
+
+function matchesCounterFilter(t){
+  if(!counterFilter) return true;
+  if(t.archived) return false;
+  switch(counterFilter){
+    case 'weekly': {
+      const now = new Date();
+      const dayIdx = (now.getDay() + 1) % 7; // 0 = Saturday
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayIdx);
+      return new Date(t.createdAt) >= weekStart;
+    }
+    case 'backlog':
+      return !['Ready','To Pick Up','Picked Up','Cancelled'].includes(t.status);
+    case 'waitingparts':
+      return t.status === 'Waiting for Parts';
+    case 'diagnosed':
+      return t.flaggedDiagnosed && !t.diagnosisResult && t.status === 'Diagnosing';
+    case 'fixable':
+      return t.diagnosisResult === 'Fixable';
+    case 'notfixable':
+      return t.diagnosisResult === 'Not Fixable';
+    case 'testsok':
+      return t.diagnosisResult === 'Tests OK';
+    default:
+      return true;
+  }
+}
 
 function toggleQuickFilter(name){
   quickFilter = quickFilter===name ? null : name;
@@ -1670,7 +1848,8 @@ function renderAdminList(){
     const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
     const matchesF = !filter || t.status===filter;
     const matchesQuick = quickFilter==='overdue' ? isOverdue(t) : (quickFilter==='cancelled' ? t.status==='Cancelled' : true);
-    return matchesQ && matchesF && matchesQuick;
+    const matchesCounter = matchesCounterFilter(t);
+    return matchesQ && matchesF && matchesQuick && matchesCounter;
   });
 
   if(sortMode==='number-asc'){
@@ -1710,47 +1889,34 @@ function renderAdminList(){
         </div>
       </div>
       <div class="ticket-expand ${open?'open':''}">
-        ${editingTicketId===t.id ? `
-          <label>Customer name</label>
-          <input id="edit-name-${t.id}" value="${(t.customerName||'').replace(/"/g,'&quot;')}">
-          <label>Phone number</label>
-          <input id="edit-phone-${t.id}" value="${(t.phone||'').replace(/"/g,'&quot;')}">
-          <label>Entry date</label>
-          <input id="edit-entrydate-${t.id}" type="date" value="${t.entryDate||''}">
-          <div class="row2">
-            <div>
-              <label>Card brand</label>
-              <input id="edit-brand-${t.id}" value="${(t.deviceBrand||'').replace(/"/g,'&quot;')}">
-            </div>
-            <div>
-              <label>Card model</label>
-              <input id="edit-model-${t.id}" value="${(t.deviceModel||'').replace(/"/g,'&quot;')}">
-            </div>
+        <label>Customer name</label>
+        <input id="edit-name-${t.id}" value="${(t.customerName||'').replace(/"/g,'&quot;')}">
+        <label>Phone number</label>
+        <input id="edit-phone-${t.id}" value="${(t.phone||'').replace(/"/g,'&quot;')}">
+        <label>Entry date</label>
+        <input id="edit-entrydate-${t.id}" type="date" value="${t.entryDate||''}">
+        <div class="row2">
+          <div>
+            <label>Card brand</label>
+            <input id="edit-brand-${t.id}" value="${(t.deviceBrand||'').replace(/"/g,'&quot;')}">
           </div>
-          <label>Issue</label>
-          <textarea id="edit-issue-${t.id}">${t.issue||''}</textarea>
-          <div class="pw-error" id="edit-error-${t.id}">Phone number is required.</div>
-          <div style="display:flex;gap:8px;margin-top:10px;">
-            <button class="btn-ghost" onclick="saveTicketEdit('${t.id}')">Save changes</button>
-            <button class="btn-ghost" onclick="cancelTicketEdit()">Cancel</button>
+          <div>
+            <label>Card model</label>
+            <input id="edit-model-${t.id}" value="${(t.deviceModel||'').replace(/"/g,'&quot;')}">
           </div>
-        ` : `
-          <div class="field-line"><b>Entry date:</b> ${t.entryDate || '—'}</div>
-          <div class="field-line issue-line"><b>Issue:</b><br>${t.issue || '—'}</div>
-          ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
-          ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingWilaya}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
-          ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
-          <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
-          <button class="btn-ghost" onclick="startTicketEdit('${t.id}')">Edit ticket</button>
-        `}
-        <label>Update status</label>
-        <div class="status-update-row">
-          <select id="status-sel-${t.id}" onchange="toggleWaitingPartInput('${t.id}')">
-            ${STATUSES.map(s=>`<option value="${s}" ${s===t.status?'selected':''}>${s}</option>`).join('')}
-            <option value="Cancelled" ${t.status==='Cancelled'?'selected':''}>Cancelled (never sent)</option>
-          </select>
-          <button class="btn-ghost" onclick="updateStatus('${t.id}')">Apply</button>
         </div>
+        <label>Issue</label>
+        <textarea id="edit-issue-${t.id}">${t.issue||''}</textarea>
+        ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
+        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingWilaya}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
+        ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
+        <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
+
+        <label>Status</label>
+        <select id="status-sel-${t.id}" onchange="toggleWaitingPartInput('${t.id}')">
+          ${STATUSES.map(s=>`<option value="${s}" ${s===t.status?'selected':''}>${s}</option>`).join('')}
+          <option value="Cancelled" ${t.status==='Cancelled'?'selected':''}>Cancelled (never sent)</option>
+        </select>
         <div id="waiting-part-row-${t.id}" style="display:${t.status==='Waiting for Parts' ? 'block' : 'none'};margin-top:8px;">
           <label>Waiting for which part?</label>
           <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
@@ -1758,13 +1924,16 @@ function renderAdminList(){
         ${t.status==='Ready' ? `<button class="btn-ghost" style="margin-top:8px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'To Pick Up')">➡️ Move to To Pick Up</button>` : ''}
         ${!t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="margin-top:8px;" onclick="setTicketDiagnosed('${t.id}', true, event)">✅ Mark diagnosed</button>` : ''}
         ${t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="margin-top:8px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Undo diagnosed</button>` : ''}
+
         <label>Note for customer (shown on their status page)</label>
         <textarea id="cnote-${t.id}">${t.customerNote||''}</textarea>
         <label>Internal notes (staff only)</label>
         <textarea id="inote-${t.id}">${t.internalNotes||''}</textarea>
+
+        <div class="pw-error" id="edit-error-${t.id}">Phone number is required.</div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
-          <div style="display:flex;gap:8px;">
-            <button class="btn-ghost" onclick="saveNotes('${t.id}')">Save notes</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-ghost" style="background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="saveEntireTicket('${t.id}')">💾 Save ticket</button>
             <button class="btn-ghost" onclick="printSticker('${t.id}')">Print sticker</button>
           </div>
           ${confirmingDeleteId===t.id ? `
@@ -2556,7 +2725,9 @@ function renderShippingList(){
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="printReceipt('${t.id}')">🖨️ Print receipt</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Repairing')">↩️ Back to To Fix</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>
       </div>
     </div>`;
@@ -2640,6 +2811,7 @@ function renderArchiveList(){
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="printReceipt('${t.id}')">🖨️ Print receipt</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="reopenToPickup('${t.id}', event)">↩️ Back to To Pick Up</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteArchivedTicket('${t.id}', event)">🗑️ Delete</button>
       </div>
@@ -2655,6 +2827,49 @@ function startTicketEdit(id){
 function cancelTicketEdit(){
   editingTicketId = null;
   renderAdminList();
+}
+
+async function saveEntireTicket(id){
+  const name = document.getElementById('edit-name-'+id).value.trim();
+  const phone = document.getElementById('edit-phone-'+id).value.trim();
+  const entryDate = document.getElementById('edit-entrydate-'+id).value;
+  const brand = document.getElementById('edit-brand-'+id).value.trim();
+  const model = document.getElementById('edit-model-'+id).value.trim();
+  const issue = document.getElementById('edit-issue-'+id).value.trim();
+  const errEl = document.getElementById('edit-error-'+id);
+  errEl.style.display = 'none';
+
+  if(!phone){
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const editRes = await apiGet('adminEditTicket', {id:id, name:name, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
+  if(!editRes.ok){
+    errEl.textContent = editRes.error || 'Could not save. Try again.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const newStatus = document.getElementById('status-sel-'+id).value;
+  const waitingPartEl = document.getElementById('waiting-part-'+id);
+  const statusNote = (newStatus === 'Waiting for Parts' && waitingPartEl) ? waitingPartEl.value.trim() : '';
+  const statusRes = await apiGet('adminUpdateStatus', {id:id, status:newStatus, note:statusNote});
+  if(!statusRes.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+
+  const customerNote = document.getElementById('cnote-'+id).value;
+  const internalNotes = document.getElementById('inote-'+id).value;
+  const notesRes = await apiGet('adminSaveNotes', {id:id, customerNote:customerNote, internalNotes:internalNotes});
+  if(!notesRes.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsOnly();
 }
 
 async function saveTicketEdit(id){
@@ -3275,6 +3490,7 @@ function renderRevenue(){
   let outstanding = 0;
   let paidCount = 0;
   const paidRepairs = [];
+  const owedRepairs = [];
 
   inPeriod.forEach(t=>{
     const price = parseFloat(t.price);
@@ -3287,9 +3503,15 @@ function renderRevenue(){
     }else if(status==='Partial'){
       const paidSoFar = !isNaN(amountPaid) ? amountPaid : 0;
       collected += paidSoFar;
-      if(!isNaN(price)) outstanding += Math.max(price - paidSoFar, 0);
+      if(!isNaN(price)){
+        outstanding += Math.max(price - paidSoFar, 0);
+        owedRepairs.push(t);
+      }
     }else{
-      if(!isNaN(price)) outstanding += price;
+      if(!isNaN(price)){
+        outstanding += price;
+        owedRepairs.push(t);
+      }
     }
   });
 
@@ -3338,25 +3560,51 @@ function renderRevenue(){
 
   if(paidRepairs.length===0){
     list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No paid repairs in this period.</div>';
-    return;
+  }else{
+    paidRepairs.sort((a,b)=> new Date(b.entryDate||b.createdAt) - new Date(a.entryDate||a.createdAt));
+    list.innerHTML = paidRepairs.map(t=>{
+      const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+      return `
+      <div class="ticket-row">
+        <div class="ticket-row-top">
+          <div>
+            <div class="ticket-id">#${t.id}</div>
+            <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.entryDate || '—'}</div>
+            ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          </div>
+          <div class="status-pill mono" style="${paymentPillStyle('Paid')}">${formatPrice(t.price)}</div>
+        </div>
+      </div>`;
+    }).join('');
   }
 
-  paidRepairs.sort((a,b)=> new Date(b.entryDate||b.createdAt) - new Date(a.entryDate||a.createdAt));
-
-  list.innerHTML = paidRepairs.map(t=>{
-    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
-    return `
-    <div class="ticket-row">
-      <div class="ticket-row-top">
-        <div>
-          <div class="ticket-id">#${t.id}</div>
-          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.entryDate || '—'}</div>
-          ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
-        </div>
-        <div class="status-pill mono" style="${paymentPillStyle('Paid')}">${formatPrice(t.price)}</div>
-      </div>
-    </div>`;
-  }).join('');
+  const owedList = document.getElementById('owed-list');
+  if(owedList){
+    if(owedRepairs.length===0){
+      owedList.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing owed in this period — everyone is paid up.</div>';
+    }else{
+      owedRepairs.sort((a,b)=> new Date(b.entryDate||b.createdAt) - new Date(a.entryDate||a.createdAt));
+      owedList.innerHTML = owedRepairs.map(t=>{
+        const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+        const price = parseFloat(t.price) || 0;
+        const amountPaid = parseFloat(t.amountPaid) || 0;
+        const status = t.paymentStatus || 'Unpaid';
+        const stillOwed = status==='Partial' ? Math.max(price - amountPaid, 0) : price;
+        return `
+        <div class="ticket-row" style="cursor:pointer;" onclick="jumpToTicket('${t.id}')">
+          <div class="ticket-row-top">
+            <div>
+              <div class="ticket-id">#${t.id}</div>
+              <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+              ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+              ${status==='Partial' ? `<div class="lowstock-flag">Paid so far: ${formatPrice(amountPaid)} of ${formatPrice(price)}</div>` : ''}
+            </div>
+            <div class="status-pill mono" style="${paymentPillStyle(status)}">${formatPrice(stillOwed)} owed</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 let currentCashOnHand = 0;
