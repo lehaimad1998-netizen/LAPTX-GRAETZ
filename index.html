@@ -284,8 +284,9 @@ textarea{resize:vertical;min-height:56px;}
       <button class="tab-btn active" id="subtab-tickets" onclick="switchAdminSubview('tickets')">Tickets</button>
       <button class="tab-btn" id="subtab-diagnosed" onclick="switchAdminSubview('diagnosed')">Diagnosed</button>
       <button class="tab-btn" id="subtab-tofix" onclick="switchAdminSubview('tofix')">To Fix</button>
-      <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Workshop</button>
+      <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Revenue</button>
       <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
+      <button class="tab-btn" id="subtab-ready" onclick="switchAdminSubview('ready')">Ready</button>
       <button class="tab-btn" id="subtab-shipping" onclick="switchAdminSubview('shipping')">To Pick Up</button>
       <button class="tab-btn" id="subtab-archive" onclick="switchAdminSubview('archive')">Archive</button>
     </div>
@@ -362,8 +363,7 @@ textarea{resize:vertical;min-height:56px;}
         <div class="list-controls">
           <input id="admin-search" placeholder="Search name, phone, ID, device..." oninput="renderAdminList()">
           <select id="admin-filter" onchange="renderAdminList()">
-            <option value="">All statuses</option>
-            <option value="Received" selected>Received</option>
+            <option value="" selected>All statuses</option>
           </select>
           <select id="admin-sort" onchange="renderAdminList()">
             <option value="newest">Newest first</option>
@@ -433,15 +433,32 @@ textarea{resize:vertical;min-height:56px;}
 
     <div id="admin-tofix-subview" style="display:none;">
       <div class="panel">
-        <h2>To Fix</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Fixable repairs currently in progress — log what's been done and attach parts as you go.</div>
-        <div id="tofix-list"></div>
+        <h2>✅ Fix — in progress</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs actively being worked on — log what's been done and attach parts as you go.</div>
+        <div id="tofix-fix-list"></div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>❌ No fix — discovered mid-task</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Turned out not fixable after starting work. Close these out instead of moving them to pickup.</div>
+        <div id="tofix-nofix-list"></div>
       </div>
     </div>
 
     <div id="admin-workshop-subview" style="display:none;">
       <div class="panel">
-        <h2>Revenue</h2>
+        <h2>💰 Cash position — right now</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">The money you actually have on hand, all-time — not affected by the period filter below.</div>
+        <div class="stat-row">
+          <div class="stat-card" style="border-color:var(--trace);">
+            <div class="stat-label">Cash on hand</div>
+            <div class="stat-value mono" id="stat-cash-on-hand" style="font-size:28px;">0 DA</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>📊 This period</h2>
         <div class="list-controls">
           <select id="revenue-period" onchange="renderRevenue()">
             <option value="all">All time</option>
@@ -450,31 +467,37 @@ textarea{resize:vertical;min-height:56px;}
             <option value="month">This month</option>
           </select>
         </div>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Based on each ticket's entry date, since payments aren't timestamped individually.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Every number below changes with the period you pick above. Based on each ticket's entry date, since payments aren't timestamped individually.</div>
+
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Money</div>
         <div class="stat-row">
           <div class="stat-card">
             <div class="stat-label">Collected</div>
             <div class="stat-value mono" id="stat-collected">0 DA</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Outstanding</div>
+            <div class="stat-label">Still owed by customers</div>
             <div class="stat-value mono" id="stat-outstanding">0 DA</div>
+          </div>
+          <div class="stat-card" style="border-color:var(--trace);">
+            <div class="stat-label">Estimated profit</div>
+            <div class="stat-value mono" id="stat-profit" style="color:var(--trace);">0 DA</div>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:16px 0 8px;">Parts</div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-label">Sold to customers</div>
+            <div class="stat-value mono" id="stat-parts-sold">0 DA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">What you paid for them</div>
+            <div class="stat-value mono" id="stat-parts-cost">0 DA</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Paid repairs</div>
             <div class="stat-value mono" id="stat-paid-count">0</div>
-          </div>
-          <div class="stat-card" style="border-color:var(--trace);">
-            <div class="stat-label">Cash on hand (all time)</div>
-            <div class="stat-value mono" id="stat-cash-on-hand">0 DA</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Parts sold (sell value)</div>
-            <div class="stat-value mono" id="stat-parts-sold">0 DA</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Parts cost (what you paid)</div>
-            <div class="stat-value mono" id="stat-parts-cost">0 DA</div>
           </div>
         </div>
 
@@ -632,6 +655,18 @@ textarea{resize:vertical;min-height:56px;}
           <span class="count-tag" id="parts-count"></span>
         </div>
         <div id="parts-list"></div>
+      </div>
+    </div>
+
+    <div id="admin-ready-subview" style="display:none;">
+      <div class="panel">
+        <h2>Ready</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repaired and marked Ready, but not yet moved to To Pick Up. Move one forward whenever it's confirmed and set to go.</div>
+        <div class="list-controls">
+          <input id="ready-search" placeholder="Search name, phone, ID, device..." oninput="renderReadySimpleList()">
+          <span class="count-tag" id="ready-count"></span>
+        </div>
+        <div id="ready-list"></div>
       </div>
     </div>
 
@@ -1354,6 +1389,7 @@ function switchAdminSubview(v){
   document.getElementById('admin-tofix-subview').style.display = v==='tofix' ? 'block' : 'none';
   document.getElementById('admin-workshop-subview').style.display = v==='workshop' ? 'block' : 'none';
   document.getElementById('admin-stock-subview').style.display = v==='stock' ? 'block' : 'none';
+  document.getElementById('admin-ready-subview').style.display = v==='ready' ? 'block' : 'none';
   document.getElementById('admin-shipping-subview').style.display = v==='shipping' ? 'block' : 'none';
   document.getElementById('admin-archive-subview').style.display = v==='archive' ? 'block' : 'none';
   document.getElementById('subtab-tickets').classList.toggle('active', v==='tickets');
@@ -1361,6 +1397,7 @@ function switchAdminSubview(v){
   document.getElementById('subtab-tofix').classList.toggle('active', v==='tofix');
   document.getElementById('subtab-workshop').classList.toggle('active', v==='workshop');
   document.getElementById('subtab-stock').classList.toggle('active', v==='stock');
+  document.getElementById('subtab-ready').classList.toggle('active', v==='ready');
   document.getElementById('subtab-shipping').classList.toggle('active', v==='shipping');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   renderVisibleAdminSubview();
@@ -1372,6 +1409,7 @@ function renderVisibleAdminSubview(){
   else if(currentAdminSubview==='tofix') renderToFixList();
   else if(currentAdminSubview==='workshop'){ renderWorkshopList(); renderRevenue(); }
   else if(currentAdminSubview==='stock') renderPartsList();
+  else if(currentAdminSubview==='ready') renderReadySimpleList();
   else if(currentAdminSubview==='shipping') renderShippingList();
   else if(currentAdminSubview==='archive') renderArchiveList();
 }
@@ -1789,8 +1827,9 @@ function ticketBucket(t){
   if(t.archived) return {tab:'archive', label: t.pendingShipping ? 'Archive · Pending Shipping' : 'Archive'};
   if(t.status === 'Cancelled') return {tab:'tickets', label:'Tickets · Cancelled'};
   if(t.status === 'To Pick Up') return {tab:'shipping', label:'To Pick Up'};
-  if(t.status === 'Ready') return {tab:'tickets', label:'Tickets · Ready'};
-  if(t.status === 'Repairing' && (t.flaggedHard || t.diagnosisResult === 'Fixable')) return {tab:'tofix', label:'To Fix'};
+  if(t.status === 'Ready') return {tab:'ready', label:'Ready'};
+  if(t.status === 'Repairing' && t.diagnosisResult === 'Not Fixable') return {tab:'tofix', label:'To Fix · No fix'};
+  if(t.status === 'Repairing' && (t.flaggedHard || t.diagnosisResult === 'Fixable')) return {tab:'tofix', label:'To Fix · Fix'};
   if(t.status === 'Waiting for Parts' && !t.flaggedHard) return {tab:'diagnosed', label:'Diagnosed · Waiting for Parts'};
   if(t.flaggedHard) return {tab:'diagnosed', label:'Diagnosed · Hard/Long'};
   if(t.diagnosisResult === 'Fixable' && t.status === 'Diagnosing') return {tab:'diagnosed', label:'Diagnosed · Fixable'};
@@ -1818,6 +1857,12 @@ function globalJumpToTicket(id){
     switchAdminSubview('shipping');
     document.getElementById('shipping-search').value = id;
     renderShippingList();
+    return;
+  }
+  if(bucket.tab === 'ready'){
+    switchAdminSubview('ready');
+    document.getElementById('ready-search').value = id;
+    renderReadySimpleList();
     return;
   }
   if(bucket.tab === 'archive'){
@@ -1972,6 +2017,17 @@ async function setDiagnosisResult(id, result, event){
   await refreshTicketsOnly();
 }
 
+function fixNoFixPillHtml(t){
+  const val = t.diagnosisResult === 'Not Fixable' ? 'Not Fixable' : (t.diagnosisResult === 'Fixable' ? 'Fixable' : '');
+  const style = val==='Not Fixable' ? 'background:var(--danger);color:#2A0E0C;border-color:var(--danger);'
+              : (val==='Fixable' ? 'background:var(--trace);color:#0C1712;border-color:var(--trace);' : '');
+  return `<select class="status-pill mono status-pill-select" style="${style}" onclick="event.stopPropagation()" onchange="setDiagnosisResult('${t.id}', this.value, event)">
+      ${val==='' ? '<option value="" selected disabled>Fix / No fix</option>' : ''}
+      <option value="Fixable" ${val==='Fixable'?'selected':''}>✅ Fix</option>
+      <option value="Not Fixable" ${val==='Not Fixable'?'selected':''}>❌ No fix</option>
+    </select>`;
+}
+
 function renderDiagnosedList(){
   const list = document.getElementById('diagnosed-list');
   const diagnosed = tickets
@@ -2072,6 +2128,7 @@ function renderFixableSection(){
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+      ${fixNoFixPillHtml(t)}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
@@ -2103,6 +2160,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
         ${overdueBadge(t)}
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
+      ${fixNoFixPillHtml(t)}
       ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
@@ -2243,22 +2301,15 @@ async function saveRepairCost(id){
   await refreshTicketsOnly();
 }
 
-function renderToFixList(){
-  const list = document.getElementById('tofix-list');
-  const toFix = tickets
-    .filter(t=>!t.archived && t.status==='Repairing' && (t.diagnosisResult==='Fixable' || t.flaggedHard))
-    .slice()
-    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+function toFixRowHtml(t, isNoFix){
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+  const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
+  const actionButtons = isNoFix
+    ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>`
+    : `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
+       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>`;
 
-  if(toFix.length===0){
-    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing in progress right now. Start a task from the Fixable section in Diagnosed.</div>';
-    return;
-  }
-
-  list.innerHTML = toFix.map(t=>{
-    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
-    const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
-    return `
+  return `
     <div class="ticket-row">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;" onclick="jumpToTicket('${t.id}')">
         <div style="flex:1;min-width:180px;">
@@ -2269,8 +2320,8 @@ function renderToFixList(){
         </div>
         <div class="mono" style="font-size:15px;font-weight:700;color:var(--trace);">${formatPrice(combinedTotal) || '0 DA'}</div>
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>
+        ${fixNoFixPillHtml(t)}
+        ${actionButtons}
       </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
         <label>What's been done</label>
@@ -2304,7 +2355,27 @@ function renderToFixList(){
         <div class="parts-subtotal" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">Total (repair cost + parts): <b class="mono" style="color:var(--trace);font-size:15px;">${formatPrice(combinedTotal) || '0 DA'}</b></div>
       </div>
     </div>`;
-  }).join('');
+}
+
+function renderToFixList(){
+  const allInProgress = tickets
+    .filter(t=>!t.archived && t.status==='Repairing' && (t.diagnosisResult==='Fixable' || t.diagnosisResult==='Not Fixable' || t.flaggedHard))
+    .slice()
+    .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  const fixList = allInProgress.filter(t=>t.diagnosisResult !== 'Not Fixable');
+  const noFixList = allInProgress.filter(t=>t.diagnosisResult === 'Not Fixable');
+
+  const fixContainer = document.getElementById('tofix-fix-list');
+  const noFixContainer = document.getElementById('tofix-nofix-list');
+
+  fixContainer.innerHTML = fixList.length===0
+    ? '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing in progress right now. Start a task from the Fixable section in Diagnosed.</div>'
+    : fixList.map(t=>toFixRowHtml(t, false)).join('');
+
+  noFixContainer.innerHTML = noFixList.length===0
+    ? '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>None right now.</div>'
+    : noFixList.map(t=>toFixRowHtml(t, true)).join('');
 }
 
 function renderHardList(){
@@ -2412,6 +2483,42 @@ async function markPickedUpAndPaid(id, event){
   await refreshTicketsOnly();
 }
 
+function renderReadySimpleList(){
+  const q = document.getElementById('ready-search').value.toLowerCase();
+  const list = document.getElementById('ready-list');
+  const ready = tickets.filter(t=>!t.archived && t.status==='Ready');
+  document.getElementById('ready-count').textContent = ready.length + ' total';
+
+  const filtered = ready.filter(t=>{
+    return !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+  });
+
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing sitting at Ready right now.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;flex-wrap:wrap;" onclick="jumpToTicket('${t.id}')">
+      <div style="flex:1;min-width:180px;">
+        <div class="ticket-id">#${t.id}</div>
+        <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+        ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+        ${overdueBadge(t)}
+        ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
+      </div>
+      <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
+        ${statusOptionsHtml(t.status, 'ready')}
+      </select>
+          <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
+      ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'To Pick Up')">➡️ Move to To Pick Up</button>
+    </div>`;
+  }).join('');
+}
+
 function renderShippingList(){
   const q = document.getElementById('shipping-search').value.toLowerCase();
   const list = document.getElementById('shipping-list');
@@ -2445,6 +2552,7 @@ function renderShippingList(){
         ${statusOptionsHtml(t.status, 'shipping')}
       </select>
           <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
+          ${fixNoFixPillHtml(t)}
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
@@ -3204,6 +3312,11 @@ function renderRevenue(){
   document.getElementById('stat-parts-sold').textContent = partsSoldValue.toLocaleString() + ' DA';
   document.getElementById('stat-parts-cost').textContent = partsCostValue.toLocaleString() + ' DA';
 
+  // Rough profit estimate: money actually collected this period, minus what the parts used cost you.
+  // Doesn't account for shop overhead/time — just a quick sanity-check number.
+  const estimatedProfit = collected - partsCostValue;
+  document.getElementById('stat-profit').textContent = estimatedProfit.toLocaleString() + ' DA';
+
   // Cash on hand is always all-time, independent of the period filter above
   let allTimeCollected = 0;
   tickets.forEach(t=>{
@@ -3404,6 +3517,7 @@ const STATUS_OPTIONS_BY_CONTEXT = {
   classified: ['Waiting for Parts','Repairing','Ready'],
   hard:      ['Waiting for Parts','Repairing','Ready'],
   shipping:  ['To Pick Up','Picked Up'],
+  ready:     ['Ready','To Pick Up'],
   global:    STATUSES.slice()
 };
 
