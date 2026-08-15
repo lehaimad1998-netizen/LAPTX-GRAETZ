@@ -591,6 +591,15 @@ textarea{resize:vertical;min-height:56px;}
         <div id="yalidine-creds-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
       </div>
 
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Customer chatbot (GPU troubleshooting)</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Free API key from aistudio.google.com — sign in with a Google account, no credit card needed. Stored securely on the server, same as your other credentials. Scoped to general GPU troubleshooting only — never makes pricing, timing, or repair-status claims.</div>
+        <label>Gemini API Key</label>
+        <input id="gemini-api-key" type="password" placeholder="Your Gemini API key" class="mono">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveGeminiKey()">Save key</button>
+        <div id="gemini-key-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
       <div class="panel" style="max-width:520px;margin:0 auto 20px;">
         <h2>Add part</h2>
         <div class="new-id-banner" id="part-saved-banner">
@@ -847,6 +856,23 @@ textarea{resize:vertical;min-height:56px;}
   </div>
 </div>
 
+<button id="chat-widget-toggle" onclick="toggleChatWidget()" style="display:none;position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--trace);color:#0C1712;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:999;align-items:center;justify-content:center;">💬</button>
+
+<div id="chat-widget-panel" style="display:none;position:fixed;bottom:88px;right:20px;width:340px;max-width:calc(100vw - 40px);height:440px;max-height:calc(100vh - 140px);background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:999;flex-direction:column;overflow:hidden;">
+  <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div style="font-weight:700;font-size:14px;">🔧 GPU Help Assistant</div>
+      <div style="font-size:11px;color:var(--text-muted);">General troubleshooting — not for pricing or repair status</div>
+    </div>
+    <button onclick="toggleChatWidget()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:4px 8px;">✕</button>
+  </div>
+  <div id="chat-messages" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px;"></div>
+  <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;">
+    <input id="chat-input" placeholder="Ask about a GPU issue..." style="margin:0;flex:1;" onkeydown="if(event.key==='Enter') sendChatMessage()">
+    <button class="btn-ghost" style="width:auto;padding:8px 14px;" onclick="sendChatMessage()">Send</button>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    SETUP — paste your Supabase project URL and anon (public) key below.
@@ -887,6 +913,9 @@ const ACTION_TO_RPC = {
   getManualRates: 'get_manual_rates',
   adminSetManualRates: 'admin_set_manual_rates',
   adminSetYalidineCredentials: 'admin_set_yalidine_credentials',
+  adminSetGeminiKey: 'admin_set_gemini_key',
+  customerChatSend: 'customer_chat_send',
+  customerChatPoll: 'customer_chat_poll',
   adminCreateYalidineParcel: 'admin_create_yalidine_parcel',
   partsDelete: 'parts_delete',
   partsAdjustStock: 'parts_adjust_stock',
@@ -1254,6 +1283,100 @@ let passwordExists = null;
 let adminPasswordValue = null;
 let adminAuthed = false;
 
+let chatHistory = []; // [{role:'user'|'model', parts:[{text}]}]
+
+function toggleChatWidget(){
+  const panel = document.getElementById('chat-widget-panel');
+  const isOpen = panel.style.display === 'flex';
+  panel.style.display = isOpen ? 'none' : 'flex';
+  if(!isOpen && chatHistory.length === 0){
+    appendChatMessage('model', "Hi! I can help with general GPU troubleshooting — fan noise, black screen, artifacts, overheating, and similar issues. I can't help with pricing, timing, or the status of a specific repair — use Check status for that, or contact the shop directly.");
+  }
+}
+
+function appendChatMessage(role, text){
+  const container = document.getElementById('chat-messages');
+  const bubble = document.createElement('div');
+  bubble.style.cssText = role==='user'
+    ? 'align-self:flex-end;background:var(--trace);color:#0C1712;padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:85%;font-size:13px;line-height:1.4;white-space:pre-wrap;'
+    : 'align-self:flex-start;background:var(--surface-2);color:var(--text);padding:8px 12px;border-radius:12px 12px 12px 2px;max-width:85%;font-size:13px;line-height:1.4;white-space:pre-wrap;';
+  bubble.textContent = text;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendChatMessage(){
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if(!message) return;
+  input.value = '';
+  input.disabled = true;
+
+  appendChatMessage('user', message);
+
+  const typingBubble = document.createElement('div');
+  typingBubble.id = 'chat-typing';
+  typingBubble.style.cssText = 'align-self:flex-start;color:var(--text-muted);font-size:12px;padding:4px 12px;';
+  typingBubble.textContent = 'Thinking…';
+  document.getElementById('chat-messages').appendChild(typingBubble);
+  document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+
+  let result = null;
+  const maxSendAttempts = 3; // retries the whole send+poll cycle on transient errors (busy servers, rate limits)
+
+  for(let sendAttempt = 0; sendAttempt < maxSendAttempts; sendAttempt++){
+    const sendRes = await apiGet('customerChatSend', {message: message, history: chatHistory});
+
+    if(!sendRes.ok){
+      result = sendRes;
+      break;
+    }
+
+    // Poll for the answer every second instead of one long blocking call —
+    // avoids any single request timing out while Gemini is still thinking.
+    let attempts = 0;
+    const maxAttempts = 20;
+    let pollResult = null;
+
+    while(attempts < maxAttempts){
+      await new Promise(r => setTimeout(r, 1000));
+      attempts++;
+      const pollRes = await apiGet('customerChatPoll', {requestId: sendRes.requestId});
+      if((pollRes.ok || !pollRes.pending) && pollRes.pending !== true){
+        pollResult = pollRes;
+        break;
+      }
+      // still pending — loop again
+    }
+
+    const isTransient = pollResult && !pollResult.ok && (pollResult.debug_status === 503 || pollResult.debug_status === 429);
+    if(isTransient && sendAttempt < maxSendAttempts - 1){
+      await new Promise(r => setTimeout(r, 2000));
+      continue; // retry the whole cycle
+    }
+
+    result = pollResult;
+    break;
+  }
+
+  document.getElementById('chat-typing')?.remove();
+  input.disabled = false;
+  input.focus();
+
+  if(!result){
+    appendChatMessage('model', 'The assistant is taking too long to respond. Please try again.');
+    return;
+  }
+  if(!result.ok){
+    appendChatMessage('model', result.error || 'Something went wrong. Please try again.');
+    return;
+  }
+
+  chatHistory.push({role:'user', parts:[{text:message}]});
+  chatHistory.push({role:'model', parts:[{text:result.reply}]});
+  appendChatMessage('model', result.reply);
+}
+
 function switchView(v){
   document.getElementById('view-admin').classList.toggle('active', v==='admin');
   document.getElementById('view-register').classList.toggle('active', v==='register');
@@ -1261,6 +1384,8 @@ function switchView(v){
   document.getElementById('tab-admin').classList.toggle('active', v==='admin');
   document.getElementById('tab-register').classList.toggle('active', v==='register');
   document.getElementById('tab-customer').classList.toggle('active', v==='customer');
+  document.getElementById('chat-widget-toggle').style.display = (v==='register' || v==='customer') ? 'flex' : 'none';
+  if(v!=='register' && v!=='customer') document.getElementById('chat-widget-panel').style.display = 'none';
   if(v==='admin') updateAdminVisibility();
   if(v==='register'){
     const dateInput = document.getElementById('r-entrydate');
@@ -3452,6 +3577,19 @@ async function saveYalidineCredentials(){
   }
   document.getElementById('yalidine-api-token').value = '';
   const msg = document.getElementById('yalidine-creds-saved-msg');
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+}
+
+async function saveGeminiKey(){
+  const key = document.getElementById('gemini-api-key').value.trim();
+  const res = await apiGet('adminSetGeminiKey', {key:key});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('gemini-api-key').value = '';
+  const msg = document.getElementById('gemini-key-saved-msg');
   msg.style.display = 'block';
   setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
 }
