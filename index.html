@@ -593,11 +593,11 @@ textarea{resize:vertical;min-height:56px;}
 
       <div class="panel" style="max-width:520px;margin:0 auto 16px;">
         <h2>Customer chatbot (GPU troubleshooting)</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Free API key from aistudio.google.com — sign in with a Google account, no credit card needed. Stored securely on the server, same as your other credentials. Scoped to general GPU troubleshooting only — never makes pricing, timing, or repair-status claims.</div>
-        <label>Gemini API Key</label>
-        <input id="gemini-api-key" type="password" placeholder="Your Gemini API key" class="mono">
-        <button class="btn-ghost" style="margin-top:12px;" onclick="saveGeminiKey()">Save key</button>
-        <div id="gemini-key-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Free API key from console.groq.com — sign in with email, no credit card needed. Stored securely on the server, same as your other credentials. Scoped to general GPU troubleshooting only — never makes pricing, timing, or repair-status claims.</div>
+        <label>Groq API Key</label>
+        <input id="groq-api-key" type="password" placeholder="Your Groq API key" class="mono">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveGroqKey()">Save key</button>
+        <div id="groq-key-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 20px;">
@@ -913,7 +913,7 @@ const ACTION_TO_RPC = {
   getManualRates: 'get_manual_rates',
   adminSetManualRates: 'admin_set_manual_rates',
   adminSetYalidineCredentials: 'admin_set_yalidine_credentials',
-  adminSetGeminiKey: 'admin_set_gemini_key',
+  adminSetGroqKey: 'admin_set_groq_key',
   customerChatSend: 'customer_chat_send',
   customerChatPoll: 'customer_chat_poll',
   adminCreateYalidineParcel: 'admin_create_yalidine_parcel',
@@ -1322,7 +1322,7 @@ async function sendChatMessage(){
   document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
 
   let result = null;
-  const maxSendAttempts = 3; // retries the whole send+poll cycle on transient errors (busy servers, rate limits)
+  const maxSendAttempts = 6; // retries the whole send+poll cycle on transient errors (busy servers, rate limits)
 
   for(let sendAttempt = 0; sendAttempt < maxSendAttempts; sendAttempt++){
     const sendRes = await apiGet('customerChatSend', {message: message, history: chatHistory});
@@ -1351,7 +1351,10 @@ async function sendChatMessage(){
 
     const isTransient = pollResult && !pollResult.ok && (pollResult.debug_status === 503 || pollResult.debug_status === 429);
     if(isTransient && sendAttempt < maxSendAttempts - 1){
-      await new Promise(r => setTimeout(r, 2000));
+      const backoffMs = Math.min(2000 * Math.pow(1.6, sendAttempt), 12000); // gentle exponential backoff, capped at 12s
+      const typing = document.getElementById('chat-typing');
+      if(typing) typing.textContent = 'The assistant is busy, retrying… (' + (sendAttempt+2) + '/' + maxSendAttempts + ')';
+      await new Promise(r => setTimeout(r, backoffMs));
       continue; // retry the whole cycle
     }
 
@@ -1372,8 +1375,8 @@ async function sendChatMessage(){
     return;
   }
 
-  chatHistory.push({role:'user', parts:[{text:message}]});
-  chatHistory.push({role:'model', parts:[{text:result.reply}]});
+  chatHistory.push({role:'user', content:message});
+  chatHistory.push({role:'assistant', content:result.reply});
   appendChatMessage('model', result.reply);
 }
 
@@ -3581,15 +3584,15 @@ async function saveYalidineCredentials(){
   setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
 }
 
-async function saveGeminiKey(){
-  const key = document.getElementById('gemini-api-key').value.trim();
-  const res = await apiGet('adminSetGeminiKey', {key:key});
+async function saveGroqKey(){
+  const key = document.getElementById('groq-api-key').value.trim();
+  const res = await apiGet('adminSetGroqKey', {key:key});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
   }
-  document.getElementById('gemini-api-key').value = '';
-  const msg = document.getElementById('gemini-key-saved-msg');
+  document.getElementById('groq-api-key').value = '';
+  const msg = document.getElementById('groq-key-saved-msg');
   msg.style.display = 'block';
   setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
 }
