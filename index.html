@@ -593,11 +593,19 @@ textarea{resize:vertical;min-height:56px;}
 
       <div class="panel" style="max-width:520px;margin:0 auto 16px;">
         <h2>Customer chatbot (GPU troubleshooting)</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Free API key from console.groq.com — sign in with email, no credit card needed. Stored securely on the server, same as your other credentials. Scoped to general GPU troubleshooting only — never makes pricing, timing, or repair-status claims.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Free API key from console.groq.com — sign in with email, no credit card needed. Stored securely on the server, same as your other credentials. Handles general GPU troubleshooting, general shop info (below), and can look up a customer's own repair once they've given their repair number + phone.</div>
         <label>Groq API Key</label>
         <input id="groq-api-key" type="password" placeholder="Your Groq API key" class="mono">
         <button class="btn-ghost" style="margin-top:12px;" onclick="saveGroqKey()">Save key</button>
         <div id="groq-key-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Chatbot: general shop info</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Whatever you write here is exactly what the bot can tell customers — pricing ranges, diagnostic fees, payment methods, turnaround expectations, policies. It will never say anything about pricing/policies beyond what's written here, so keep it accurate and update it whenever something changes.</div>
+        <textarea id="chatbot-shop-info" rows="8" placeholder="e.g. Diagnostic fee is 500 DA, waived if you proceed with repair. Typical GPU repairs range from 3,000 to 15,000 DA depending on the issue. We accept cash and bank transfer. Most repairs take 3-7 days..."></textarea>
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveChatbotInfo()">Save shop info</button>
+        <div id="chatbot-info-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 20px;">
@@ -914,6 +922,8 @@ const ACTION_TO_RPC = {
   adminSetManualRates: 'admin_set_manual_rates',
   adminSetYalidineCredentials: 'admin_set_yalidine_credentials',
   adminSetGroqKey: 'admin_set_groq_key',
+  adminSetChatbotInfo: 'admin_set_chatbot_info',
+  getChatbotInfo: 'get_chatbot_info',
   customerChatSend: 'customer_chat_send',
   customerChatPoll: 'customer_chat_poll',
   adminCreateYalidineParcel: 'admin_create_yalidine_parcel',
@@ -1333,15 +1343,30 @@ async function sendChatMessage(){
     }
 
     // Poll for the answer every second instead of one long blocking call —
-    // avoids any single request timing out while Gemini is still thinking.
-    let attempts = 0;
-    const maxAttempts = 20;
+    // avoids any single request timing out while the model is still thinking.
+    // If the model wants to look up a repair, the poll response hands back a
+    // new request to follow (it already fired the follow-up server-side) —
+    // we just keep polling that one instead.
+    let currentRequestId = sendRes.requestId;
+    let currentMessages = sendRes.messages;
     let pollResult = null;
+    let totalAttempts = 0;
+    const maxTotalAttempts = 30;
 
-    while(attempts < maxAttempts){
+    while(totalAttempts < maxTotalAttempts){
       await new Promise(r => setTimeout(r, 1000));
-      attempts++;
-      const pollRes = await apiGet('customerChatPoll', {requestId: sendRes.requestId});
+      totalAttempts++;
+      const pollRes = await apiGet('customerChatPoll', {requestId: currentRequestId, messages: currentMessages});
+
+      if(pollRes.ok && pollRes.pending && pollRes.newRequestId){
+        // Bot is looking something up — follow the new request
+        currentRequestId = pollRes.newRequestId;
+        currentMessages = pollRes.newMessages;
+        const typing = document.getElementById('chat-typing');
+        if(typing) typing.textContent = 'Looking that up…';
+        continue;
+      }
+
       if((pollRes.ok || !pollRes.pending) && pollRes.pending !== true){
         pollResult = pollRes;
         break;
@@ -1503,6 +1528,7 @@ function updateAdminVisibility(){
   if(showContent){
     loadAdminTickets();
     loadManualRates();
+    loadChatbotInfo();
   }else{
     renderLock();
   }
@@ -3595,6 +3621,25 @@ async function saveGroqKey(){
   const msg = document.getElementById('groq-key-saved-msg');
   msg.style.display = 'block';
   setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+}
+
+async function saveChatbotInfo(){
+  const info = document.getElementById('chatbot-shop-info').value;
+  const res = await apiGet('adminSetChatbotInfo', {info:info});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  const msg = document.getElementById('chatbot-info-saved-msg');
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+}
+
+async function loadChatbotInfo(){
+  const res = await apiGet('getChatbotInfo', {});
+  if(res.ok && document.getElementById('chatbot-shop-info')){
+    document.getElementById('chatbot-shop-info').value = res.info || '';
+  }
 }
 
 async function createYalidineParcel(id, event){
