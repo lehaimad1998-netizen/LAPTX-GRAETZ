@@ -159,6 +159,12 @@ textarea{resize:vertical;min-height:56px;}
 .parts-table-row-low{background:rgba(219,101,96,0.08);}
 .parts-line{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px;}
 .parts-subtotal{font-size:13px;color:var(--text-muted);margin:8px 0;}
+.daily-bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px;}
+.daily-bar-day{width:70px;flex-shrink:0;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;}
+.daily-bar-track{flex:1;background:var(--surface-2);border-radius:4px;height:16px;overflow:hidden;}
+.daily-bar-fill{background:var(--trace);height:100%;border-radius:4px;transition:width .2s ease;}
+.daily-bar-value{width:90px;flex-shrink:0;text-align:right;font-family:'IBM Plex Mono',monospace;color:var(--text);}
+.daily-bar-row.today .daily-bar-day{color:var(--trace);font-weight:700;}
 .status-pill{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;
   padding:3px 8px;border-radius:20px;white-space:nowrap;}
 .status-pill-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;border:none;cursor:pointer;
@@ -469,7 +475,7 @@ textarea{resize:vertical;min-height:56px;}
             <option value="all">All time</option>
             <option value="today">Today</option>
             <option value="week">This week</option>
-            <option value="month">This month</option>
+            <option value="month" selected>This month</option>
           </select>
         </div>
         <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Every number below changes with the period you pick above. Based on each ticket's entry date, since payments aren't timestamped individually.</div>
@@ -478,15 +484,11 @@ textarea{resize:vertical;min-height:56px;}
         <div class="stat-row">
           <div class="stat-card">
             <div class="stat-label">Collected</div>
-            <div class="stat-value mono" id="stat-collected">0 DA</div>
+            <div class="stat-value mono" id="stat-collected" style="color:var(--danger);">0 DA</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Still owed by customers</div>
             <div class="stat-value mono" id="stat-outstanding">0 DA</div>
-          </div>
-          <div class="stat-card" style="border-color:var(--trace);">
-            <div class="stat-label">Estimated profit</div>
-            <div class="stat-value mono" id="stat-profit" style="color:var(--trace);">0 DA</div>
           </div>
         </div>
 
@@ -505,6 +507,10 @@ textarea{resize:vertical;min-height:56px;}
             <div class="stat-value mono" id="stat-paid-count">0</div>
           </div>
         </div>
+
+        <h2 style="margin-top:24px;">This month, day by day</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:12px;">Based on when payment actually came in, not when the repair was registered — a late payment from last month won't get mixed into this one. Always shows the current calendar month, regardless of the period filter above.</div>
+        <div id="monthly-daily-breakdown"></div>
 
         <div style="margin-top:20px;">
           <div id="withdraw-idle">
@@ -572,6 +578,17 @@ textarea{resize:vertical;min-height:56px;}
         <input id="rate-cny" type="number" placeholder="33" class="mono" style="max-width:160px;">
         <button class="btn-ghost" style="margin-top:12px;" onclick="saveManualRates()">Save rates</button>
         <div id="rates-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Yalidine API (direct parcel creation)</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">From your Yalidine pro dashboard: Settings → API → Generate. Stored securely on the server, never visible in the app's source code. Test on one real repair before relying on this for bulk shipments.</div>
+        <label>API ID</label>
+        <input id="yalidine-api-id" placeholder="Your API ID" class="mono">
+        <label>API Token</label>
+        <input id="yalidine-api-token" type="password" placeholder="Your API Token" class="mono">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveYalidineCredentials()">Save credentials</button>
+        <div id="yalidine-creds-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 20px;">
@@ -686,11 +703,31 @@ textarea{resize:vertical;min-height:56px;}
           <button class="btn-ghost" style="width:auto;" onclick="toggleYalidineSelectAll('shipping')">☑️ Select all</button>
           <button class="btn-ghost" style="width:auto;" onclick="exportYalidineXlsx('shipping')">📦 Export for Yalidine (.xlsx)</button>
         </div>
+        <label>Payment status</label>
+        <select id="shipping-payment-filter" onchange="renderShippingList()">
+          <option value="">All payment statuses</option>
+          <option value="Unpaid">Unpaid</option>
+          <option value="Partial">Partial</option>
+          <option value="Paid">Paid</option>
+        </select>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>✅ Fix — to pick up</h2>
         <div class="list-controls">
-          <input id="shipping-search" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
-          <span class="count-tag" id="shipping-count"></span>
+          <input id="shipping-search-fix" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
+          <span class="count-tag" id="shipping-count-fix"></span>
         </div>
-        <div id="shipping-list"></div>
+        <div id="shipping-list-fix"></div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>❌ No fix — to pick up</h2>
+        <div class="list-controls">
+          <input id="shipping-search-nofix" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
+          <span class="count-tag" id="shipping-count-nofix"></span>
+        </div>
+        <div id="shipping-list-nofix"></div>
       </div>
     </div>
 
@@ -849,6 +886,8 @@ const ACTION_TO_RPC = {
   adminRenamePart: 'admin_rename_part',
   getManualRates: 'get_manual_rates',
   adminSetManualRates: 'admin_set_manual_rates',
+  adminSetYalidineCredentials: 'admin_set_yalidine_credentials',
+  adminCreateYalidineParcel: 'admin_create_yalidine_parcel',
   partsDelete: 'parts_delete',
   partsAdjustStock: 'parts_adjust_stock',
   withdrawalsList: 'withdrawals_list',
@@ -948,6 +987,9 @@ const I18N = {
     photo_uploaded_msg: 'Photo uploaded — thanks!',
     wilaya_label: 'Wilaya',
     commune_label: 'Commune',
+    delivery_type_label: 'How would you like to receive it?',
+    delivery_type_home: '🏠 Home delivery',
+    delivery_type_stopdesk: '🏢 Stop-desk pickup',
     stopdesk_label: 'Nearest Yalidine stop-desk',
     stopdesk_placeholder: 'e.g. Blida Centre',
     wilaya_required_error: 'Please select your wilaya.',
@@ -1008,6 +1050,9 @@ const I18N = {
     photo_uploaded_msg: 'تم رفع الصورة — شكراً لك!',
     wilaya_label: 'الولاية',
     commune_label: 'البلدية',
+    delivery_type_label: 'كيف تريد استلامه؟',
+    delivery_type_home: '🏠 التوصيل إلى المنزل',
+    delivery_type_stopdesk: '🏢 الاستلام من المكتب',
     stopdesk_label: 'أقرب مكتب ياليدين',
     stopdesk_placeholder: 'مثال: البليدة وسط',
     wilaya_required_error: 'يرجى اختيار ولايتك.',
@@ -1921,11 +1966,12 @@ function renderAdminList(){
   const filter = document.getElementById('admin-filter').value;
   const sortMode = document.getElementById('admin-sort').value;
   const list = document.getElementById('admin-list');
-  const activeCount = tickets.filter(t=>!t.archived).length;
+  const activeCount = tickets.filter(t=>!t.archived && !t.flaggedDiagnosed).length;
   document.getElementById('ticket-count').textContent = activeCount + ' total';
 
   let filtered = tickets.filter(t=>{
     if(t.archived) return false;
+    if(t.flaggedDiagnosed) return false;
     const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
     const matchesF = !filter || t.status===filter;
     const matchesQuick = quickFilter==='overdue' ? isOverdue(t) : (quickFilter==='cancelled' ? t.status==='Cancelled' : true);
@@ -1989,7 +2035,7 @@ function renderAdminList(){
         <label>Issue</label>
         <textarea id="edit-issue-${t.id}">${t.issue||''}</textarea>
         ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
-        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
+        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 ' : '🏢 ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
         ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
         <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
 
@@ -2076,21 +2122,20 @@ function jumpToTicket(id){
 function ticketBucket(t){
   if(t.archived) return {tab:'archive', label: t.pendingShipping ? 'Archive · Pending Shipping' : 'Archive'};
   if(t.status === 'Cancelled') return {tab:'tickets', label:'Tickets · Cancelled'};
-  if(t.status === 'To Pick Up') return {tab:'shipping', label:'To Pick Up'};
+  if(t.status === 'To Pick Up') return {tab:'shipping', label: t.diagnosisResult === 'Not Fixable' ? 'To Pick Up · No fix' : 'To Pick Up · Fix'};
   if(t.status === 'Ready') return {tab:'ready', label:'Ready'};
   if(t.status === 'Repairing' && t.diagnosisResult === 'Not Fixable') return {tab:'tofix', label:'To Fix · No fix'};
   if(t.status === 'Repairing' && (t.flaggedHard || t.diagnosisResult === 'Fixable')) return {tab:'tofix', label:'To Fix · Fix'};
   if(t.status === 'Waiting for Parts' && !t.flaggedHard) return {tab:'diagnosed', label:'Diagnosed · Waiting for Parts'};
   if(t.flaggedHard) return {tab:'diagnosed', label:'Diagnosed · Hard/Long'};
   if(t.diagnosisResult === 'Fixable' && t.status === 'Diagnosing') return {tab:'diagnosed', label:'Diagnosed · Fixable'};
-  if(t.diagnosisResult === 'Fixable') return {tab:'tickets', label:'Tickets (fixable, not shown in Diagnosed tab)'};
   if(t.diagnosisResult === 'Not Fixable') return {tab:'diagnosed', label:'Diagnosed · Not Fixable'};
   if(t.diagnosisResult === 'Tests OK') return {tab:'diagnosed', label:'Diagnosed · Tests OK'};
-  if(t.flaggedDiagnosed && !t.diagnosisResult){
-    if(t.status === 'Diagnosing') return {tab:'diagnosed', label:'Diagnosed · Awaiting classification'};
-    // Flagged diagnosed but status has moved past "Diagnosing" — not actually
-    // visible in any Diagnosed section right now, so send to the master list instead.
-    return {tab:'tickets', label:'Tickets (diagnosed, not shown in Diagnosed tab)'};
+  if(t.flaggedDiagnosed){
+    if(t.status === 'Diagnosing' && !t.diagnosisResult) return {tab:'diagnosed', label:'Diagnosed · Awaiting classification'};
+    // Doesn't fit any specific section (e.g. still Registered/Received despite
+    // being flagged diagnosed) — the catch-all in Awaiting classification covers it.
+    return {tab:'diagnosed', label:'Diagnosed · Awaiting classification'};
   }
   return {tab:'tickets', label:'Tickets'};
 }
@@ -2100,12 +2145,21 @@ function globalJumpToTicket(id){
   if(!t) return;
   const bucket = ticketBucket(t);
 
+  if(bucket.tab === null){
+    alert('#' + id + ' is not currently visible in any tab (' + bucket.label + '). Try clearing filters or checking its status directly.');
+    return;
+  }
+
   document.getElementById('global-search-input').value = '';
   document.getElementById('global-search-results').innerHTML = '';
 
   if(bucket.tab === 'shipping'){
     switchAdminSubview('shipping');
-    document.getElementById('shipping-search').value = id;
+    if(t.diagnosisResult === 'Not Fixable'){
+      document.getElementById('shipping-search-nofix').value = id;
+    }else{
+      document.getElementById('shipping-search-fix').value = id;
+    }
     renderShippingList();
     return;
   }
@@ -2278,10 +2332,26 @@ function fixNoFixPillHtml(t){
     </select>`;
 }
 
+// True if a flaggedDiagnosed ticket is already shown somewhere specific — in
+// Fixable/Not Fixable/Tests OK/Hard/Waiting for Parts/To Fix. Used so "Awaiting
+// classification" can act as a genuine catch-all for anything NOT covered
+// elsewhere, instead of a narrow "status===Diagnosing" filter that could let
+// tickets fall through the cracks and become invisible everywhere.
+function isCoveredElsewhereInDiagnosed(t){
+  if(['Ready','To Pick Up','Picked Up','Cancelled'].includes(t.status)) return true; // handled outside Diagnosed entirely
+  if(t.status === 'Repairing' && (t.flaggedHard || t.diagnosisResult==='Fixable' || t.diagnosisResult==='Not Fixable')) return true; // To Fix tab
+  if(t.status === 'Waiting for Parts' && !t.flaggedHard) return true; // Waiting for Parts section
+  if(t.flaggedHard) return true; // Hard/Long section
+  if(t.diagnosisResult === 'Fixable' && t.status === 'Diagnosing') return true; // Fixable section
+  if(t.diagnosisResult === 'Not Fixable') return true; // Not Fixable section
+  if(t.diagnosisResult === 'Tests OK') return true; // Tests OK section
+  return false;
+}
+
 function renderDiagnosedList(){
   const list = document.getElementById('diagnosed-list');
   const diagnosed = tickets
-    .filter(t=>!t.archived && !t.flaggedHard && t.flaggedDiagnosed && !t.diagnosisResult && t.status==='Diagnosing')
+    .filter(t=>!t.archived && t.flaggedDiagnosed && !isCoveredElsewhereInDiagnosed(t))
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
 
@@ -2309,6 +2379,7 @@ function renderDiagnosedList(){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Tests OK', event)">🔧 Tests OK</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard repair</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="toggleDiagnosticNote('${t.id}', event)">${t.diagnosticNotes ? '📝 Edit note' : '📝 Add note'}</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to Tickets</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to queue</button>
       </div>
       ${noteOpen ? `
@@ -2398,6 +2469,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
   }
 
   const showEndTask = (result === 'Not Fixable' || result === 'Tests OK');
+  const endTaskLabel = result === 'Not Fixable' ? '➡️ Move to To Pick Up' : '🏁 End task — close &amp; archive';
 
   list.innerHTML = filtered.map(t=>{
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
@@ -2411,7 +2483,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       ${fixNoFixPillHtml(t)}
-      ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
+      ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">${endTaskLabel}</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
   }).join('');
@@ -2436,9 +2508,19 @@ async function endTaskBackToCustomer(id, event){
         return;
       }
     }
-  } else {
-    if(!window.confirm('End this task and move #' + id + ' to Done repairs? This closes it out immediately.')) return;
+
+    // Not Fixable devices move to To Pick Up — customer still needs to come collect it,
+    // no different from a repaired device, just without the repair itself.
+    const statusRes = await apiGet('adminUpdateStatus', {id:id, status:'To Pick Up', note:''});
+    if(!statusRes.ok){
+      document.getElementById('save-error-banner').style.display = 'block';
+      return;
+    }
+    await refreshTicketsOnly();
+    return;
   }
+
+  if(!window.confirm('End this task and move #' + id + ' to Done repairs? This closes it out immediately.')) return;
 
   const res = await apiGet('adminEndTask', {id:id});
   if(!res.ok){
@@ -2551,6 +2633,32 @@ async function saveRepairCost(id){
   await refreshTicketsOnly();
 }
 
+async function saveToFixTask(id){
+  const ticket = tickets.find(x=>x.id===id);
+  const internalNotes = document.getElementById('task-note-'+id).value;
+  const repairCost = document.getElementById('tf-repaircost-'+id).value;
+
+  const notesRes = await apiGet('adminSaveNotes', {id:id, customerNote: (ticket ? ticket.customerNote : ''), internalNotes:internalNotes});
+  if(!notesRes.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+
+  const priceRes = await apiGet('adminSetPricing', {
+    id: id,
+    laborPrice: repairCost,
+    paymentStatus: ticket ? (ticket.paymentStatus || 'Unpaid') : 'Unpaid',
+    amountPaid: ticket ? (ticket.amountPaid || '') : ''
+  });
+  if(!priceRes.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('save-error-banner').style.display = 'none';
+  await refreshTicketsOnly();
+}
+
 function toFixRowHtml(t, isNoFix){
   const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
   const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
@@ -2576,13 +2684,11 @@ function toFixRowHtml(t, isNoFix){
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
         <label>What's been done</label>
         <textarea id="task-note-${t.id}" placeholder="e.g. Replaced VRM MOSFET, reflowed core, testing under load...">${(t.internalNotes||'')}</textarea>
-        <button class="btn-ghost" style="width:auto;margin-top:8px;" onclick="saveTaskNotes('${t.id}')">Save note</button>
 
         <label style="margin-top:14px;">Repair cost (labor)</label>
-        <div style="display:flex;gap:8px;">
-          <input id="tf-repaircost-${t.id}" type="number" value="${t.price||''}" placeholder="0" class="mono" style="flex:1;">
-          <button class="btn-ghost" style="width:auto;" onclick="saveRepairCost('${t.id}')">Save</button>
-        </div>
+        <input id="tf-repaircost-${t.id}" type="number" value="${t.price||''}" placeholder="0" class="mono">
+
+        <button class="btn-ghost" style="width:auto;margin-top:10px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="saveToFixTask('${t.id}')">💾 Save</button>
 
         <label style="margin-top:14px;">Parts used</label>
         <div id="tfparts-${t.id}">
@@ -2769,24 +2875,9 @@ function renderReadySimpleList(){
   }).join('');
 }
 
-function renderShippingList(){
-  const q = document.getElementById('shipping-search').value.toLowerCase();
-  const list = document.getElementById('shipping-list');
-  const toPickUp = tickets.filter(t=>!t.archived && t.status==='To Pick Up');
-  document.getElementById('shipping-count').textContent = toPickUp.length + ' total';
-
-  const filtered = toPickUp.filter(t=>{
-    return !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
-  });
-
-  if(filtered.length===0){
-    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing waiting to be picked up right now.</div>';
-    return;
-  }
-
-  list.innerHTML = filtered.map(t=>{
-    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
-    return `
+function shippingRowHtml(t){
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+  return `
     <div class="ticket-row">
       <input type="checkbox" style="width:auto;margin:0 0 8px 0;" onchange="toggleYalidineSelect('${t.id}')" ${yalidineSelectedIds.has(t.id)?'checked':''}>
       <div class="ticket-row-top">
@@ -2795,7 +2886,7 @@ function renderShippingList(){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 ' : '🏢 ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -2804,16 +2895,42 @@ function renderShippingList(){
       </select>
           <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
           ${fixNoFixPillHtml(t)}
+          <div class="status-pill mono" style="${paymentPillStyle(t.paymentStatus||'Unpaid')}">${t.paymentStatus||'Unpaid'}</div>
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="printReceipt('${t.id}')">🖨️ Print receipt</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Repairing')">↩️ Back to To Fix</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="createYalidineParcel('${t.id}', event)">📮 Create Yalidine parcel</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>
       </div>
     </div>`;
-  }).join('');
+}
+
+function renderShippingList(){
+  const paymentFilter = document.getElementById('shipping-payment-filter').value;
+  const allToPickUp = tickets.filter(t=>!t.archived && t.status==='To Pick Up' && (!paymentFilter || (t.paymentStatus||'Unpaid')===paymentFilter));
+
+  const qFix = document.getElementById('shipping-search-fix').value.toLowerCase();
+  const fixList = allToPickUp
+    .filter(t=>t.diagnosisResult !== 'Not Fixable')
+    .filter(t=>!qFix || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(qFix));
+  document.getElementById('shipping-count-fix').textContent = fixList.length + ' total';
+  const fixContainer = document.getElementById('shipping-list-fix');
+  fixContainer.innerHTML = fixList.length===0
+    ? '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing waiting to be picked up right now.</div>'
+    : fixList.map(shippingRowHtml).join('');
+
+  const qNoFix = document.getElementById('shipping-search-nofix').value.toLowerCase();
+  const noFixList = allToPickUp
+    .filter(t=>t.diagnosisResult === 'Not Fixable')
+    .filter(t=>!qNoFix || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(qNoFix));
+  document.getElementById('shipping-count-nofix').textContent = noFixList.length + ' total';
+  const noFixContainer = document.getElementById('shipping-list-nofix');
+  noFixContainer.innerHTML = noFixList.length===0
+    ? '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>None right now.</div>'
+    : noFixList.map(shippingRowHtml).join('');
 }
 
 async function reopenToPickup(id, event){
@@ -2883,7 +3000,7 @@ function renderArchiveList(){
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
           ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 ' : '🏢 ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -3325,6 +3442,38 @@ async function saveManualRates(){
   setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
 }
 
+async function saveYalidineCredentials(){
+  const apiId = document.getElementById('yalidine-api-id').value.trim();
+  const apiToken = document.getElementById('yalidine-api-token').value.trim();
+  const res = await apiGet('adminSetYalidineCredentials', {apiId:apiId, apiToken:apiToken});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('yalidine-api-token').value = '';
+  const msg = document.getElementById('yalidine-creds-saved-msg');
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+}
+
+async function createYalidineParcel(id, event){
+  if(event) event.stopPropagation();
+  if(!window.confirm('Create a real Yalidine parcel for #' + id + '? This calls the live Yalidine API right now.')) return;
+
+  const btn = event ? event.target : null;
+  if(btn){ btn.disabled = true; btn.textContent = 'Creating…'; }
+
+  const res = await apiGet('adminCreateYalidineParcel', {id:id});
+
+  if(btn){ btn.disabled = false; btn.textContent = '📮 Create Yalidine parcel'; }
+
+  if(!res.ok){
+    alert('Yalidine parcel creation failed:\\n\\n' + (res.error || 'Unknown error') + (res.response ? ('\\n\\nDetails: ' + JSON.stringify(res.response)) : ''));
+    return;
+  }
+  alert('Parcel created successfully!\\n\\n' + JSON.stringify(res.response));
+}
+
 async function getExchangeRateToDzd(currency){
   // Prefer the manually-set black-market rate if one is entered
   const manual = parseFloat(manualRates[currency]);
@@ -3537,28 +3686,95 @@ async function deletePart(partNumber){
   await loadPartsList();
 }
 
-function ticketInPeriod(t, period){
+function dateInPeriod(dateVal, period){
   if(period==='all') return true;
-  if(!t.entryDate) return false;
-  const d = new Date(t.entryDate + 'T00:00:00');
+  if(!dateVal) return false;
+  const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
   if(isNaN(d.getTime())) return false;
+  const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if(period==='today'){
-    return d.getTime() === startOfToday.getTime();
+    return dayStart.getTime() === startOfToday.getTime();
   }
   if(period==='week'){
     const day = startOfToday.getDay(); // 0=Sun..6=Sat
     const diffToMonday = (day===0 ? 6 : day-1);
     const startOfWeek = new Date(startOfToday);
     startOfWeek.setDate(startOfToday.getDate() - diffToMonday);
-    return d.getTime() >= startOfWeek.getTime();
+    return dayStart.getTime() >= startOfWeek.getTime();
   }
   if(period==='month'){
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    return d.getTime() >= startOfMonth.getTime();
+    return dayStart.getTime() >= startOfMonth.getTime();
   }
   return true;
+}
+
+// For repairs not yet paid (outstanding/backlog view) — based on when the
+// ticket was registered, since there's no payment event to anchor on yet.
+function ticketInPeriod(t, period){
+  if(!t.entryDate) return false;
+  return dateInPeriod(t.entryDate + 'T00:00:00', period);
+}
+
+// For actual money collected — based on when payment was really received
+// (paidAt), not when the ticket happened to be created. Falls back to
+// entryDate for older records saved before paidAt existed.
+function ticketPaidInPeriod(t, period){
+  if(t.paidAt) return dateInPeriod(t.paidAt, period);
+  if(t.entryDate) return dateInPeriod(t.entryDate + 'T00:00:00', period);
+  return false;
+}
+
+function renderMonthlyDailyBreakdown(){
+  const container = document.getElementById('monthly-daily-breakdown');
+  if(!container) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const todayDate = now.getDate();
+
+  // Collected amount per day-of-month, from tickets actually PAID within this calendar month
+  // (falls back to entryDate for older records saved before paid_at existed)
+  const dailyTotals = {};
+  tickets.forEach(t=>{
+    const status = t.paymentStatus || 'Unpaid';
+    if(status !== 'Paid' && status !== 'Partial') return;
+    const dateSource = t.paidAt || (t.entryDate ? t.entryDate + 'T00:00:00' : null);
+    if(!dateSource) return;
+    const d = new Date(dateSource);
+    if(isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() !== month) return;
+    const price = parseFloat(t.price);
+    const amountPaid = parseFloat(t.amountPaid);
+    let amount = 0;
+    if(status === 'Paid') amount = !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
+    else if(status === 'Partial') amount = !isNaN(amountPaid) ? amountPaid : 0;
+    if(amount <= 0) return;
+    const day = d.getDate();
+    dailyTotals[day] = (dailyTotals[day] || 0) + amount;
+  });
+
+  const maxAmount = Math.max(1, ...Object.values(dailyTotals));
+  const monthTotal = Object.values(dailyTotals).reduce((a,b)=>a+b, 0);
+
+  let rowsHtml = '';
+  for(let day = todayDate; day >= 1; day--){
+    const amount = dailyTotals[day] || 0;
+    const widthPct = Math.round((amount / maxAmount) * 100);
+    const dateLabel = new Date(year, month, day).toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+    rowsHtml += `
+      <div class="daily-bar-row${day===todayDate ? ' today' : ''}">
+        <div class="daily-bar-day">${dateLabel}${day===todayDate ? ' •' : ''}</div>
+        <div class="daily-bar-track"><div class="daily-bar-fill" style="width:${widthPct}%;"></div></div>
+        <div class="daily-bar-value">${amount.toLocaleString()} DA</div>
+      </div>`;
+  }
+
+  container.innerHTML = `
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Month total so far: <b class="mono" style="color:var(--trace);">${monthTotal.toLocaleString()} DA</b></div>
+    ${rowsHtml}`;
 }
 
 function renderRevenue(){
@@ -3567,7 +3783,7 @@ function renderRevenue(){
   if(!periodEl || !list) return;
   const period = periodEl.value;
 
-  const inPeriod = tickets.filter(t=>ticketInPeriod(t, period));
+  renderMonthlyDailyBreakdown();
 
   let collected = 0;
   let outstanding = 0;
@@ -3575,23 +3791,28 @@ function renderRevenue(){
   const paidRepairs = [];
   const owedRepairs = [];
 
-  inPeriod.forEach(t=>{
+  tickets.forEach(t=>{
     const price = parseFloat(t.price);
     const amountPaid = parseFloat(t.amountPaid);
     const status = t.paymentStatus || 'Unpaid';
+
     if(status==='Paid'){
-      collected += !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
-      paidCount++;
-      paidRepairs.push(t);
+      if(ticketPaidInPeriod(t, period)){
+        collected += !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
+        paidCount++;
+        paidRepairs.push(t);
+      }
     }else if(status==='Partial'){
       const paidSoFar = !isNaN(amountPaid) ? amountPaid : 0;
-      collected += paidSoFar;
-      if(!isNaN(price)){
+      if(paidSoFar > 0 && ticketPaidInPeriod(t, period)){
+        collected += paidSoFar;
+      }
+      if(!isNaN(price) && ticketInPeriod(t, period)){
         outstanding += Math.max(price - paidSoFar, 0);
         owedRepairs.push(t);
       }
     }else{
-      if(!isNaN(price)){
+      if(!isNaN(price) && ticketInPeriod(t, period)){
         outstanding += price;
         owedRepairs.push(t);
       }
@@ -3602,7 +3823,9 @@ function renderRevenue(){
   document.getElementById('stat-outstanding').textContent = outstanding.toLocaleString() + ' DA';
   document.getElementById('stat-paid-count').textContent = paidCount;
 
-  // Parts sold (sell value) and parts cost (current cost price), scoped to the same period
+  // Parts sold (sell value) and parts cost (current cost price), scoped by entry date
+  // (parts reflect work done, not payment timing)
+  const inPeriod = tickets.filter(t=>ticketInPeriod(t, period));
   let partsSoldValue = 0;
   let partsCostValue = 0;
   inPeriod.forEach(t=>{
@@ -3616,11 +3839,6 @@ function renderRevenue(){
   });
   document.getElementById('stat-parts-sold').textContent = partsSoldValue.toLocaleString() + ' DA';
   document.getElementById('stat-parts-cost').textContent = partsCostValue.toLocaleString() + ' DA';
-
-  // Rough profit estimate: money actually collected this period, minus what the parts used cost you.
-  // Doesn't account for shop overhead/time — just a quick sanity-check number.
-  const estimatedProfit = collected - partsCostValue;
-  document.getElementById('stat-profit').textContent = estimatedProfit.toLocaleString() + ' DA';
 
   // Cash on hand is always all-time, independent of the period filter above
   let allTimeCollected = 0;
@@ -3644,15 +3862,16 @@ function renderRevenue(){
   if(paidRepairs.length===0){
     list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No paid repairs in this period.</div>';
   }else{
-    paidRepairs.sort((a,b)=> new Date(b.entryDate||b.createdAt) - new Date(a.entryDate||a.createdAt));
+    paidRepairs.sort((a,b)=> new Date(b.paidAt||b.entryDate||b.createdAt) - new Date(a.paidAt||a.entryDate||a.createdAt));
     list.innerHTML = paidRepairs.map(t=>{
       const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+      const paidDateLabel = t.paidAt ? new Date(t.paidAt).toLocaleDateString('en-GB') : (t.entryDate || '—');
       return `
       <div class="ticket-row">
         <div class="ticket-row-top">
           <div>
             <div class="ticket-id">#${t.id}</div>
-            <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.entryDate || '—'}</div>
+            <div class="ticket-meta">${t.customerName || 'No name on file'} · Paid ${paidDateLabel}</div>
             ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           </div>
           <div class="status-pill mono" style="${paymentPillStyle('Paid')}">${formatPrice(t.price)}</div>
@@ -4075,9 +4294,16 @@ async function customerLookup(){
           ? `<div class="callout" style="margin-top:16px;font-size:14px;">✅ ${I18N[currentLang].pickup_confirmed_msg}</div>`
           : `<button class="btn" id="confirm-pickup-btn" onclick="confirmPickup()" style="margin-top:16px;">${I18N[currentLang].confirm_pickup_btn}</button>`
       ) : ''}
+      ${t.status === 'To Pick Up' ? `
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
         <h2 style="font-size:15px;margin-bottom:10px;">${I18N[currentLang].shipping_info_heading}</h2>
         ${t.shippingWilaya ? `<div class="field-line">✅ ${I18N[currentLang].shipping_saved_msg}</div>` : ''}
+        <label>${I18N[currentLang].delivery_type_label}</label>
+        <select id="ship-delivery-type">
+          <option value="">—</option>
+          <option value="home" ${t.shippingDeliveryType==='home'?'selected':''}>${I18N[currentLang].delivery_type_home}</option>
+          <option value="stopdesk" ${t.shippingDeliveryType==='stopdesk'?'selected':''}>${I18N[currentLang].delivery_type_stopdesk}</option>
+        </select>
         <label>${I18N[currentLang].wilaya_label}</label>
         <select id="ship-wilaya" onchange="populateCommuneOptions('${(t.shippingCommune||'').replace(/'/g,"\\'")}')">
           <option value="">—</option>
@@ -4092,9 +4318,10 @@ async function customerLookup(){
         <div class="pw-error" id="ship-info-error">${I18N[currentLang].wilaya_required_error}</div>
         <button class="btn" id="save-shipping-btn" onclick="saveShippingInfo()" style="margin-top:10px;">${I18N[currentLang].save_shipping_btn}</button>
       </div>
+      ` : ''}
     </div>
   `;
-  populateCommuneOptions(t.shippingCommune||'');
+  if(t.status === 'To Pick Up') populateCommuneOptions(t.shippingCommune||'');
 }
 
 function communeNameFromWilaya(wilayaValue){
@@ -4117,6 +4344,7 @@ async function saveShippingInfo(){
   const wilaya = document.getElementById('ship-wilaya').value;
   const commune = document.getElementById('ship-commune').value;
   const stopdesk = document.getElementById('ship-stopdesk').value.trim();
+  const deliveryType = document.getElementById('ship-delivery-type').value;
   const errEl = document.getElementById('ship-info-error');
   errEl.style.display = 'none';
 
@@ -4127,7 +4355,7 @@ async function saveShippingInfo(){
 
   const btn = document.getElementById('save-shipping-btn');
   btn.disabled = true;
-  const res = await apiGet('customerSaveShippingInfo', {id: lastLookupId, phone: lastLookupPhone, wilaya: wilaya, commune: commune, stopdesk: stopdesk});
+  const res = await apiGet('customerSaveShippingInfo', {id: lastLookupId, phone: lastLookupPhone, wilaya: wilaya, commune: commune, stopdesk: stopdesk, deliveryType: deliveryType});
   btn.disabled = false;
   if(!res.ok){
     errEl.textContent = res.error || errEl.textContent;
