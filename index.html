@@ -289,13 +289,12 @@ textarea{resize:vertical;min-height:56px;}
 
     <div class="tabs subtabs" style="margin-bottom:16px;">
       <button class="tab-btn active" id="subtab-tickets" onclick="switchAdminSubview('tickets')">Tickets</button>
-      <button class="tab-btn" id="subtab-diagnosed" onclick="switchAdminSubview('diagnosed')">Diagnosed</button>
+      <button class="tab-btn" id="subtab-diagnosed" onclick="switchAdminSubview('diagnosed')">Diagnostics</button>
       <button class="tab-btn" id="subtab-tofix" onclick="switchAdminSubview('tofix')">To Fix</button>
-      <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Revenue</button>
-      <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
-      <button class="tab-btn" id="subtab-ready" onclick="switchAdminSubview('ready')">Ready</button>
       <button class="tab-btn" id="subtab-shipping" onclick="switchAdminSubview('shipping')">To Pick Up</button>
       <button class="tab-btn" id="subtab-archive" onclick="switchAdminSubview('archive')">Archive</button>
+      <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Revenue</button>
+      <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
     </div>
 
     <div id="admin-tickets-subview">
@@ -477,7 +476,9 @@ textarea{resize:vertical;min-height:56px;}
             <option value="week">This week</option>
             <option value="month" selected>This month</option>
           </select>
+          <button class="btn-ghost" style="width:auto;color:var(--danger);border-color:var(--danger);" onclick="resetRevenue()">🗑️ Clear revenue</button>
         </div>
+        <div id="revenue-reset-label" style="display:none;font-size:12px;color:var(--trace);margin-bottom:12px;"></div>
         <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Every number below changes with the period you pick above. Based on each ticket's entry date, since payments aren't timestamped individually.</div>
 
         <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Money</div>
@@ -700,18 +701,6 @@ textarea{resize:vertical;min-height:56px;}
       </div>
     </div>
 
-    <div id="admin-ready-subview" style="display:none;">
-      <div class="panel">
-        <h2>Ready</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repaired and marked Ready, but not yet moved to To Pick Up. Move one forward whenever it's confirmed and set to go.</div>
-        <div class="list-controls">
-          <input id="ready-search" placeholder="Search name, phone, ID, device..." oninput="renderReadySimpleList()">
-          <span class="count-tag" id="ready-count"></span>
-        </div>
-        <div id="ready-list"></div>
-      </div>
-    </div>
-
     <div id="admin-shipping-subview" style="display:none;">
       <div class="panel">
         <h2>To Pick Up</h2>
@@ -869,15 +858,15 @@ textarea{resize:vertical;min-height:56px;}
 <div id="chat-widget-panel" style="display:none;position:fixed;bottom:88px;right:20px;width:340px;max-width:calc(100vw - 40px);height:440px;max-height:calc(100vh - 140px);background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:999;flex-direction:column;overflow:hidden;">
   <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
     <div>
-      <div style="font-weight:700;font-size:14px;">🔧 GPU Help Assistant</div>
-      <div style="font-size:11px;color:var(--text-muted);">General troubleshooting — not for pricing or repair status</div>
+      <div style="font-weight:700;font-size:14px;" data-i18n="chat_widget_title">🔧 GPU Help Assistant</div>
+      <div style="font-size:11px;color:var(--text-muted);" data-i18n="chat_widget_subtitle">General troubleshooting &amp; shop info</div>
     </div>
     <button onclick="toggleChatWidget()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:4px 8px;">✕</button>
   </div>
   <div id="chat-messages" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px;"></div>
   <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;">
-    <input id="chat-input" placeholder="Ask about a GPU issue..." style="margin:0;flex:1;" onkeydown="if(event.key==='Enter') sendChatMessage()">
-    <button class="btn-ghost" style="width:auto;padding:8px 14px;" onclick="sendChatMessage()">Send</button>
+    <input id="chat-input" data-i18n-placeholder="chat_input_placeholder" placeholder="Ask about a GPU issue or the shop..." style="margin:0;flex:1;" onkeydown="if(event.key==='Enter') sendChatMessage()">
+    <button class="btn-ghost" style="width:auto;padding:8px 14px;" onclick="sendChatMessage()" data-i18n="chat_send_btn">Send</button>
   </div>
 </div>
 
@@ -923,6 +912,8 @@ const ACTION_TO_RPC = {
   adminSetYalidineCredentials: 'admin_set_yalidine_credentials',
   adminSetGroqKey: 'admin_set_groq_key',
   adminSetChatbotInfo: 'admin_set_chatbot_info',
+  adminResetRevenue: 'admin_reset_revenue',
+  getRevenueReset: 'get_revenue_reset',
   getChatbotInfo: 'get_chatbot_info',
   customerChatSend: 'customer_chat_send',
   customerChatPoll: 'customer_chat_poll',
@@ -966,7 +957,7 @@ async function apiGet(action, params={}){
   }
 }
 
-const STATUSES = ['Registered','Received','Diagnosing','Waiting for Parts','Repairing','Ready','To Pick Up','Picked Up'];
+const STATUSES = ['Registered','Received','Diagnosing','Waiting for Parts','Repairing','To Pick Up','Picked Up'];
 
 const WILAYAS = ["01 - Adrar", "02 - Chlef", "03 - Laghouat", "04 - Oum El Bouaghi", "05 - Batna", "06 - Béjaïa", "07 - Biskra", "08 - Béchar", "09 - Blida", "10 - Bouira", "11 - Tamanrasset", "12 - Tébessa", "13 - Tlemcen", "14 - Tiaret", "15 - Tizi Ouzou", "16 - Alger", "17 - Djelfa", "18 - Jijel", "19 - Sétif", "20 - Saïda", "21 - Skikda", "22 - Sidi Bel Abbès", "23 - Annaba", "24 - Guelma", "25 - Constantine", "26 - Médéa", "27 - Mostaganem", "28 - M'Sila", "29 - Mascara", "30 - Ouargla", "31 - Oran", "32 - El Bayadh", "33 - Illizi", "34 - Bordj Bou Arreridj", "35 - Boumerdès", "36 - El Tarf", "37 - Tindouf", "38 - Tissemsilt", "39 - El Oued", "40 - Khenchela", "41 - Souk Ahras", "42 - Tipaza", "43 - Mila", "44 - Aïn Defla", "45 - Naâma", "46 - Aïn Témouchent", "47 - Ghardaïa", "48 - Relizane", "49 - Timimoun", "50 - Bordj Badji Mokhtar", "51 - Ouled Djellal", "52 - Béni Abbès", "53 - In Salah", "54 - In Guezzam", "55 - Touggourt", "56 - Djanet", "57 - El M'Ghair", "58 - El Menia"];
 
@@ -1029,13 +1020,17 @@ const I18N = {
     delivery_type_label: 'How would you like to receive it?',
     delivery_type_home: '🏠 Home delivery',
     delivery_type_stopdesk: '🏢 Stop-desk pickup',
+    chat_widget_title: '🔧 GPU Help Assistant',
+    chat_widget_subtitle: 'General troubleshooting & shop info',
+    chat_input_placeholder: 'Ask about a GPU issue or the shop...',
+    chat_send_btn: 'Send',
     stopdesk_label: 'Nearest Yalidine stop-desk',
     stopdesk_placeholder: 'e.g. Blida Centre',
     wilaya_required_error: 'Please select your wilaya.',
     save_shipping_btn: 'Save shipping info',
     statuses: {
       'Registered':'Registered','Received':'Received','Diagnosing':'Diagnosing',
-      'Waiting for Parts':'Waiting for Parts','Repairing':'Repairing','Ready':'Ready','To Pick Up':'To Pick Up',
+      'Waiting for Parts':'Waiting for Parts','Repairing':'Repairing','To Pick Up':'To Pick Up',
       'Picked Up':'Picked Up','Cancelled':'Cancelled'
     },
     payment: { 'Unpaid':'Unpaid', 'Partial':'Partial', 'Paid':'Paid' }
@@ -1092,13 +1087,17 @@ const I18N = {
     delivery_type_label: 'كيف تريد استلامه؟',
     delivery_type_home: '🏠 التوصيل إلى المنزل',
     delivery_type_stopdesk: '🏢 الاستلام من المكتب',
+    chat_widget_title: '🔧 مساعد أعطال البطاقات',
+    chat_widget_subtitle: 'مساعدة عامة ومعلومات عن المحل',
+    chat_input_placeholder: 'اسأل عن عطل أو عن المحل...',
+    chat_send_btn: 'إرسال',
     stopdesk_label: 'أقرب مكتب ياليدين',
     stopdesk_placeholder: 'مثال: البليدة وسط',
     wilaya_required_error: 'يرجى اختيار ولايتك.',
     save_shipping_btn: 'حفظ معلومات التوصيل',
     statuses: {
       'Registered':'مسجّل','Received':'تم الاستلام','Diagnosing':'قيد الفحص',
-      'Waiting for Parts':'بانتظار القطع','Repairing':'قيد الإصلاح','Ready':'جاهز','To Pick Up':'جاهز للاستلام',
+      'Waiting for Parts':'بانتظار القطع','Repairing':'قيد الإصلاح','To Pick Up':'جاهز للاستلام',
       'Picked Up':'تم التسليم','Cancelled':'ملغى'
     },
     payment: { 'Unpaid':'غير مدفوع', 'Partial':'مدفوع جزئياً', 'Paid':'مدفوع بالكامل' }
@@ -1120,11 +1119,11 @@ function applyLanguage(){
     el.setAttribute('lang', isAr ? 'ar' : 'en');
   });
 
-  document.querySelectorAll('#view-register [data-i18n], #view-customer [data-i18n], #conditions-modal-overlay [data-i18n]').forEach(el=>{
+  document.querySelectorAll('#view-register [data-i18n], #view-customer [data-i18n], #conditions-modal-overlay [data-i18n], #chat-widget-panel [data-i18n]').forEach(el=>{
     const key = el.getAttribute('data-i18n');
     if(dict[key] !== undefined) el.textContent = dict[key];
   });
-  document.querySelectorAll('#view-register [data-i18n-placeholder], #view-customer [data-i18n-placeholder]').forEach(el=>{
+  document.querySelectorAll('#view-register [data-i18n-placeholder], #view-customer [data-i18n-placeholder], #chat-widget-panel [data-i18n-placeholder]').forEach(el=>{
     const key = el.getAttribute('data-i18n-placeholder');
     if(dict[key] !== undefined) el.placeholder = dict[key];
   });
@@ -1299,8 +1298,12 @@ function toggleChatWidget(){
   const panel = document.getElementById('chat-widget-panel');
   const isOpen = panel.style.display === 'flex';
   panel.style.display = isOpen ? 'none' : 'flex';
+  panel.setAttribute('dir', currentLang === 'ar' ? 'rtl' : 'ltr');
   if(!isOpen && chatHistory.length === 0){
-    appendChatMessage('model', "Hi! I can help with general GPU troubleshooting — fan noise, black screen, artifacts, overheating, and similar issues. I can't help with pricing, timing, or the status of a specific repair — use Check status for that, or contact the shop directly.");
+    const greeting = currentLang === 'ar'
+      ? 'أهلاً! يمكنني مساعدتك في أعطال البطاقة الرسومية العامة (ضجيج المروحة، شاشة سوداء، تشوهات، سخونة...) وأيضاً الإجابة عن أسئلة عامة حول المحل. للاستفسار عن حالة إصلاح معين، أعطني رقم الإصلاح ورقم هاتفك.'
+      : "Hi! I can help with general GPU troubleshooting (fan noise, black screen, artifacts, overheating, and similar issues) and general shop questions. For a specific repair's status, give me your repair number and phone number.";
+    appendChatMessage('model', greeting);
   }
 }
 
@@ -1529,6 +1532,7 @@ function updateAdminVisibility(){
     loadAdminTickets();
     loadManualRates();
     loadChatbotInfo();
+    loadRevenueReset();
   }else{
     renderLock();
   }
@@ -1589,15 +1593,24 @@ async function loadWithdrawals(){
 
 let currentAdminSubview = 'tickets';
 
+const SEARCH_BAR_IDS = ['admin-search','workshop-search','parts-search','shipping-search-fix','shipping-search-nofix','archive-search'];
+
+function clearAllSearchBars(){
+  SEARCH_BAR_IDS.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+}
+
 function switchAdminSubview(v){
   currentAdminSubview = v;
+  clearAllSearchBars();
   if(v==='scheduler') schedulerDayOffset = 0;
   document.getElementById('admin-tickets-subview').style.display = v==='tickets' ? 'block' : 'none';
   document.getElementById('admin-diagnosed-subview').style.display = v==='diagnosed' ? 'block' : 'none';
   document.getElementById('admin-tofix-subview').style.display = v==='tofix' ? 'block' : 'none';
   document.getElementById('admin-workshop-subview').style.display = v==='workshop' ? 'block' : 'none';
   document.getElementById('admin-stock-subview').style.display = v==='stock' ? 'block' : 'none';
-  document.getElementById('admin-ready-subview').style.display = v==='ready' ? 'block' : 'none';
   document.getElementById('admin-shipping-subview').style.display = v==='shipping' ? 'block' : 'none';
   document.getElementById('admin-archive-subview').style.display = v==='archive' ? 'block' : 'none';
   document.getElementById('subtab-tickets').classList.toggle('active', v==='tickets');
@@ -1605,7 +1618,6 @@ function switchAdminSubview(v){
   document.getElementById('subtab-tofix').classList.toggle('active', v==='tofix');
   document.getElementById('subtab-workshop').classList.toggle('active', v==='workshop');
   document.getElementById('subtab-stock').classList.toggle('active', v==='stock');
-  document.getElementById('subtab-ready').classList.toggle('active', v==='ready');
   document.getElementById('subtab-shipping').classList.toggle('active', v==='shipping');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   renderVisibleAdminSubview();
@@ -1617,7 +1629,6 @@ function renderVisibleAdminSubview(){
   else if(currentAdminSubview==='tofix') renderToFixList();
   else if(currentAdminSubview==='workshop'){ renderWorkshopList(); renderRevenue(); }
   else if(currentAdminSubview==='stock') renderPartsList();
-  else if(currentAdminSubview==='ready') renderReadySimpleList();
   else if(currentAdminSubview==='shipping') renderShippingList();
   else if(currentAdminSubview==='archive') renderArchiveList();
 }
@@ -2125,7 +2136,7 @@ function renderAdminList(){
 
   let filtered = tickets.filter(t=>{
     if(t.archived) return false;
-    if(t.flaggedDiagnosed) return false;
+    if(t.flaggedDiagnosed && !counterFilter) return false; // hide diagnosed tickets in the default view, but let counter clicks (Fixable, Diagnosed, etc.) show them
     const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
     const matchesF = !filter || t.status===filter;
     const matchesQuick = quickFilter==='overdue' ? isOverdue(t) : (quickFilter==='cancelled' ? t.status==='Cancelled' : true);
@@ -2164,6 +2175,7 @@ function renderAdminList(){
             ${statusOptionsHtml(t.status, 'tickets')}
           </select>
           <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
+          ${t.status==='Registered' ? `<button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Received')">📦 Received</button>` : ''}
           ${!t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" onclick="setTicketDiagnosed('${t.id}', true, event)">✅ Mark diagnosed</button>` : ''}
           ${t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Undo diagnosed</button>` : ''}
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
@@ -2202,7 +2214,7 @@ function renderAdminList(){
           <label>Waiting for which part?</label>
           <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
         </div>
-        ${t.status==='Ready' ? `<button class="btn-ghost" style="margin-top:8px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'To Pick Up')">➡️ Move to To Pick Up</button>` : ''}
+        ${t.status==='Registered' ? `<button class="btn-ghost" style="margin-top:8px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Received')">📦 Received</button>` : ''}
         ${!t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="margin-top:8px;" onclick="setTicketDiagnosed('${t.id}', true, event)">✅ Mark diagnosed</button>` : ''}
         ${t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="margin-top:8px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Undo diagnosed</button>` : ''}
 
@@ -2277,7 +2289,6 @@ function ticketBucket(t){
   if(t.archived) return {tab:'archive', label: t.pendingShipping ? 'Archive · Pending Shipping' : 'Archive'};
   if(t.status === 'Cancelled') return {tab:'tickets', label:'Tickets · Cancelled'};
   if(t.status === 'To Pick Up') return {tab:'shipping', label: t.diagnosisResult === 'Not Fixable' ? 'To Pick Up · No fix' : 'To Pick Up · Fix'};
-  if(t.status === 'Ready') return {tab:'ready', label:'Ready'};
   if(t.status === 'Repairing' && t.diagnosisResult === 'Not Fixable') return {tab:'tofix', label:'To Fix · No fix'};
   if(t.status === 'Repairing' && (t.flaggedHard || t.diagnosisResult === 'Fixable')) return {tab:'tofix', label:'To Fix · Fix'};
   if(t.status === 'Waiting for Parts' && !t.flaggedHard) return {tab:'diagnosed', label:'Diagnosed · Waiting for Parts'};
@@ -2315,12 +2326,6 @@ function globalJumpToTicket(id){
       document.getElementById('shipping-search-fix').value = id;
     }
     renderShippingList();
-    return;
-  }
-  if(bucket.tab === 'ready'){
-    switchAdminSubview('ready');
-    document.getElementById('ready-search').value = id;
-    renderReadySimpleList();
     return;
   }
   if(bucket.tab === 'archive'){
@@ -2532,6 +2537,7 @@ function renderDiagnosedList(){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Not Fixable', event)">❌ Not Fixable</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Tests OK', event)">🔧 Tests OK</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard repair</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Waiting for Parts')">⏳ Waiting for parts</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="toggleDiagnosticNote('${t.id}', event)">${t.diagnosticNotes ? '📝 Edit note' : '📝 Add note'}</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to Tickets</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to queue</button>
@@ -2604,6 +2610,7 @@ function renderFixableSection(){
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       ${fixNoFixPillHtml(t)}
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerWhatsApp('${t.id}', event)">📱 Notify customer</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
@@ -2637,6 +2644,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       ${fixNoFixPillHtml(t)}
+      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerWhatsApp('${t.id}', event)">📱 Notify customer</button>` : ''}
       ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">${endTaskLabel}</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
@@ -2817,7 +2825,8 @@ function toFixRowHtml(t, isNoFix){
   const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
   const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
   const actionButtons = isNoFix
-    ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>`
+    ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>
+       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>`
     : `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>`;
 
@@ -3057,6 +3066,7 @@ function shippingRowHtml(t){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="printReceipt('${t.id}')">🖨️ Print receipt</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Repairing')">↩️ Back to To Fix</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="createYalidineParcel('${t.id}', event)">📮 Create Yalidine parcel</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerPickupWhatsApp('${t.id}', event)">📱 Notify customer</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>
       </div>
     </div>`;
@@ -3535,6 +3545,66 @@ function autoSellPrice(costId, priceId){
   }
 }
 
+function notifyCustomerWhatsApp(id, event){
+  if(event) event.stopPropagation();
+  const t = tickets.find(x=>x.id===id);
+  if(!t){
+    alert('Ticket not found.');
+    return;
+  }
+
+  // Convert local Algerian number (0555123456) to international format for wa.me (213555123456)
+  let digits = (t.phone || '').replace(/\D/g, '');
+  if(digits.startsWith('0')) digits = '213' + digits.slice(1);
+  else if(!digits.startsWith('213')) digits = '213' + digits;
+
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'your device';
+  const name = t.customerName ? t.customerName : 'there';
+  let message = '';
+
+  if(t.diagnosisResult === 'Fixable'){
+    message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Good news — we've diagnosed the issue and it's fixable. We'll get started on the repair. We'll let you know once it's ready. Thank you!`;
+  }else if(t.diagnosisResult === 'Not Fixable'){
+    message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). We've finished diagnosing your device, and unfortunately it's not fixable. Please come by or contact us to discuss next steps and arrange pickup. Thank you.`;
+  }else{
+    message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}).`;
+  }
+
+  const url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
+  window.open(url, '_blank');
+}
+
+function notifyCustomerPickupWhatsApp(id, event){
+  if(event) event.stopPropagation();
+  const t = tickets.find(x=>x.id===id);
+  if(!t){
+    alert('Ticket not found.');
+    return;
+  }
+
+  let digits = (t.phone || '').replace(/\D/g, '');
+  if(digits.startsWith('0')) digits = '213' + digits.slice(1);
+  else if(!digits.startsWith('213')) digits = '213' + digits;
+
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'your device';
+  const name = t.customerName ? t.customerName : 'there';
+  const wilayaName = (t.shippingWilaya || '').replace(/^\d+\s*-\s*/, '');
+  let message;
+
+  if(t.shippingDeliveryType === 'stopdesk' && wilayaName){
+    message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) has been shipped via Yalidine to the ${t.shippingCommune || wilayaName} stop-desk` +
+      (wilayaName ? ` in ${wilayaName}` : '') + `. Please go collect your parcel as soon as you can. Thank you!`;
+  }else if(t.shippingDeliveryType === 'home'){
+    message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) has been shipped via Yalidine for home delivery` +
+      (wilayaName ? ` to ${t.shippingCommune ? t.shippingCommune + ', ' : ''}${wilayaName}` : '') + `. Please make sure you're available to receive it. Thank you!`;
+  }else{
+    message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) is ready and has been shipped via Yalidine — please check for it and collect your parcel soon. Thank you!`;
+  }
+
+  const url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
+  window.open(url, '_blank');
+}
+
 function searchAliExpress(numberFieldId, nameFieldId){
   const number = document.getElementById(numberFieldId).value.trim();
   const name = document.getElementById(nameFieldId).value.trim();
@@ -3640,6 +3710,43 @@ async function loadChatbotInfo(){
   if(res.ok && document.getElementById('chatbot-shop-info')){
     document.getElementById('chatbot-shop-info').value = res.info || '';
   }
+}
+
+async function loadRevenueReset(){
+  const res = await apiGet('getRevenueReset', {});
+  if(res.ok){
+    revenueResetAt = res.resetAt || null;
+    updateRevenueResetLabel();
+  }
+}
+
+function updateRevenueResetLabel(){
+  const el = document.getElementById('revenue-reset-label');
+  if(!el) return;
+  if(revenueResetAt){
+    el.textContent = '📍 Counting from ' + new Date(revenueResetAt).toLocaleString() + ' onward. Everything before that is excluded from every number here (your actual ticket records are untouched).';
+    el.style.display = 'block';
+  }else{
+    el.style.display = 'none';
+  }
+}
+
+async function resetRevenue(){
+  const confirmed = window.confirm(
+    'Clear revenue and start fresh?\n\n' +
+    'This does NOT delete any ticket data — prices, payment status, and everything else stay exactly as they are. ' +
+    'It just means every number in Revenue (Collected, Outstanding, Cash on hand, the daily breakdown) will only count activity from this moment onward.\n\n' +
+    'This cannot be undone by itself — you would need to ask to have it undone. Continue?'
+  );
+  if(!confirmed) return;
+
+  const res = await apiGet('adminResetRevenue', {});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await loadRevenueReset();
+  await renderRevenue();
 }
 
 async function createYalidineParcel(id, event){
@@ -3872,7 +3979,18 @@ async function deletePart(partNumber){
   await loadPartsList();
 }
 
+let revenueResetAt = null; // ISO timestamp or null — everything before this is excluded from Revenue calcs
+
+function isAfterRevenueReset(dateVal){
+  if(!revenueResetAt) return true;
+  if(!dateVal) return false;
+  const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+  if(isNaN(d.getTime())) return false;
+  return d.getTime() >= new Date(revenueResetAt).getTime();
+}
+
 function dateInPeriod(dateVal, period){
+  if(!isAfterRevenueReset(dateVal)) return false;
   if(period==='all') return true;
   if(!dateVal) return false;
   const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
@@ -3929,7 +4047,7 @@ function renderMonthlyDailyBreakdown(){
     const status = t.paymentStatus || 'Unpaid';
     if(status !== 'Paid' && status !== 'Partial') return;
     const dateSource = t.paidAt || (t.entryDate ? t.entryDate + 'T00:00:00' : null);
-    if(!dateSource) return;
+    if(!dateSource || !isAfterRevenueReset(dateSource)) return;
     const d = new Date(dateSource);
     if(isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() !== month) return;
     const price = parseFloat(t.price);
@@ -3969,6 +4087,7 @@ function renderRevenue(){
   if(!periodEl || !list) return;
   const period = periodEl.value;
 
+  updateRevenueResetLabel();
   renderMonthlyDailyBreakdown();
 
   let collected = 0;
@@ -4026,19 +4145,25 @@ function renderRevenue(){
   document.getElementById('stat-parts-sold').textContent = partsSoldValue.toLocaleString() + ' DA';
   document.getElementById('stat-parts-cost').textContent = partsCostValue.toLocaleString() + ' DA';
 
-  // Cash on hand is always all-time, independent of the period filter above
+  // Cash on hand is always all-time, independent of the period filter above —
+  // but still respects the revenue reset point below
   let allTimeCollected = 0;
   tickets.forEach(t=>{
+    const status = t.paymentStatus || 'Unpaid';
+    if(status!=='Paid' && status!=='Partial') return;
+    const paidDate = t.paidAt || (t.entryDate ? t.entryDate + 'T00:00:00' : null);
+    if(!isAfterRevenueReset(paidDate)) return;
     const price = parseFloat(t.price);
     const amountPaid = parseFloat(t.amountPaid);
-    const status = t.paymentStatus || 'Unpaid';
     if(status==='Paid'){
       allTimeCollected += !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
     }else if(status==='Partial'){
       allTimeCollected += !isNaN(amountPaid) ? amountPaid : 0;
     }
   });
-  const totalWithdrawn = withdrawals.reduce((sum,w)=> sum + (parseFloat(w.amount) || 0), 0);
+  const totalWithdrawn = withdrawals
+    .filter(w=>isAfterRevenueReset(w.timestamp))
+    .reduce((sum,w)=> sum + (parseFloat(w.amount) || 0), 0);
   const cashOnHand = allTimeCollected - totalWithdrawn;
   currentCashOnHand = cashOnHand;
   document.getElementById('stat-cash-on-hand').textContent = cashOnHand.toLocaleString() + ' DA';
@@ -4249,11 +4374,10 @@ async function quickUpdateStatus(id, newStatus){
 // dropdown never shows a mismatched/blank selection.
 const STATUS_OPTIONS_BY_CONTEXT = {
   tickets:   STATUSES.slice(), // master list — every stage is fair game
-  diagnosed: ['Diagnosing','Waiting for Parts','Repairing','Ready'],
-  classified: ['Waiting for Parts','Repairing','Ready'],
-  hard:      ['Waiting for Parts','Repairing','Ready'],
+  diagnosed: ['Diagnosing','Waiting for Parts','Repairing'],
+  classified: ['Waiting for Parts','Repairing'],
+  hard:      ['Waiting for Parts','Repairing'],
   shipping:  ['To Pick Up','Picked Up'],
-  ready:     ['Ready','To Pick Up'],
   global:    STATUSES.slice()
 };
 
@@ -4585,6 +4709,7 @@ async function checkCapacityBanner(){
 }
 
 applyLanguage();
+switchView('register');
 applyDeepLink();
 loadAdminPassword();
 checkCapacityBanner();
