@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LAPTX">
-<src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -449,8 +449,8 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2>❌ No fix — discovered mid-task</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Turned out not fixable after starting work. Close these out instead of moving them to pickup.</div>
+        <h2>❌ No fix — set price &amp; close out</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Not fixable — either classified from Diagnostics or discovered mid-task. Set the diagnostic fee below, then move to pickup.</div>
         <div id="tofix-nofix-list"></div>
       </div>
     </div>
@@ -491,6 +491,10 @@ textarea{resize:vertical;min-height:56px;}
           <div class="stat-card">
             <div class="stat-label">Still owed by customers</div>
             <div class="stat-value mono" id="stat-outstanding">0 DA</div>
+          </div>
+          <div class="stat-card" style="border-color:var(--trace);">
+            <div class="stat-label">Upcoming (To Pick Up)</div>
+            <div class="stat-value mono" id="stat-upcoming-pickup" style="color:var(--trace);">0 DA</div>
           </div>
         </div>
 
@@ -2635,7 +2639,7 @@ function renderFixableSection(){
 function renderClassifiedList(containerId, result, emptyMsg){
   const list = document.getElementById(containerId);
   const filtered = tickets
-    .filter(t=>!t.archived && !t.flaggedHard && t.diagnosisResult===result && !['Ready','To Pick Up','Picked Up','Cancelled'].includes(t.status))
+    .filter(t=>!t.archived && !t.flaggedHard && t.diagnosisResult===result && !['Ready','To Pick Up','Picked Up','Cancelled','Repairing'].includes(t.status))
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
 
@@ -2657,9 +2661,9 @@ function renderClassifiedList(containerId, result, emptyMsg){
         ${overdueBadge(t)}
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
-      ${fixNoFixPillHtml(t)}
+      ${result === 'Not Fixable' ? fixNoFixPillHtml(t) : ''}
       ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerWhatsApp('${t.id}', event)">📱 Notify customer</button>` : ''}
-      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>` : ''}
+      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">📋 Evaluate</button>` : ''}
       ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
@@ -4175,6 +4179,23 @@ function renderRevenue(){
 
   document.getElementById('stat-collected').textContent = collected.toLocaleString() + ' DA';
   document.getElementById('stat-outstanding').textContent = outstanding.toLocaleString() + ' DA';
+
+  // Upcoming: total price of everything currently sitting in To Pick Up, waiting to be
+  // collected. Not period-scoped — it's a snapshot of what's expected soon, not a period figure.
+  let upcomingPickup = 0;
+  tickets.forEach(t=>{
+    if(t.archived || t.status !== 'To Pick Up') return;
+    const price = parseFloat(t.price);
+    const amountPaid = parseFloat(t.amountPaid);
+    const status = t.paymentStatus || 'Unpaid';
+    if(status === 'Partial'){
+      const paidSoFar = !isNaN(amountPaid) ? amountPaid : 0;
+      if(!isNaN(price)) upcomingPickup += Math.max(price - paidSoFar, 0);
+    }else if(status !== 'Paid'){
+      if(!isNaN(price)) upcomingPickup += price;
+    }
+  });
+  document.getElementById('stat-upcoming-pickup').textContent = upcomingPickup.toLocaleString() + ' DA';
   document.getElementById('stat-paid-count').textContent = paidCount;
 
   // Parts sold (sell value) and parts cost (current cost price), scoped by entry date
