@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LAPTX">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -458,7 +458,7 @@ textarea{resize:vertical;min-height:56px;}
     <div id="admin-workshop-subview" style="display:none;">
       <div class="panel">
         <h2>💰 Cash position — right now</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">The money you actually have on hand, all-time — not affected by the period filter below.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Money from repairs actually marked Picked Up, minus everything withdrawn — all-time, not affected by the period filter below.</div>
         <div class="stat-row">
           <div class="stat-card" style="border-color:var(--trace);">
             <div class="stat-label">Cash on hand</div>
@@ -476,15 +476,16 @@ textarea{resize:vertical;min-height:56px;}
             <option value="week">This week</option>
             <option value="month" selected>This month</option>
           </select>
+          <button class="btn-ghost" style="width:auto;" onclick="recalculateRevenue(event)">🔄 Recalculate</button>
           <button class="btn-ghost" style="width:auto;color:var(--danger);border-color:var(--danger);" onclick="resetRevenue()">🗑️ Clear revenue</button>
         </div>
         <div id="revenue-reset-label" style="display:none;font-size:12px;color:var(--trace);margin-bottom:12px;"></div>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Every number below changes with the period you pick above. Based on each ticket's entry date, since payments aren't timestamped individually.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Every number below changes with the period you pick above.</div>
 
         <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Money</div>
         <div class="stat-row">
           <div class="stat-card">
-            <div class="stat-label">Collected</div>
+            <div class="stat-label">Collected (withdrawn)</div>
             <div class="stat-value mono" id="stat-collected" style="color:var(--danger);">0 DA</div>
           </div>
           <div class="stat-card">
@@ -504,13 +505,13 @@ textarea{resize:vertical;min-height:56px;}
             <div class="stat-value mono" id="stat-parts-cost">0 DA</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Paid repairs</div>
+            <div class="stat-label">Picked up & paid</div>
             <div class="stat-value mono" id="stat-paid-count">0</div>
           </div>
         </div>
 
         <h2 style="margin-top:24px;">This month, day by day</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:12px;">Based on when payment actually came in, not when the repair was registered — a late payment from last month won't get mixed into this one. Always shows the current calendar month, regardless of the period filter above.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:12px;">Shows money withdrawn each day, not raw customer payments. Always shows the current calendar month, regardless of the period filter above.</div>
         <div id="monthly-daily-breakdown"></div>
 
         <div style="margin-top:20px;">
@@ -536,7 +537,7 @@ textarea{resize:vertical;min-height:56px;}
         <h2 style="margin-top:24px;">💸 Owed</h2>
         <div id="owed-list"></div>
 
-        <h2 style="margin-top:24px;">Paid repairs</h2>
+        <h2 style="margin-top:24px;">Picked up & paid</h2>
         <div id="revenue-list"></div>
       </div>
 
@@ -890,6 +891,7 @@ const ACTION_TO_RPC = {
   adminList: 'admin_list',
   adminCreate: 'admin_create',
   adminUpdateStatus: 'admin_update_status',
+  adminMarkNotified: 'admin_mark_notified',
   adminSaveNotes: 'admin_save_notes',
   adminDelete: 'admin_delete',
   adminReopenToPickup: 'admin_reopen_to_pickup',
@@ -913,6 +915,7 @@ const ACTION_TO_RPC = {
   adminSetGroqKey: 'admin_set_groq_key',
   adminSetChatbotInfo: 'admin_set_chatbot_info',
   adminResetRevenue: 'admin_reset_revenue',
+  adminClearRevenueReset: 'admin_clear_revenue_reset',
   getRevenueReset: 'get_revenue_reset',
   getChatbotInfo: 'get_chatbot_info',
   customerChatSend: 'customer_chat_send',
@@ -921,6 +924,9 @@ const ACTION_TO_RPC = {
   partsDelete: 'parts_delete',
   partsAdjustStock: 'parts_adjust_stock',
   withdrawalsList: 'withdrawals_list',
+  depositsList: 'deposits_list',
+  adminDepositCreate: 'admin_deposit_create',
+  adminDepositDelete: 'admin_deposit_delete',
   withdrawalCreate: 'withdrawal_create',
   withdrawalDelete: 'withdrawal_delete',
   customerLookup: 'customer_lookup',
@@ -943,7 +949,7 @@ function toRpcParams(params){
 
 async function apiGet(action, params={}){
   if(action === 'ping') return {ok:true};
-  if(adminPasswordValue && !('password' in params) && (action.indexOf('admin')===0 || action.indexOf('parts')===0 || action.indexOf('withdrawal')===0)){
+  if(adminPasswordValue && !('password' in params) && (action.indexOf('admin')===0 || action.indexOf('parts')===0 || action.indexOf('withdrawal')===0 || action.indexOf('deposit')===0)){
     params = Object.assign({}, params, {password: adminPasswordValue});
   }
   const rpcName = ACTION_TO_RPC[action];
@@ -1541,6 +1547,7 @@ function updateAdminVisibility(){
 let parts = [];
 
 let withdrawals = [];
+let deposits = [];
 
 async function loadAdminTickets(){
   const res = await apiGet('adminList');
@@ -1554,6 +1561,7 @@ async function loadAdminTickets(){
   renderVisibleAdminSubview();
   await loadPartsList();
   await loadWithdrawals();
+  await loadDeposits();
 }
 
 // Lighter refresh for actions that only change ticket data (status, notes,
@@ -1588,6 +1596,13 @@ async function loadWithdrawals(){
   const res = await apiGet('withdrawalsList');
   if(!res.ok) return;
   withdrawals = res.withdrawals;
+  if(currentAdminSubview==='workshop') renderRevenue();
+}
+
+async function loadDeposits(){
+  const res = await apiGet('depositsList');
+  if(!res.ok) return;
+  deposits = res.deposits;
   if(currentAdminSubview==='workshop') renderRevenue();
 }
 
@@ -2201,7 +2216,7 @@ function renderAdminList(){
         <label>Issue</label>
         <textarea id="edit-issue-${t.id}">${t.issue||''}</textarea>
         ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
-        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 ' : '🏢 ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
+        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
         ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
         <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
 
@@ -2629,8 +2644,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
     return;
   }
 
-  const showEndTask = (result === 'Not Fixable' || result === 'Tests OK');
-  const endTaskLabel = result === 'Not Fixable' ? '➡️ Move to To Pick Up' : '🏁 End task — close &amp; archive';
+  const showEndTask = (result === 'Tests OK'); // Tests OK still closes directly; Not Fixable now goes through To Fix like Fixable does
 
   list.innerHTML = filtered.map(t=>{
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
@@ -2645,7 +2659,8 @@ function renderClassifiedList(containerId, result, emptyMsg){
       </div>
       ${fixNoFixPillHtml(t)}
       ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerWhatsApp('${t.id}', event)">📱 Notify customer</button>` : ''}
-      ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">${endTaskLabel}</button>` : ''}
+      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>` : ''}
+      ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
   }).join('');
@@ -2824,11 +2839,8 @@ async function saveToFixTask(id){
 function toFixRowHtml(t, isNoFix){
   const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
   const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
-  const actionButtons = isNoFix
-    ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>
-       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>`
-    : `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
-       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>`;
+  const actionButtons = `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
+    <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>`;
 
   return `
     <div class="ticket-row">
@@ -3049,7 +3061,7 @@ function shippingRowHtml(t){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 ' : '🏢 ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -3164,7 +3176,7 @@ function renderArchiveList(){
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
           ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 ' : '🏢 ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -3545,7 +3557,7 @@ function autoSellPrice(costId, priceId){
   }
 }
 
-function notifyCustomerWhatsApp(id, event){
+async function notifyCustomerWhatsApp(id, event){
   if(event) event.stopPropagation();
   const t = tickets.find(x=>x.id===id);
   if(!t){
@@ -3572,9 +3584,12 @@ function notifyCustomerWhatsApp(id, event){
 
   const url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
   window.open(url, '_blank');
+
+  await apiGet('adminMarkNotified', {id:id, type:'diagnosis'});
+  await refreshTicketsOnly();
 }
 
-function notifyCustomerPickupWhatsApp(id, event){
+async function notifyCustomerPickupWhatsApp(id, event){
   if(event) event.stopPropagation();
   const t = tickets.find(x=>x.id===id);
   if(!t){
@@ -3603,6 +3618,9 @@ function notifyCustomerPickupWhatsApp(id, event){
 
   const url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
   window.open(url, '_blank');
+
+  await apiGet('adminMarkNotified', {id:id, type:'pickup'});
+  await refreshTicketsOnly();
 }
 
 function searchAliExpress(numberFieldId, nameFieldId){
@@ -3724,11 +3742,48 @@ function updateRevenueResetLabel(){
   const el = document.getElementById('revenue-reset-label');
   if(!el) return;
   if(revenueResetAt){
-    el.textContent = '📍 Counting from ' + new Date(revenueResetAt).toLocaleString() + ' onward. Everything before that is excluded from every number here (your actual ticket records are untouched).';
+    el.innerHTML = '📍 Counting from ' + new Date(revenueResetAt).toLocaleString() + ' onward. Everything before that is excluded from every number here (your actual ticket records are untouched). ' +
+      '<a href="#" onclick="undoRevenueReset(event)" style="color:var(--danger);text-decoration:underline;">Remove this and count everything again</a>';
     el.style.display = 'block';
   }else{
     el.style.display = 'none';
   }
+}
+
+async function undoRevenueReset(event){
+  if(event) event.preventDefault();
+  if(!window.confirm('Remove the revenue reset point? Every ticket will be counted again, including everything from before the reset.')) return;
+
+  const res = await apiGet('adminClearRevenueReset', {});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await loadRevenueReset();
+  await renderRevenue();
+}
+
+async function recalculateRevenue(event){
+  const btn = event ? event.target : null;
+  if(btn){ btn.disabled = true; btn.textContent = 'Recalculating…'; }
+
+  const results = await Promise.all([
+    apiGet('adminList'),
+    apiGet('partsList'),
+    apiGet('withdrawalsList'),
+    apiGet('depositsList')
+  ]);
+
+  const [ticketsRes, partsRes, withdrawalsRes, depositsRes] = results;
+  if(ticketsRes.ok) tickets = ticketsRes.tickets;
+  if(partsRes.ok) parts = partsRes.parts;
+  if(withdrawalsRes.ok) withdrawals = withdrawalsRes.withdrawals;
+  if(depositsRes.ok) deposits = depositsRes.deposits;
+
+  populateFilterOptions();
+  await renderRevenue();
+
+  if(btn){ btn.disabled = false; btn.textContent = '🔄 Recalculate'; }
 }
 
 async function resetRevenue(){
@@ -4040,21 +4095,13 @@ function renderMonthlyDailyBreakdown(){
   const month = now.getMonth();
   const todayDate = now.getDate();
 
-  // Collected amount per day-of-month, from tickets actually PAID within this calendar month
-  // (falls back to entryDate for older records saved before paid_at existed)
+  // Collected (withdrawn) amount per day-of-month
   const dailyTotals = {};
-  tickets.forEach(t=>{
-    const status = t.paymentStatus || 'Unpaid';
-    if(status !== 'Paid' && status !== 'Partial') return;
-    const dateSource = t.paidAt || (t.entryDate ? t.entryDate + 'T00:00:00' : null);
-    if(!dateSource || !isAfterRevenueReset(dateSource)) return;
-    const d = new Date(dateSource);
+  withdrawals.forEach(w=>{
+    if(!w.timestamp || !isAfterRevenueReset(w.timestamp)) return;
+    const d = new Date(w.timestamp);
     if(isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() !== month) return;
-    const price = parseFloat(t.price);
-    const amountPaid = parseFloat(t.amountPaid);
-    let amount = 0;
-    if(status === 'Paid') amount = !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
-    else if(status === 'Partial') amount = !isNaN(amountPaid) ? amountPaid : 0;
+    const amount = parseFloat(w.amount) || 0;
     if(amount <= 0) return;
     const day = d.getDate();
     dailyTotals[day] = (dailyTotals[day] || 0) + amount;
@@ -4090,33 +4137,35 @@ function renderRevenue(){
   updateRevenueResetLabel();
   renderMonthlyDailyBreakdown();
 
-  let collected = 0;
+  let collected = 0; // now: total withdrawn in this period (money you've actually taken out)
   let outstanding = 0;
   let paidCount = 0;
   const paidRepairs = [];
   const owedRepairs = [];
+
+  // "Collected" = withdrawals made in this period, not raw customer payments
+  withdrawals.forEach(w=>{
+    if(!dateInPeriod(w.timestamp, period)) return;
+    collected += parseFloat(w.amount) || 0;
+  });
 
   tickets.forEach(t=>{
     const price = parseFloat(t.price);
     const amountPaid = parseFloat(t.amountPaid);
     const status = t.paymentStatus || 'Unpaid';
 
-    if(status==='Paid'){
-      if(ticketPaidInPeriod(t, period)){
-        collected += !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
-        paidCount++;
-        paidRepairs.push(t);
-      }
-    }else if(status==='Partial'){
+    if(status==='Paid' && t.status==='Picked Up' && ticketPaidInPeriod(t, period)){
+      paidCount++;
+      paidRepairs.push(t);
+    }
+
+    if(status==='Partial'){
       const paidSoFar = !isNaN(amountPaid) ? amountPaid : 0;
-      if(paidSoFar > 0 && ticketPaidInPeriod(t, period)){
-        collected += paidSoFar;
-      }
       if(!isNaN(price) && ticketInPeriod(t, period)){
         outstanding += Math.max(price - paidSoFar, 0);
         owedRepairs.push(t);
       }
-    }else{
+    }else if(status!=='Paid'){
       if(!isNaN(price) && ticketInPeriod(t, period)){
         outstanding += price;
         owedRepairs.push(t);
@@ -4145,10 +4194,12 @@ function renderRevenue(){
   document.getElementById('stat-parts-sold').textContent = partsSoldValue.toLocaleString() + ' DA';
   document.getElementById('stat-parts-cost').textContent = partsCostValue.toLocaleString() + ' DA';
 
-  // Cash on hand is always all-time, independent of the period filter above —
-  // but still respects the revenue reset point below
-  let allTimeCollected = 0;
+  // Cash on hand: money from tickets actually marked "Picked up" (the point money
+  // physically changes hands) — NOT any payment marked Paid elsewhere (e.g. a
+  // prepayment logged while still mid-repair). Minus everything withdrawn since.
+  let cashFromPickups = 0;
   tickets.forEach(t=>{
+    if(t.status !== 'Picked Up') return;
     const status = t.paymentStatus || 'Unpaid';
     if(status!=='Paid' && status!=='Partial') return;
     const paidDate = t.paidAt || (t.entryDate ? t.entryDate + 'T00:00:00' : null);
@@ -4156,22 +4207,22 @@ function renderRevenue(){
     const price = parseFloat(t.price);
     const amountPaid = parseFloat(t.amountPaid);
     if(status==='Paid'){
-      allTimeCollected += !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
+      cashFromPickups += !isNaN(amountPaid) && amountPaid>0 ? amountPaid : (!isNaN(price) ? price : 0);
     }else if(status==='Partial'){
-      allTimeCollected += !isNaN(amountPaid) ? amountPaid : 0;
+      cashFromPickups += !isNaN(amountPaid) ? amountPaid : 0;
     }
   });
   const totalWithdrawn = withdrawals
     .filter(w=>isAfterRevenueReset(w.timestamp))
     .reduce((sum,w)=> sum + (parseFloat(w.amount) || 0), 0);
-  const cashOnHand = allTimeCollected - totalWithdrawn;
+  const cashOnHand = cashFromPickups - totalWithdrawn;
   currentCashOnHand = cashOnHand;
   document.getElementById('stat-cash-on-hand').textContent = cashOnHand.toLocaleString() + ' DA';
 
   renderWithdrawals();
 
   if(paidRepairs.length===0){
-    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No paid repairs in this period.</div>';
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No picked-up & paid repairs in this period.</div>';
   }else{
     paidRepairs.sort((a,b)=> new Date(b.paidAt||b.entryDate||b.createdAt) - new Date(a.paidAt||a.entryDate||a.createdAt));
     list.innerHTML = paidRepairs.map(t=>{
