@@ -1920,16 +1920,17 @@ function downloadDiagnosisQRLabel(id, event){
     document.body.appendChild(hiddenBox);
     new QRCode(hiddenBox, {
       text: qrText,
-      width: 320,
-      height: 320,
+      width: 200,
+      height: 200,
       colorDark: '#000000',
       colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.M
     });
     const qrCanvas = hiddenBox.querySelector('canvas');
 
-    // Composite the final label — sized for small Bluetooth label printers (~50mm wide)
-    const W = 600, H = 800;
+    // 40mm x 20mm landscape label, at 12px/mm for print clarity
+    const PXMM = 12;
+    const W = 40 * PXMM, H = 20 * PXMM; // 480 x 240
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -1937,34 +1938,38 @@ function downloadDiagnosisQRLabel(id, event){
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#000000';
-    ctx.textAlign = 'center';
 
-    ctx.font = 'bold 34px Arial';
-    ctx.fillText('LAPTX GPU', W/2, 55);
-
-    ctx.font = '22px Arial';
-    ctx.fillText('Repair #' + t.id, W/2, 95);
-
+    // QR code fills the left side, small margin
+    const margin = 8;
+    const qrSize = H - margin*2;
     if(qrCanvas){
-      const qrSize = 400;
-      ctx.drawImage(qrCanvas, (W - qrSize)/2, 120, qrSize, qrSize);
+      ctx.drawImage(qrCanvas, margin, margin, qrSize, qrSize);
     }
 
-    // Big Fixable / Not Fixable banner
-    const bannerY = 560, bannerH = 110;
-    ctx.fillStyle = isFixable ? '#1a7a4c' : '#a3271f';
-    ctx.fillRect(30, bannerY, W - 60, bannerH);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 46px Arial';
-    ctx.fillText(isFixable ? 'FIXABLE' : 'NOT FIXABLE', W/2, bannerY + 70);
+    // Right column: repair number, then diagnosis result
+    const rightX = margin + qrSize + 14;
+    const rightW = W - rightX - margin;
+    const rightCenterX = rightX + rightW/2;
 
     ctx.fillStyle = '#000000';
-    ctx.font = '20px Arial';
-    ctx.fillText(deviceLine.length > 36 ? deviceLine.slice(0,36)+'…' : deviceLine, W/2, bannerY + bannerH + 40);
-    ctx.font = '16px Arial';
-    ctx.fillStyle = '#555555';
-    ctx.fillText(t.customerName || 'No name on file', W/2, bannerY + bannerH + 68);
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 26px Arial';
+    ctx.fillText('#' + t.id, rightCenterX, 60);
+
+    // Diagnosis text — shrink to fit the available width so "NOT FIXABLE" never overflows
+    const diagText = isFixable ? 'FIXABLE' : 'NOT FIXABLE';
+    let fontSize = 40;
+    ctx.font = 'bold ' + fontSize + 'px Arial';
+    while(ctx.measureText(diagText).width > rightW - 6 && fontSize > 14){
+      fontSize -= 2;
+      ctx.font = 'bold ' + fontSize + 'px Arial';
+    }
+    ctx.fillStyle = isFixable ? '#1a7a4c' : '#a3271f';
+    ctx.fillText(diagText, rightCenterX, 60 + fontSize + 30);
+
+    ctx.fillStyle = '#000000';
+    ctx.font = '13px Arial';
+    ctx.fillText('LAPTX GPU', rightCenterX, H - margin);
 
     document.body.removeChild(hiddenBox);
 
