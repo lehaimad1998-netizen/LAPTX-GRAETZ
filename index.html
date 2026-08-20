@@ -1894,79 +1894,100 @@ function exportYalidineXlsx(scope){
 
 function downloadDiagnosisQRLabel(id, event){
   if(event) event.stopPropagation();
-  const t = tickets.find(x=>x.id===id);
-  if(!t){
-    alert('Ticket not found.');
-    return;
+  try{
+    const t = tickets.find(x=>x.id===id);
+    if(!t){
+      alert('Ticket not found.');
+      return;
+    }
+    if(t.diagnosisResult !== 'Fixable' && t.diagnosisResult !== 'Not Fixable'){
+      alert('This ticket needs to be classified Fixable or Not Fixable first.');
+      return;
+    }
+    if(typeof QRCode === 'undefined'){
+      alert('QR code library did not load. Check your internet connection and try again.');
+      return;
+    }
+
+    const isFixable = t.diagnosisResult === 'Fixable';
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'GPU repair';
+    const qrText = 'LAPTX GPU · Repair #' + t.id + ' · ' + deviceLine + ' · Diagnosis: ' + t.diagnosisResult.toUpperCase();
+
+    // Render the QR code into a hidden offscreen container (QRCode.js draws to canvas synchronously)
+    const hiddenBox = document.createElement('div');
+    hiddenBox.style.position = 'fixed';
+    hiddenBox.style.left = '-9999px';
+    document.body.appendChild(hiddenBox);
+    new QRCode(hiddenBox, {
+      text: qrText,
+      width: 320,
+      height: 320,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    const qrCanvas = hiddenBox.querySelector('canvas');
+
+    // Composite the final label — sized for small Bluetooth label printers (~50mm wide)
+    const W = 600, H = 800;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+
+    ctx.font = 'bold 34px Arial';
+    ctx.fillText('LAPTX GPU', W/2, 55);
+
+    ctx.font = '22px Arial';
+    ctx.fillText('Repair #' + t.id, W/2, 95);
+
+    if(qrCanvas){
+      const qrSize = 400;
+      ctx.drawImage(qrCanvas, (W - qrSize)/2, 120, qrSize, qrSize);
+    }
+
+    // Big Fixable / Not Fixable banner
+    const bannerY = 560, bannerH = 110;
+    ctx.fillStyle = isFixable ? '#1a7a4c' : '#a3271f';
+    ctx.fillRect(30, bannerY, W - 60, bannerH);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 46px Arial';
+    ctx.fillText(isFixable ? 'FIXABLE' : 'NOT FIXABLE', W/2, bannerY + 70);
+
+    ctx.fillStyle = '#000000';
+    ctx.font = '20px Arial';
+    ctx.fillText(deviceLine.length > 36 ? deviceLine.slice(0,36)+'…' : deviceLine, W/2, bannerY + bannerH + 40);
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#555555';
+    ctx.fillText(t.customerName || 'No name on file', W/2, bannerY + bannerH + 68);
+
+    document.body.removeChild(hiddenBox);
+
+    const filename = 'qr-ticket-' + t.id + '.png';
+    canvas.toBlob(function(blob){
+      if(!blob){
+        alert('Could not generate the image. Please try again.');
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(()=>URL.revokeObjectURL(url), 3000);
+      alert('Saved ' + filename + ' — check your phone\'s Downloads folder, then open it in 4Barcode.');
+    }, 'image/png');
+
+  }catch(err){
+    alert('QR ticket failed: ' + (err && err.message ? err.message : err));
   }
-  if(t.diagnosisResult !== 'Fixable' && t.diagnosisResult !== 'Not Fixable'){
-    alert('This ticket needs to be classified Fixable or Not Fixable first.');
-    return;
-  }
-
-  const isFixable = t.diagnosisResult === 'Fixable';
-  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'GPU repair';
-  const qrText = 'LAPTX GPU · Repair #' + t.id + ' · ' + deviceLine + ' · Diagnosis: ' + t.diagnosisResult.toUpperCase();
-
-  // Render the QR code into a hidden offscreen container (QRCode.js draws to canvas synchronously)
-  const hiddenBox = document.createElement('div');
-  hiddenBox.style.position = 'fixed';
-  hiddenBox.style.left = '-9999px';
-  document.body.appendChild(hiddenBox);
-  new QRCode(hiddenBox, {
-    text: qrText,
-    width: 320,
-    height: 320,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.M
-  });
-  const qrCanvas = hiddenBox.querySelector('canvas');
-
-  // Composite the final label — sized for small Bluetooth label printers (~50mm wide)
-  const W = 600, H = 800;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#000000';
-  ctx.textAlign = 'center';
-
-  ctx.font = 'bold 34px Arial';
-  ctx.fillText('LAPTX GPU', W/2, 55);
-
-  ctx.font = '22px Arial';
-  ctx.fillText('Repair #' + t.id, W/2, 95);
-
-  if(qrCanvas){
-    const qrSize = 400;
-    ctx.drawImage(qrCanvas, (W - qrSize)/2, 120, qrSize, qrSize);
-  }
-
-  // Big Fixable / Not Fixable banner
-  const bannerY = 560, bannerH = 110;
-  ctx.fillStyle = isFixable ? '#1a7a4c' : '#a3271f';
-  ctx.fillRect(30, bannerY, W - 60, bannerH);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 46px Arial';
-  ctx.fillText(isFixable ? 'FIXABLE' : 'NOT FIXABLE', W/2, bannerY + 70);
-
-  ctx.fillStyle = '#000000';
-  ctx.font = '20px Arial';
-  ctx.fillText(deviceLine.length > 36 ? deviceLine.slice(0,36)+'…' : deviceLine, W/2, bannerY + bannerH + 40);
-  ctx.font = '16px Arial';
-  ctx.fillStyle = '#555555';
-  ctx.fillText(t.customerName || 'No name on file', W/2, bannerY + bannerH + 68);
-
-  document.body.removeChild(hiddenBox);
-
-  const link = document.createElement('a');
-  link.download = 'qr-ticket-' + t.id + '.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
 }
 
 function downloadDiagnosticReportPDF(id, event){
