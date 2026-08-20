@@ -15,6 +15,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 
@@ -67,9 +68,10 @@ body{
 
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;}
 .panel h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 16px;}
-.collapsible-header{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
+.collapsible-header{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;user-select:none;}
 .collapsible-header:hover{color:var(--text);}
-.collapse-arrow{font-size:11px;transition:transform .15s ease;}
+.section-title-group{display:flex;align-items:center;gap:8px;}
+.collapse-arrow{font-size:11px;transition:transform .15s ease;flex-shrink:0;}
 .collapse-arrow.collapsed{transform:rotate(-90deg);}
 
 label{display:block;font-size:12px;color:var(--text-muted);margin:14px 0 6px;}
@@ -125,7 +127,7 @@ textarea{resize:vertical;min-height:56px;}
 .list-controls{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
 .list-controls input{flex:1;min-width:160px;}
 .list-controls select{width:auto;}
-.count-tag{font-size:12px;color:var(--text-muted);}
+.count-tag{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--text-muted);background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:2px 9px;display:inline-block;white-space:nowrap;}
 
 .stat-row{display:flex;gap:12px;flex-wrap:wrap;}
 .stat-card{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;flex:1;min-width:140px;}
@@ -295,6 +297,7 @@ textarea{resize:vertical;min-height:56px;}
       <button class="tab-btn" id="subtab-archive" onclick="switchAdminSubview('archive')">Archive</button>
       <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Revenue</button>
       <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
+      <button class="tab-btn" id="subtab-cleanup" onclick="switchAdminSubview('cleanup')">🗑️ Cleanup</button>
     </div>
 
     <div id="admin-tickets-subview">
@@ -333,67 +336,36 @@ textarea{resize:vertical;min-height:56px;}
       <span id="counter-filter-label"></span>
       <button class="btn-ghost" style="width:auto;padding:5px 10px;font-size:11px;" onclick="clearCounterFilter()">✕ Clear filter</button>
     </div>
-    <div class="grid-2">
-      <div class="panel">
-        <h2>New ticket</h2>
-        <div class="new-id-banner" id="created-banner">
-          <div class="label">Ticket saved</div>
-          <div class="id-row">
-            <div class="id-val mono" id="created-val"></div>
-          </div>
-          <div id="created-qr" style="margin-top:12px;"></div>
-          <button class="btn-ghost" id="print-created-btn" style="margin-top:10px;">Print sticker</button>
-        </div>
-        <label>Repair number (from your intake form)</label>
-        <input id="f-number" type="number" placeholder="320" class="mono">
-        <label>Phone number</label>
-        <input id="f-phone" placeholder="(555) 123-4567" oninput="checkReturningCustomer()">
-        <div id="f-returning-hint" class="returning-flag" style="display:none;margin:-8px 0 12px;"></div>
-        <label>Customer name (optional)</label>
-        <input id="f-name" placeholder="Jordan Lee">
-        <div class="row2">
-          <div>
-            <label>Card brand (optional)</label>
-            <input id="f-brand" placeholder="ASUS">
-          </div>
-          <div>
-            <label>Card model (optional)</label>
-            <input id="f-model" placeholder="ROG Strix RTX 4070 Ti">
-          </div>
-        </div>
-        <label>Issue (optional)</label>
-        <textarea id="f-issue" placeholder="No display output, fans at full speed"></textarea>
-        <div class="pw-error" id="ticket-form-error">Enter a repair number and phone number.</div>
-        <div class="pw-error" id="ticket-form-dupe">That repair number is already in use.</div>
-        <button class="btn" onclick="createTicket()">Save ticket</button>
+    <div class="panel">
+      <h2>Filters</h2>
+      <div class="list-controls">
+        <input id="admin-search" placeholder="Search name, phone, ID, device..." oninput="renderAdminList()">
+        <select id="admin-filter" onchange="renderAdminList()">
+          <option value="" selected>All statuses</option>
+        </select>
+        <select id="admin-sort" onchange="renderAdminList()">
+          <option value="newest">Newest first</option>
+          <option value="number-asc" selected>Number: low to high</option>
+          <option value="number-desc">Number: high to low</option>
+        </select>
+        <button class="btn-ghost quick-filter" id="qf-overdue" onclick="toggleQuickFilter('overdue')">⏳ Overdue only</button>
+        <button class="btn-ghost quick-filter" id="qf-cancelled" onclick="toggleQuickFilter('cancelled')">🚫 Cancelled only</button>
+        <span class="count-tag" id="ticket-count"></span>
       </div>
-
-      <div class="panel">
-        <h2>All tickets</h2>
-        <div class="list-controls">
-          <input id="admin-search" placeholder="Search name, phone, ID, device..." oninput="renderAdminList()">
-          <select id="admin-filter" onchange="renderAdminList()">
-            <option value="" selected>All statuses</option>
-          </select>
-          <select id="admin-sort" onchange="renderAdminList()">
-            <option value="newest">Newest first</option>
-            <option value="number-asc" selected>Number: low to high</option>
-            <option value="number-desc">Number: high to low</option>
-          </select>
-          <button class="btn-ghost quick-filter" id="qf-overdue" onclick="toggleQuickFilter('overdue')">⏳ Overdue only</button>
-          <button class="btn-ghost quick-filter" id="qf-cancelled" onclick="toggleQuickFilter('cancelled')">🚫 Cancelled only</button>
-          <span class="count-tag" id="ticket-count"></span>
-        </div>
-        <div id="admin-list"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn-ghost" style="width:auto;" onclick="dropAllTicketsSections()">Drop all</button>
+        <button class="btn-ghost" style="width:auto;" onclick="collapseAllTicketsSections()">Collapse all</button>
       </div>
     </div>
+
+    <div id="admin-list" style="margin-top:16px;"></div>
     </div>
 
     <div id="admin-diagnosed-subview" style="display:none;">
       <button class="btn-ghost" style="width:auto;margin-bottom:16px;" onclick="dropAllSections()">🔽 Drop all</button>
       <button class="btn-ghost" style="width:auto;margin-bottom:16px;margin-left:8px;" onclick="collapseAllSections()">🔼 Collapse all</button>
       <div class="panel">
-        <h2 class="collapsible-header" onclick="toggleSection('awaiting')">Awaiting classification <span class="collapse-arrow collapsed" id="arrow-awaiting">▾</span></h2>
+        <h2 class="collapsible-header" onclick="toggleSection('awaiting')"><span class="section-title-group">Awaiting classification <span class="count-tag" id="awaiting-count"></span></span> <span class="collapse-arrow collapsed" id="arrow-awaiting">▾</span></h2>
         <div id="body-awaiting" style="display:none;">
           <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs currently at "Diagnosing" that haven't been classified yet. Mark each one Fixable, Not Fixable, or Tests OK.</div>
           <div id="diagnosed-list"></div>
@@ -401,7 +373,7 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2 class="collapsible-header" onclick="toggleSection('waitingparts')">Waiting for Parts <span class="collapse-arrow collapsed" id="arrow-waitingparts">▾</span></h2>
+        <h2 class="collapsible-header" onclick="toggleSection('waitingparts')"><span class="section-title-group">Waiting for Parts <span class="count-tag" id="waitingparts-count"></span></span> <span class="collapse-arrow collapsed" id="arrow-waitingparts">▾</span></h2>
         <div id="body-waitingparts" style="display:none;">
           <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs currently on hold waiting for a part to arrive.</div>
           <div id="waitingparts-list"></div>
@@ -409,7 +381,7 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2 class="collapsible-header" onclick="toggleSection('fixable')">Fixable <span class="collapse-arrow collapsed" id="arrow-fixable">▾</span></h2>
+        <h2 class="collapsible-header" onclick="toggleSection('fixable')"><span class="section-title-group">Fixable <span class="count-tag" id="fixable-count"></span></span> <span class="collapse-arrow collapsed" id="arrow-fixable">▾</span></h2>
         <div id="body-fixable" style="display:none;">
           <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs diagnosed as fixable. Send one back to Awaiting classification if you need to reclassify it.</div>
           <div id="fixable-list"></div>
@@ -417,7 +389,7 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2 class="collapsible-header" onclick="toggleSection('notfixable')">Not Fixable <span class="collapse-arrow collapsed" id="arrow-notfixable">▾</span></h2>
+        <h2 class="collapsible-header" onclick="toggleSection('notfixable')"><span class="section-title-group">Not Fixable <span class="count-tag" id="notfixable-count"></span></span> <span class="collapse-arrow collapsed" id="arrow-notfixable">▾</span></h2>
         <div id="body-notfixable" style="display:none;">
           <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs diagnosed as not fixable. Send one back to Awaiting classification if you need to reclassify it.</div>
           <div id="notfixable-list"></div>
@@ -425,7 +397,7 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2 class="collapsible-header" onclick="toggleSection('testsok')">Tests OK <span class="collapse-arrow collapsed" id="arrow-testsok">▾</span></h2>
+        <h2 class="collapsible-header" onclick="toggleSection('testsok')"><span class="section-title-group">Tests OK <span class="count-tag" id="testsok-count"></span></span> <span class="collapse-arrow collapsed" id="arrow-testsok">▾</span></h2>
         <div id="body-testsok" style="display:none;">
           <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Cards that tested fine, no repair needed. Send one back to Awaiting classification if you need to reclassify it.</div>
           <div id="testsok-list"></div>
@@ -433,7 +405,7 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2 class="collapsible-header" onclick="toggleSection('hard')">Hard / long repairs <span class="collapse-arrow collapsed" id="arrow-hard">▾</span></h2>
+        <h2 class="collapsible-header" onclick="toggleSection('hard')"><span class="section-title-group">Hard / long repairs <span class="count-tag" id="hard-count"></span></span> <span class="collapse-arrow collapsed" id="arrow-hard">▾</span></h2>
         <div id="body-hard" style="display:none;">
           <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs that need more time or effort. Send one back to Awaiting classification, or close it out if it's done.</div>
           <div id="hard-list"></div>
@@ -710,10 +682,6 @@ textarea{resize:vertical;min-height:56px;}
       <div class="panel">
         <h2>To Pick Up</h2>
         <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repaired and confirmed ready — customer just needs to come collect it. Mark it Picked Up once they do; it archives automatically.</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-          <button class="btn-ghost" style="width:auto;" onclick="toggleYalidineSelectAll('shipping')">☑️ Select all</button>
-          <button class="btn-ghost" style="width:auto;" onclick="exportYalidineXlsx('shipping')">📦 Export for Yalidine (.xlsx)</button>
-        </div>
         <label>Payment status</label>
         <select id="shipping-payment-filter" onchange="renderShippingList()">
           <option value="">All payment statuses</option>
@@ -724,21 +692,23 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2>✅ Fix — to pick up</h2>
-        <div class="list-controls">
-          <input id="shipping-search-fix" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
-          <span class="count-tag" id="shipping-count-fix"></span>
+        <h2 class="collapsible-header" onclick="toggleSection('shippingfix')"><span class="section-title-group">✅ Fix — to pick up <span class="count-tag" id="shipping-count-fix"></span></span> <span class="collapse-arrow collapsed" id="arrow-shippingfix">▾</span></h2>
+        <div id="body-shippingfix" style="display:none;">
+          <div class="list-controls">
+            <input id="shipping-search-fix" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
+          </div>
+          <div id="shipping-list-fix"></div>
         </div>
-        <div id="shipping-list-fix"></div>
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2>❌ No fix — to pick up</h2>
-        <div class="list-controls">
-          <input id="shipping-search-nofix" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
-          <span class="count-tag" id="shipping-count-nofix"></span>
+        <h2 class="collapsible-header" onclick="toggleSection('shippingnofix')"><span class="section-title-group">❌ No fix — to pick up <span class="count-tag" id="shipping-count-nofix"></span></span> <span class="collapse-arrow collapsed" id="arrow-shippingnofix">▾</span></h2>
+        <div id="body-shippingnofix" style="display:none;">
+          <div class="list-controls">
+            <input id="shipping-search-nofix" placeholder="Search name, phone, ID, device..." oninput="renderShippingList()">
+          </div>
+          <div id="shipping-list-nofix"></div>
         </div>
-        <div id="shipping-list-nofix"></div>
       </div>
     </div>
 
@@ -755,6 +725,16 @@ textarea{resize:vertical;min-height:56px;}
           <span class="count-tag" id="archive-count"></span>
         </div>
         <div id="archive-list"></div>
+      </div>
+    </div>
+
+    <div id="admin-cleanup-subview" style="display:none;">
+      <div class="panel">
+        <h2>🗑️ Overdue cleanup</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Active tickets sitting for 15+ days without being archived — likely abandoned. Delete individually, or flush everything at once. This is permanent and cannot be undone from within the app.</div>
+        <button class="btn-ghost" style="width:auto;background:var(--danger);color:#2A0E0C;border-color:var(--danger);margin-bottom:16px;" onclick="flushOverdueTickets()">🗑️ Flush all overdue tickets</button>
+        <span class="count-tag" id="cleanup-count"></span>
+        <div id="cleanup-list" style="margin-top:12px;"></div>
       </div>
     </div>
 
@@ -800,11 +780,107 @@ textarea{resize:vertical;min-height:56px;}
         <div class="row2">
           <div>
             <label data-i18n="card_brand">Card brand</label>
-            <input id="r-brand" placeholder="ASUS">
+            <select id="r-brand" onchange="toggleOtherBrandInput()">
+              <option value="">—</option>
+              <option value="ASUS">ASUS</option>
+              <option value="MSI">MSI</option>
+              <option value="Gigabyte">Gigabyte</option>
+              <option value="EVGA">EVGA</option>
+              <option value="Zotac">Zotac</option>
+              <option value="Sapphire">Sapphire</option>
+              <option value="PowerColor">PowerColor</option>
+              <option value="XFX">XFX</option>
+              <option value="Palit">Palit</option>
+              <option value="Gainward">Gainward</option>
+              <option value="PNY">PNY</option>
+              <option value="Colorful">Colorful</option>
+              <option value="Galax">Galax</option>
+              <option value="Inno3D">Inno3D</option>
+              <option value="ASRock">ASRock</option>
+              <option value="Biostar">Biostar</option>
+              <option value="Yeston">Yeston</option>
+              <option value="Manli">Manli</option>
+              <option value="__other__">Other…</option>
+            </select>
+            <input id="r-brand-other" placeholder="Enter brand name" style="display:none;margin-top:8px;">
           </div>
           <div>
             <label data-i18n="card_model">Card model</label>
-            <input id="r-model" placeholder="ROG Strix RTX 4070 Ti">
+            <select id="r-model" onchange="toggleOtherModelInput()">
+              <option value="">—</option>
+              <optgroup label="NVIDIA RTX 50 series">
+                <option value="RTX 5090">RTX 5090</option>
+                <option value="RTX 5080">RTX 5080</option>
+                <option value="RTX 5070 Ti">RTX 5070 Ti</option>
+                <option value="RTX 5070">RTX 5070</option>
+                <option value="RTX 5060 Ti">RTX 5060 Ti</option>
+                <option value="RTX 5060">RTX 5060</option>
+              </optgroup>
+              <optgroup label="NVIDIA RTX 40 series">
+                <option value="RTX 4090">RTX 4090</option>
+                <option value="RTX 4080 Super">RTX 4080 Super</option>
+                <option value="RTX 4080">RTX 4080</option>
+                <option value="RTX 4070 Ti Super">RTX 4070 Ti Super</option>
+                <option value="RTX 4070 Ti">RTX 4070 Ti</option>
+                <option value="RTX 4070 Super">RTX 4070 Super</option>
+                <option value="RTX 4070">RTX 4070</option>
+                <option value="RTX 4060 Ti">RTX 4060 Ti</option>
+                <option value="RTX 4060">RTX 4060</option>
+              </optgroup>
+              <optgroup label="NVIDIA RTX 30 series">
+                <option value="RTX 3090 Ti">RTX 3090 Ti</option>
+                <option value="RTX 3090">RTX 3090</option>
+                <option value="RTX 3080 Ti">RTX 3080 Ti</option>
+                <option value="RTX 3080">RTX 3080</option>
+                <option value="RTX 3070 Ti">RTX 3070 Ti</option>
+                <option value="RTX 3070">RTX 3070</option>
+                <option value="RTX 3060 Ti">RTX 3060 Ti</option>
+                <option value="RTX 3060">RTX 3060</option>
+                <option value="RTX 3050">RTX 3050</option>
+              </optgroup>
+              <optgroup label="NVIDIA GTX / older">
+                <option value="GTX 1660 Super">GTX 1660 Super</option>
+                <option value="GTX 1660 Ti">GTX 1660 Ti</option>
+                <option value="GTX 1660">GTX 1660</option>
+                <option value="GTX 1650 Super">GTX 1650 Super</option>
+                <option value="GTX 1650">GTX 1650</option>
+                <option value="GTX 1080 Ti">GTX 1080 Ti</option>
+                <option value="GTX 1080">GTX 1080</option>
+                <option value="GTX 1070 Ti">GTX 1070 Ti</option>
+                <option value="GTX 1070">GTX 1070</option>
+                <option value="GTX 1060">GTX 1060</option>
+              </optgroup>
+              <optgroup label="AMD RX 7000 series">
+                <option value="RX 7900 XTX">RX 7900 XTX</option>
+                <option value="RX 7900 XT">RX 7900 XT</option>
+                <option value="RX 7900 GRE">RX 7900 GRE</option>
+                <option value="RX 7800 XT">RX 7800 XT</option>
+                <option value="RX 7700 XT">RX 7700 XT</option>
+                <option value="RX 7600 XT">RX 7600 XT</option>
+                <option value="RX 7600">RX 7600</option>
+              </optgroup>
+              <optgroup label="AMD RX 6000 series">
+                <option value="RX 6950 XT">RX 6950 XT</option>
+                <option value="RX 6900 XT">RX 6900 XT</option>
+                <option value="RX 6800 XT">RX 6800 XT</option>
+                <option value="RX 6800">RX 6800</option>
+                <option value="RX 6750 XT">RX 6750 XT</option>
+                <option value="RX 6700 XT">RX 6700 XT</option>
+                <option value="RX 6650 XT">RX 6650 XT</option>
+                <option value="RX 6600 XT">RX 6600 XT</option>
+                <option value="RX 6600">RX 6600</option>
+                <option value="RX 6500 XT">RX 6500 XT</option>
+                <option value="RX 6400">RX 6400</option>
+              </optgroup>
+              <optgroup label="AMD RX 5000 series">
+                <option value="RX 5700 XT">RX 5700 XT</option>
+                <option value="RX 5700">RX 5700</option>
+                <option value="RX 5600 XT">RX 5600 XT</option>
+                <option value="RX 5500 XT">RX 5500 XT</option>
+              </optgroup>
+              <option value="__other__">Other…</option>
+            </select>
+            <input id="r-model-other" placeholder="Enter model name" style="display:none;margin-top:8px;">
           </div>
         </div>
         <label data-i18n="describe_issue">Describe the issue</label>
@@ -898,6 +974,7 @@ const ACTION_TO_RPC = {
   adminMarkNotified: 'admin_mark_notified',
   adminSaveNotes: 'admin_save_notes',
   adminDelete: 'admin_delete',
+  adminFlushOverdue: 'admin_flush_overdue',
   adminReopenToPickup: 'admin_reopen_to_pickup',
   adminSetPricing: 'admin_set_pricing',
   adminEditTicket: 'admin_edit_ticket',
@@ -1632,6 +1709,7 @@ function switchAdminSubview(v){
   document.getElementById('admin-stock-subview').style.display = v==='stock' ? 'block' : 'none';
   document.getElementById('admin-shipping-subview').style.display = v==='shipping' ? 'block' : 'none';
   document.getElementById('admin-archive-subview').style.display = v==='archive' ? 'block' : 'none';
+  document.getElementById('admin-cleanup-subview').style.display = v==='cleanup' ? 'block' : 'none';
   document.getElementById('subtab-tickets').classList.toggle('active', v==='tickets');
   document.getElementById('subtab-diagnosed').classList.toggle('active', v==='diagnosed');
   document.getElementById('subtab-tofix').classList.toggle('active', v==='tofix');
@@ -1639,6 +1717,7 @@ function switchAdminSubview(v){
   document.getElementById('subtab-stock').classList.toggle('active', v==='stock');
   document.getElementById('subtab-shipping').classList.toggle('active', v==='shipping');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
+  document.getElementById('subtab-cleanup').classList.toggle('active', v==='cleanup');
   renderVisibleAdminSubview();
 }
 
@@ -1650,6 +1729,7 @@ function renderVisibleAdminSubview(){
   else if(currentAdminSubview==='stock') renderPartsList();
   else if(currentAdminSubview==='shipping') renderShippingList();
   else if(currentAdminSubview==='archive') renderArchiveList();
+  else if(currentAdminSubview==='cleanup') renderCleanupList();
 }
 
 function formatPrice(price){
@@ -1812,6 +1892,124 @@ function exportYalidineXlsx(scope){
   if(scope==='archive') renderArchiveList(); else renderShippingList();
 }
 
+function downloadDiagnosticReportPDF(id, event){
+  if(event) event.stopPropagation();
+  const t = tickets.find(x=>x.id===id);
+  if(!t){
+    alert('Ticket not found.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = 210;
+  const margin = 20;
+  const contentWidth = pageWidth - margin*2;
+  let y = 20;
+
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || '—';
+  const today = new Date().toLocaleDateString('en-GB');
+
+  // Header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('LAPTX GPU', margin, y);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('GPU Repair Shop · Tel: 0540174110', margin, y + 6);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('DIAGNOSTIC REPORT MEMO', pageWidth - margin, y, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text('Repair #' + t.id, pageWidth - margin, y + 6, { align: 'right' });
+  doc.text('Date: ' + today, pageWidth - margin, y + 11, { align: 'right' });
+
+  y += 18;
+  doc.setDrawColor(20);
+  doc.setLineWidth(0.6);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
+
+  function sectionLabel(text){
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(text.toUpperCase(), margin, y);
+    doc.setTextColor(20);
+    y += 5;
+  }
+
+  function fieldLine(label, value){
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(label + ':', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(value || '—'), margin + 32, y);
+    y += 6;
+  }
+
+  function wrappedBlock(text, minHeight){
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(text || 'Not specified', contentWidth - 6);
+    const boxHeight = Math.max(minHeight, lines.length * 5 + 6);
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.3);
+    doc.rect(margin, y, contentWidth, boxHeight);
+    doc.text(lines, margin + 3, y + 6);
+    y += boxHeight + 8;
+  }
+
+  sectionLabel('Customer');
+  fieldLine('Name', t.customerName);
+  fieldLine('Phone', t.phone);
+  y += 2;
+
+  sectionLabel('Device');
+  fieldLine('Model', deviceLine);
+  y += 2;
+
+  sectionLabel('Reported Issue (customer description)');
+  wrappedBlock(t.issue, 20);
+
+  sectionLabel('Diagnostic Notes');
+  wrappedBlock(t.diagnosticNotes, 30);
+
+  sectionLabel('Diagnosis Result (check one)');
+  const checkboxes = ['Fixable', 'Not Fixable', 'Tests OK', 'Hard / Long Repair'];
+  let cbX = margin;
+  checkboxes.forEach(label=>{
+    doc.setDrawColor(20);
+    doc.rect(cbX, y - 3.5, 4, 4);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(label, cbX + 6, y);
+    cbX += 6 + doc.getTextWidth(label) + 10;
+  });
+  y += 14;
+
+  sectionLabel('Technician Notes / Findings');
+  doc.setDrawColor(200);
+  for(let i = 0; i < 5; i++){
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 7;
+  }
+  y += 6;
+
+  // Signature lines
+  doc.setDrawColor(20);
+  doc.line(margin, y, margin + 70, y);
+  doc.line(pageWidth - margin - 70, y, pageWidth - margin, y);
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text('Technician signature', margin, y + 5);
+  doc.text('Date', pageWidth - margin - 70, y + 5);
+
+  doc.save('diagnostic-report-' + t.id + '.pdf');
+}
+
 function printReceipt(id){
   const t = tickets.find(x=>x.id===id);
   if(!t) return;
@@ -1956,12 +2154,28 @@ function renderStatusQR(containerId, ticketId, phone){
   });
 }
 
+function toggleOtherBrandInput(){
+  const sel = document.getElementById('r-brand').value;
+  const otherInput = document.getElementById('r-brand-other');
+  otherInput.style.display = sel === '__other__' ? 'block' : 'none';
+  if(sel !== '__other__') otherInput.value = '';
+}
+
+function toggleOtherModelInput(){
+  const sel = document.getElementById('r-model').value;
+  const otherInput = document.getElementById('r-model-other');
+  otherInput.style.display = sel === '__other__' ? 'block' : 'none';
+  if(sel !== '__other__') otherInput.value = '';
+}
+
 async function registerDevice(){
   const name = document.getElementById('r-name').value.trim();
   const phone = document.getElementById('r-phone').value.trim();
   const entryDate = document.getElementById('r-entrydate').value;
-  const brand = document.getElementById('r-brand').value.trim();
-  const model = document.getElementById('r-model').value.trim();
+  const brandSel = document.getElementById('r-brand').value;
+  const brand = brandSel === '__other__' ? document.getElementById('r-brand-other').value.trim() : brandSel;
+  const modelSel = document.getElementById('r-model').value;
+  const model = modelSel === '__other__' ? document.getElementById('r-model-other').value.trim() : modelSel;
   const issue = document.getElementById('r-issue').value.trim();
   const errEl = document.getElementById('register-form-error');
   errEl.style.display = 'none';
@@ -1995,7 +2209,9 @@ async function registerDevice(){
   document.getElementById('package-photo-preview').innerHTML = '';
   document.getElementById('package-photo-upload-btn').style.display = 'none';
   document.getElementById('package-photo-error').style.display = 'none';
-  ['r-name','r-phone','r-brand','r-model','r-issue'].forEach(id=>document.getElementById(id).value='');
+  ['r-name','r-phone','r-brand','r-model','r-issue','r-brand-other','r-model-other'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('r-brand-other').style.display = 'none';
+  document.getElementById('r-model-other').style.display = 'none';
   document.getElementById('r-entrydate').value = new Date().toISOString().slice(0,10);
   document.getElementById('conditions-checkbox').checked = false;
   document.getElementById('conditions-checkbox-modal').checked = false;
@@ -2145,40 +2361,10 @@ function toggleQuickFilter(name){
   renderAdminList();
 }
 
-function renderAdminList(){
-  const q = document.getElementById('admin-search').value.toLowerCase();
-  const filter = document.getElementById('admin-filter').value;
-  const sortMode = document.getElementById('admin-sort').value;
-  const list = document.getElementById('admin-list');
-  const activeCount = tickets.filter(t=>!t.archived && !t.flaggedDiagnosed).length;
-  document.getElementById('ticket-count').textContent = activeCount + ' total';
-
-  let filtered = tickets.filter(t=>{
-    if(t.archived) return false;
-    if(t.flaggedDiagnosed && !counterFilter) return false; // hide diagnosed tickets in the default view, but let counter clicks (Fixable, Diagnosed, etc.) show them
-    const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
-    const matchesF = !filter || t.status===filter;
-    const matchesQuick = quickFilter==='overdue' ? isOverdue(t) : (quickFilter==='cancelled' ? t.status==='Cancelled' : true);
-    const matchesCounter = matchesCounterFilter(t);
-    return matchesQ && matchesF && matchesQuick && matchesCounter;
-  });
-
-  if(sortMode==='number-asc'){
-    filtered = filtered.slice().sort((a,b)=> (parseFloat(a.id) || 0) - (parseFloat(b.id) || 0));
-  }else if(sortMode==='number-desc'){
-    filtered = filtered.slice().sort((a,b)=> (parseFloat(b.id) || 0) - (parseFloat(a.id) || 0));
-  }
-  // 'newest' uses the order already returned by the server (most recently created first)
-
-  if(filtered.length===0){
-    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No tickets match. Adjust your search or create a new ticket.</div>';
-    return;
-  }
-
-  list.innerHTML = filtered.map(t=>{
-    const open = expandedId===t.id;
-    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
-    return `
+function ticketFullRowHtml(t){
+  const open = expandedId===t.id;
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+  return `
     <div class="ticket-row" id="ticket-${t.id}">
       <div class="ticket-row-top" style="cursor:pointer;" onclick="toggleExpand('${t.id}')">
         <div>
@@ -2260,6 +2446,95 @@ function renderAdminList(){
         </div>
       </div>
     </div>`;
+}
+
+const TICKETS_SECTION_ORDER = ['Registered','Received','Diagnosing','Waiting for Parts','Repairing','To Pick Up','Cancelled'];
+const TICKETS_SECTION_ICONS = {
+  'Registered':'📝', 'Received':'📦', 'Diagnosing':'🔍', 'Waiting for Parts':'⏳',
+  'Repairing':'🔧', 'To Pick Up':'✅', 'Cancelled':'🚫'
+};
+let ticketsSectionsExpanded = {}; // key -> bool, default collapsed
+
+function toggleTicketsSection(status){
+  const key = 'tickets-' + status;
+  const body = document.getElementById('body-'+key);
+  const arrow = document.getElementById('arrow-'+key);
+  if(!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? 'block' : 'none';
+  if(arrow) arrow.classList.toggle('collapsed', !collapsed);
+  ticketsSectionsExpanded[status] = collapsed;
+}
+
+function dropAllTicketsSections(){
+  TICKETS_SECTION_ORDER.forEach(status=>{
+    const key = 'tickets-' + status;
+    const body = document.getElementById('body-'+key);
+    const arrow = document.getElementById('arrow-'+key);
+    if(body) body.style.display = 'block';
+    if(arrow) arrow.classList.remove('collapsed');
+    ticketsSectionsExpanded[status] = true;
+  });
+}
+
+function collapseAllTicketsSections(){
+  TICKETS_SECTION_ORDER.forEach(status=>{
+    const key = 'tickets-' + status;
+    const body = document.getElementById('body-'+key);
+    const arrow = document.getElementById('arrow-'+key);
+    if(body) body.style.display = 'none';
+    if(arrow) arrow.classList.add('collapsed');
+    ticketsSectionsExpanded[status] = false;
+  });
+}
+
+function renderAdminList(){
+  const q = document.getElementById('admin-search').value.toLowerCase();
+  const filter = document.getElementById('admin-filter').value;
+  const sortMode = document.getElementById('admin-sort').value;
+  const list = document.getElementById('admin-list');
+  const activeCount = tickets.filter(t=>!t.archived).length;
+  document.getElementById('ticket-count').textContent = activeCount + ' total';
+
+  let filtered = tickets.filter(t=>{
+    if(t.archived) return false;
+    const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+    const matchesF = !filter || t.status===filter;
+    const matchesQuick = quickFilter==='overdue' ? isOverdue(t) : (quickFilter==='cancelled' ? t.status==='Cancelled' : true);
+    const matchesCounter = matchesCounterFilter(t);
+    return matchesQ && matchesF && matchesQuick && matchesCounter;
+  });
+
+  if(sortMode==='number-asc'){
+    filtered = filtered.slice().sort((a,b)=> (parseFloat(a.id) || 0) - (parseFloat(b.id) || 0));
+  }else if(sortMode==='number-desc'){
+    filtered = filtered.slice().sort((a,b)=> (parseFloat(b.id) || 0) - (parseFloat(a.id) || 0));
+  }
+  // 'newest' uses the order already returned by the server (most recently created first)
+
+  if(filtered.length===0){
+    list.innerHTML = '<div class="panel"><div class="empty-state"><i class="ti" style="font-size:13px;"></i>No tickets match. Adjust your search or create a new ticket.</div></div>';
+    return;
+  }
+
+  // Group into collapsible sections by status, same pattern as Diagnostics
+  const byStatus = {};
+  filtered.forEach(t=>{
+    const key = TICKETS_SECTION_ORDER.includes(t.status) ? t.status : 'Registered';
+    (byStatus[key] = byStatus[key] || []).push(t);
+  });
+
+  list.innerHTML = TICKETS_SECTION_ORDER.filter(status => byStatus[status] && byStatus[status].length > 0).map(status=>{
+    const key = 'tickets-' + status;
+    const sectionTickets = byStatus[status];
+    const isExpanded = !!ticketsSectionsExpanded[status];
+    return `
+    <div class="panel" style="margin-bottom:16px;">
+      <h2 class="collapsible-header" onclick="toggleTicketsSection('${status}')"><span class="section-title-group">${TICKETS_SECTION_ICONS[status]||''} ${status} <span class="count-tag">${sectionTickets.length}</span></span> <span class="collapse-arrow${isExpanded?'':' collapsed'}" id="arrow-${key}">▾</span></h2>
+      <div id="body-${key}" style="display:${isExpanded?'block':'none'};">
+        ${sectionTickets.map(t=>ticketFullRowHtml(t)).join('')}
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -2300,6 +2575,8 @@ function collapseAllSections(){
 function jumpToTicket(id){
   switchAdminSubview('tickets');
   expandedId = id;
+  const t = tickets.find(x=>x.id===id);
+  if(t && TICKETS_SECTION_ORDER.includes(t.status)) ticketsSectionsExpanded[t.status] = true;
   renderAdminList();
   document.getElementById('ticket-'+id)?.scrollIntoView({behavior:'smooth', block:'center'});
 }
@@ -2357,7 +2634,13 @@ function globalJumpToTicket(id){
   switchAdminSubview(bucket.tab);
   if(bucket.tab === 'tickets'){
     expandedId = id;
+    if(TICKETS_SECTION_ORDER.includes(t.status)) ticketsSectionsExpanded[t.status] = true;
     renderAdminList();
+  }
+  if(bucket.tab === 'diagnosed'){
+    const key = diagnosedSectionKeyForTicket(t);
+    const body = document.getElementById('body-'+key);
+    if(body && body.style.display === 'none') toggleSection(key);
   }
   setTimeout(()=>{
     document.getElementById('ticket-'+id)?.scrollIntoView({behavior:'smooth', block:'center'});
@@ -2489,6 +2772,22 @@ async function saveDiagnosticNote(id, event){
   await refreshTicketsOnly();
 }
 
+async function receivePartAndStartTask(id, event){
+  if(event) event.stopPropagation();
+  const t = tickets.find(x=>x.id===id);
+  // A "Waiting for Parts" ticket may not have been classified yet (it could have
+  // come straight from Awaiting classification) — ensure it's marked Fixable so
+  // it correctly lands in the To Fix tab once it moves to Repairing.
+  if(t && !t.diagnosisResult){
+    const res = await apiGet('adminSetDiagnosisResult', {id:id, result:'Fixable'});
+    if(!res.ok){
+      document.getElementById('save-error-banner').style.display = 'block';
+      return;
+    }
+  }
+  await quickUpdateStatus(id, 'Repairing');
+}
+
 async function setDiagnosisResult(id, result, event){
   if(event) event.stopPropagation();
   const res = await apiGet('adminSetDiagnosisResult', {id:id, result:result});
@@ -2526,12 +2825,25 @@ function isCoveredElsewhereInDiagnosed(t){
   return false;
 }
 
+// Which Diagnostics-tab collapsible section key a ticket lives in — used to
+// auto-expand the right section when jumping to a ticket from global search.
+function diagnosedSectionKeyForTicket(t){
+  if(t.status === 'Waiting for Parts' && !t.flaggedHard) return 'waitingparts';
+  if(t.flaggedHard) return 'hard';
+  if(t.diagnosisResult === 'Fixable' && t.status === 'Diagnosing') return 'fixable';
+  if(t.diagnosisResult === 'Not Fixable') return 'notfixable';
+  if(t.diagnosisResult === 'Tests OK') return 'testsok';
+  return 'awaiting';
+}
+
 function renderDiagnosedList(){
   const list = document.getElementById('diagnosed-list');
   const diagnosed = tickets
     .filter(t=>!t.archived && t.flaggedDiagnosed && !isCoveredElsewhereInDiagnosed(t))
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  document.getElementById('awaiting-count').textContent = diagnosed.length;
 
   if(diagnosed.length===0){
     list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No repairs awaiting classification right now.</div>';
@@ -2558,6 +2870,7 @@ function renderDiagnosedList(){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard repair</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Waiting for Parts')">⏳ Waiting for parts</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="toggleDiagnosticNote('${t.id}', event)">${t.diagnosticNotes ? '📝 Edit note' : '📝 Add note'}</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosticReportPDF('${t.id}', event)">📄 Download report</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to Tickets</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to queue</button>
       </div>
@@ -2582,6 +2895,8 @@ function renderWaitingPartsList(){
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
 
+  document.getElementById('waitingparts-count').textContent = waiting.length;
+
   if(waiting.length===0){
     list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing waiting on parts right now.</div>';
     return;
@@ -2600,6 +2915,8 @@ function renderWaitingPartsList(){
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="receivePartAndStartTask('${t.id}', event)">📦 Received — To Fix</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Diagnosing')">↩️ Back to queue</button>
     </div>`;
   }).join('');
 }
@@ -2610,6 +2927,8 @@ function renderFixableSection(){
     .filter(t=>!t.archived && !t.flaggedHard && t.diagnosisResult==='Fixable' && t.status==='Diagnosing')
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  document.getElementById('fixable-count').textContent = filtered.length;
 
   if(filtered.length===0){
     list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No repairs classified as fixable right now.</div>';
@@ -2642,6 +2961,9 @@ function renderClassifiedList(containerId, result, emptyMsg){
     .filter(t=>!t.archived && !t.flaggedHard && t.diagnosisResult===result && !['Ready','To Pick Up','Picked Up','Cancelled','Repairing'].includes(t.status))
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+
+  const countEl = document.getElementById(containerId.replace('-list', '-count'));
+  if(countEl) countEl.textContent = filtered.length;
 
   if(filtered.length===0){
     list.innerHTML = `<div class="empty-state"><i class="ti" style="font-size:13px;"></i>${emptyMsg}</div>`;
@@ -2920,6 +3242,7 @@ function renderHardList(){
     .slice()
     .sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
 
+  document.getElementById('hard-count').textContent = hard.length;
   if(hard.length===0){
     list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No repairs flagged as hard/long right now.</div>';
     return;
@@ -3058,7 +3381,6 @@ function shippingRowHtml(t){
   const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
   return `
     <div class="ticket-row">
-      <input type="checkbox" style="width:auto;margin:0 0 8px 0;" onchange="toggleYalidineSelect('${t.id}')" ${yalidineSelectedIds.has(t.id)?'checked':''}>
       <div class="ticket-row-top">
         <div>
           <div class="ticket-id">#${t.id}</div>
@@ -4489,6 +4811,70 @@ async function deleteTicket(id){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
   }
+  await refreshTicketsOnly();
+}
+
+const OVERDUE_CLEANUP_DAYS = 15;
+
+function ticketAgeDays(t){
+  const created = new Date(t.createdAt).getTime();
+  if(isNaN(created)) return 0;
+  return Math.floor((Date.now() - created) / 86400000);
+}
+
+function renderCleanupList(){
+  const list = document.getElementById('cleanup-list');
+  const overdue = tickets
+    .filter(t=>!t.archived && ticketAgeDays(t) >= OVERDUE_CLEANUP_DAYS)
+    .slice()
+    .sort((a,b)=> ticketAgeDays(b) - ticketAgeDays(a));
+
+  document.getElementById('cleanup-count').textContent = overdue.length + ' overdue (15+ days)';
+
+  if(overdue.length===0){
+    list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing sitting overdue right now.</div>';
+    return;
+  }
+
+  list.innerHTML = overdue.map(t=>{
+    const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
+    return `
+    <div class="ticket-row">
+      <div class="ticket-row-top">
+        <div>
+          <div class="ticket-id">#${t.id}</div>
+          <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
+          ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          <div class="lowstock-flag" style="color:var(--danger);">⏰ ${ticketAgeDays(t)} days old · status: ${t.status}</div>
+        </div>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicket('${t.id}')">🗑️ Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function flushOverdueTickets(){
+  const overdueCount = tickets.filter(t=>!t.archived && ticketAgeDays(t) >= OVERDUE_CLEANUP_DAYS).length;
+  if(overdueCount === 0){
+    alert('Nothing to flush right now.');
+    return;
+  }
+
+  const firstConfirm = window.confirm(
+    'Delete ' + overdueCount + ' overdue ticket' + (overdueCount>1?'s':'') + ' (15+ days old, not yet archived)?\n\n' +
+    'This is PERMANENT and cannot be undone from within the app. Their records will be gone entirely.'
+  );
+  if(!firstConfirm) return;
+
+  const secondConfirm = window.confirm('Are you absolutely sure? This will permanently delete ' + overdueCount + ' ticket' + (overdueCount>1?'s':'') + ' right now.');
+  if(!secondConfirm) return;
+
+  const res = await apiGet('adminFlushOverdue', {days: OVERDUE_CLEANUP_DAYS});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  alert('Deleted ' + res.deletedCount + ' overdue ticket' + (res.deletedCount!==1?'s':'') + '.');
   await refreshTicketsOnly();
 }
 
