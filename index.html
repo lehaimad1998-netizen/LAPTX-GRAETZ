@@ -1911,7 +1911,7 @@ function downloadDiagnosisQRLabel(id, event){
 
     const isFixable = t.diagnosisResult === 'Fixable';
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'GPU repair';
-    const qrText = 'LAPTX GPU · Repair #' + t.id + ' · ' + deviceLine + ' · Diagnosis: ' + t.diagnosisResult.toUpperCase();
+    const qrText = 'LAPTX-' + t.id + '-' + (isFixable ? 'FIXABLE' : 'NOTFIXABLE');
 
     // Render the QR code into a hidden offscreen container (QRCode.js draws to canvas synchronously)
     const hiddenBox = document.createElement('div');
