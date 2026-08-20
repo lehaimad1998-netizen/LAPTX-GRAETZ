@@ -1892,6 +1892,83 @@ function exportYalidineXlsx(scope){
   if(scope==='archive') renderArchiveList(); else renderShippingList();
 }
 
+function downloadDiagnosisQRLabel(id, event){
+  if(event) event.stopPropagation();
+  const t = tickets.find(x=>x.id===id);
+  if(!t){
+    alert('Ticket not found.');
+    return;
+  }
+  if(t.diagnosisResult !== 'Fixable' && t.diagnosisResult !== 'Not Fixable'){
+    alert('This ticket needs to be classified Fixable or Not Fixable first.');
+    return;
+  }
+
+  const isFixable = t.diagnosisResult === 'Fixable';
+  const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'GPU repair';
+  const qrText = 'LAPTX GPU · Repair #' + t.id + ' · ' + deviceLine + ' · Diagnosis: ' + t.diagnosisResult.toUpperCase();
+
+  // Render the QR code into a hidden offscreen container (QRCode.js draws to canvas synchronously)
+  const hiddenBox = document.createElement('div');
+  hiddenBox.style.position = 'fixed';
+  hiddenBox.style.left = '-9999px';
+  document.body.appendChild(hiddenBox);
+  new QRCode(hiddenBox, {
+    text: qrText,
+    width: 320,
+    height: 320,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  const qrCanvas = hiddenBox.querySelector('canvas');
+
+  // Composite the final label — sized for small Bluetooth label printers (~50mm wide)
+  const W = 600, H = 800;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+
+  ctx.font = 'bold 34px Arial';
+  ctx.fillText('LAPTX GPU', W/2, 55);
+
+  ctx.font = '22px Arial';
+  ctx.fillText('Repair #' + t.id, W/2, 95);
+
+  if(qrCanvas){
+    const qrSize = 400;
+    ctx.drawImage(qrCanvas, (W - qrSize)/2, 120, qrSize, qrSize);
+  }
+
+  // Big Fixable / Not Fixable banner
+  const bannerY = 560, bannerH = 110;
+  ctx.fillStyle = isFixable ? '#1a7a4c' : '#a3271f';
+  ctx.fillRect(30, bannerY, W - 60, bannerH);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 46px Arial';
+  ctx.fillText(isFixable ? 'FIXABLE' : 'NOT FIXABLE', W/2, bannerY + 70);
+
+  ctx.fillStyle = '#000000';
+  ctx.font = '20px Arial';
+  ctx.fillText(deviceLine.length > 36 ? deviceLine.slice(0,36)+'…' : deviceLine, W/2, bannerY + bannerH + 40);
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#555555';
+  ctx.fillText(t.customerName || 'No name on file', W/2, bannerY + bannerH + 68);
+
+  document.body.removeChild(hiddenBox);
+
+  const link = document.createElement('a');
+  link.download = 'qr-ticket-' + t.id + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
 function downloadDiagnosticReportPDF(id, event){
   if(event) event.stopPropagation();
   const t = tickets.find(x=>x.id===id);
@@ -2950,6 +3027,7 @@ function renderFixableSection(){
       ${fixNoFixPillHtml(t)}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerWhatsApp('${t.id}', event)">📱 Notify customer</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosisQRLabel('${t.id}', event)">🏷️ QR ticket</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
   }).join('');
@@ -2986,6 +3064,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
       ${result === 'Not Fixable' ? fixNoFixPillHtml(t) : ''}
       ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerWhatsApp('${t.id}', event)">📱 Notify customer</button>` : ''}
       ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">📋 Evaluate</button>` : ''}
+      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosisQRLabel('${t.id}', event)">🏷️ QR ticket</button>` : ''}
       ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
     </div>`;
