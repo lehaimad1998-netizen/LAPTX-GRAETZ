@@ -792,8 +792,10 @@ textarea{resize:vertical;min-height:56px;}
       <div id="register-form-fields">
         <div class="callout" id="capacity-banner" data-i18n="capacity_banner_msg" style="display:none;margin-bottom:16px;">⏳ We're at capacity this week — expect a longer turnaround than usual.</div>
         <h2 data-i18n="register_heading">Register your device</h2>
-        <label data-i18n="your_name">Your name</label>
-        <input id="r-name" placeholder="Jordan Lee">
+        <label data-i18n="your_first_name">First name</label>
+        <input id="r-firstname" placeholder="Mohamed">
+        <label data-i18n="your_last_name">Last name</label>
+        <input id="r-lastname" placeholder="Hachi">
         <label data-i18n="phone_number">Phone number</label>
         <input id="r-phone" placeholder="0540174110">
         <label data-i18n="entry_date">Entry date</label>
@@ -1036,6 +1038,7 @@ const ACTION_TO_RPC = {
   customerLookup: 'customer_lookup',
   customerConfirmPickup: 'customer_confirm_pickup',
   customerSaveShippingInfo: 'customer_save_shipping_info',
+  customerSaveNameParts: 'customer_save_name_parts',
   customerLookupStopdesksSend: 'customer_lookup_stopdesks_send',
   customerLookupStopdesksPoll: 'customer_lookup_stopdesks_poll',
   customerSavePackagePhoto: 'customer_save_package_photo',
@@ -1090,6 +1093,8 @@ const I18N = {
     register_heading: 'Register your device',
     capacity_banner_msg: "⏳ We're at capacity this week — expect a longer turnaround than usual.",
     your_name: 'Your name',
+    your_first_name: 'First name',
+    your_last_name: 'Last name',
     phone_number: 'Phone number',
     entry_date: 'Entry date',
     card_brand: 'Card brand',
@@ -1157,6 +1162,8 @@ const I18N = {
     register_heading: 'سجّل جهازك',
     capacity_banner_msg: '⏳ نحن في كامل الطاقة هذا الأسبوع — توقع وقت انتظار أطول من المعتاد.',
     your_name: 'اسمك',
+    your_first_name: 'الاسم الأول',
+    your_last_name: 'اللقب',
     phone_number: 'رقم الهاتف',
     entry_date: 'تاريخ الاستلام',
     card_brand: 'العلامة التجارية للكرت',
@@ -1949,8 +1956,8 @@ function exportYalidineXlsx(scope){
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'GPU repair';
     rows.push([
       'Blida',                      // Wilaya de départ — your shop's wilaya
-      t.customerName || '',         // nom (we only store one name field — full name goes here)
-      '',                            // prénom — left blank, split it yourself if Yalidine requires it separately
+      t.customerLastName || t.customerName || '',  // nom — real last name if we have it, else full combined name
+      t.customerFirstName || '',    // prénom — real first name if we have it, blank for older tickets without the split
       t.phone || '',
       t.shippingStopdesk || '',     // adresse — we don't collect a street address; using the customer's free-text stop-desk note as a reference
       t.shippingCommune || '',      // commune (nom) — from the customer's shipping info
@@ -2424,7 +2431,9 @@ function toggleOtherModelInput(){
 }
 
 async function registerDevice(){
-  const name = document.getElementById('r-name').value.trim();
+  const firstName = document.getElementById('r-firstname').value.trim();
+  const lastName = document.getElementById('r-lastname').value.trim();
+  const name = [firstName, lastName].filter(Boolean).join(' ');
   const phone = document.getElementById('r-phone').value.trim();
   const entryDate = document.getElementById('r-entrydate').value;
   const brandSel = document.getElementById('r-brand').value;
@@ -2441,12 +2450,12 @@ async function registerDevice(){
     return;
   }
 
-  if(!name || !phone){
+  if(!firstName || !lastName || !phone){
     errEl.style.display = 'block';
     return;
   }
 
-  const res = await apiGet('customerRegister', {name:name, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
+  const res = await apiGet('customerRegister', {name:name, firstName:firstName, lastName:lastName, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
   if(!res.ok){
     errEl.textContent = res.error || (currentLang==='ar' ? 'حدث خطأ ما. حاول مرة أخرى.' : 'Something went wrong. Try again.');
     errEl.style.display = 'block';
@@ -2458,13 +2467,14 @@ async function registerDevice(){
   renderStatusQR('register-qr', res.id, phone);
   lastRegisteredId = res.id;
   lastRegisteredPhone = phone;
+  apiGet('customerSaveNameParts', {id: res.id, phone: phone, firstName: firstName, lastName: lastName});
   document.getElementById('package-photo-idle').style.display = 'block';
   document.getElementById('package-photo-done').style.display = 'none';
   document.getElementById('package-photo-input').value = '';
   document.getElementById('package-photo-preview').innerHTML = '';
   document.getElementById('package-photo-upload-btn').style.display = 'none';
   document.getElementById('package-photo-error').style.display = 'none';
-  ['r-name','r-phone','r-brand','r-model','r-issue','r-brand-other','r-model-other'].forEach(id=>document.getElementById(id).value='');
+  ['r-firstname','r-lastname','r-phone','r-brand','r-model','r-issue','r-brand-other','r-model-other'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('r-brand-other').style.display = 'none';
   document.getElementById('r-model-other').style.display = 'none';
   document.getElementById('r-entrydate').value = new Date().toISOString().slice(0,10);
