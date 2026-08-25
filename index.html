@@ -749,7 +749,7 @@ textarea{resize:vertical;min-height:56px;}
     <div id="admin-cleanup-subview" style="display:none;">
       <div class="panel">
         <h2>🗑️ Overdue cleanup</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Active tickets sitting for 15+ days without being archived — likely abandoned. Delete individually, or flush everything at once. This is permanent and cannot be undone from within the app.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Tickets still stuck at "Registered" for 15+ days — never picked up or processed, likely abandoned. Doesn't touch anything actively in progress (Diagnosing, Repairing, Waiting for Parts, etc.), even if old. Delete individually, or flush everything at once. This is permanent and cannot be undone from within the app.</div>
         <button class="btn-ghost" style="width:auto;background:var(--danger);color:#2A0E0C;border-color:var(--danger);margin-bottom:16px;" onclick="flushOverdueTickets()">🗑️ Flush all overdue tickets</button>
         <span class="count-tag" id="cleanup-count"></span>
         <div id="cleanup-list" style="margin-top:12px;"></div>
@@ -5193,11 +5193,11 @@ function ticketAgeDays(t){
 function renderCleanupList(){
   const list = document.getElementById('cleanup-list');
   const overdue = tickets
-    .filter(t=>!t.archived && ticketAgeDays(t) >= OVERDUE_CLEANUP_DAYS)
+    .filter(t=>!t.archived && t.status==='Registered' && ticketAgeDays(t) >= OVERDUE_CLEANUP_DAYS)
     .slice()
     .sort((a,b)=> ticketAgeDays(b) - ticketAgeDays(a));
 
-  document.getElementById('cleanup-count').textContent = overdue.length + ' overdue (15+ days)';
+  document.getElementById('cleanup-count').textContent = overdue.length + ' overdue (15+ days, Registered)';
 
   if(overdue.length===0){
     list.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing sitting overdue right now.</div>';
@@ -5222,7 +5222,7 @@ function renderCleanupList(){
 }
 
 async function flushOverdueTickets(){
-  const overdueCount = tickets.filter(t=>!t.archived && ticketAgeDays(t) >= OVERDUE_CLEANUP_DAYS).length;
+  const overdueCount = tickets.filter(t=>!t.archived && t.status==='Registered' && ticketAgeDays(t) >= OVERDUE_CLEANUP_DAYS).length;
   if(overdueCount === 0){
     alert('Nothing to flush right now.');
     return;
