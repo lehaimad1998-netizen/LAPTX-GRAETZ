@@ -109,6 +109,13 @@ textarea{resize:vertical;min-height:56px;}
 .btn-ghost:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,0.25);}
 .btn-ghost:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none;}
 
+.actions-menu-wrap{position:relative;display:inline-block;}
+.actions-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:200;min-width:200px;padding:6px;display:none;flex-direction:column;gap:2px;}
+.actions-menu.open{display:flex;}
+.actions-menu button{background:transparent;border:none;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:left;padding:9px 10px;border-radius:6px;cursor:pointer;width:100%;transition:background .12s ease;}
+.actions-menu button:hover{background:var(--surface-2);}
+.actions-menu button.danger{color:var(--danger);}
+
 .conditions-gate{display:flex;flex-direction:column;gap:10px;align-items:flex-start;margin-top:16px;padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;}
 .conditions-checkbox-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;}
 .conditions-checkbox-label input{width:auto;margin:0;accent-color:var(--trace);cursor:pointer;}
@@ -2122,15 +2129,80 @@ function downloadDiagnosticReportPDF(id, event){
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.text(label + ':', margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(value || '—'), margin + 32, y);
-    y += 6;
+    const safeValue = String(value || '—');
+    if(/[\u0600-\u06FF]/.test(safeValue)){
+      const img = renderArabicToImage(safeValue, contentWidth - 32, 10);
+      doc.addImage(img.dataUrl, 'PNG', margin + 32, y - 4, contentWidth - 32, img.heightMm);
+      y += Math.max(6, img.heightMm);
+    }else{
+      doc.setFont('helvetica', 'normal');
+      doc.text(safeValue, margin + 32, y);
+      y += 6;
+    }
+  }
+
+  // jsPDF's built-in fonts (Helvetica etc.) only cover Latin characters — Arabic text
+  // renders as garbled glyphs with doc.text(). For Arabic content, render it onto a
+  // canvas instead (the browser's own font stack handles Arabic correctly) and place
+  // that as an image in the PDF, rather than embedding a large Arabic font file.
+  function renderArabicToImage(text, widthMm, fontSizePt){
+    const PXMM = 6; // resolution scale for decent print crispness
+    const widthPx = Math.round(widthMm * PXMM);
+    const fontPx = Math.round(fontSizePt * 1.5);
+    const lineHeight = Math.round(fontPx * 1.5);
+
+    const measureCanvas = document.createElement('canvas');
+    const mctx = measureCanvas.getContext('2d');
+    mctx.font = fontPx + 'px Arial';
+
+    // Manual word-wrap (canvas doesn't auto-wrap text)
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    words.forEach(word=>{
+      const testLine = currentLine ? currentLine + ' ' + word : word;
+      if(mctx.measureText(testLine).width > widthPx - 20 && currentLine){
+        lines.push(currentLine);
+        currentLine = word;
+      }else{
+        currentLine = testLine;
+      }
+    });
+    if(currentLine) lines.push(currentLine);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = widthPx;
+    canvas.height = lines.length * lineHeight + 16;
+    const ctx = canvas.getContext('2d');
+    ctx.font = fontPx + 'px Arial';
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#141414';
+    lines.forEach((line, i)=>{
+      ctx.fillText(line, canvas.width - 8, (i+1) * lineHeight - 6);
+    });
+
+    return { dataUrl: canvas.toDataURL('image/png'), heightMm: canvas.height / PXMM };
   }
 
   function wrappedBlock(text, minHeight){
+    const safeText = text || 'Not specified';
+    const hasArabic = /[\u0600-\u06FF]/.test(safeText);
+
+    if(hasArabic){
+      const img = renderArabicToImage(safeText, contentWidth - 6, 10);
+      const boxHeight = Math.max(minHeight, img.heightMm + 6);
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.3);
+      doc.rect(margin, y, contentWidth, boxHeight);
+      doc.addImage(img.dataUrl, 'PNG', margin + 3, y + 2, contentWidth - 6, img.heightMm);
+      y += boxHeight + 8;
+      return;
+    }
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    const lines = doc.splitTextToSize(text || 'Not specified', contentWidth - 6);
+    const lines = doc.splitTextToSize(safeText, contentWidth - 6);
     const boxHeight = Math.max(minHeight, lines.length * 5 + 6);
     doc.setDrawColor(200);
     doc.setLineWidth(0.3);
@@ -2562,10 +2634,15 @@ function ticketFullRowHtml(t){
           <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
             ${statusOptionsHtml(t.status, 'tickets')}
           </select>
-          <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
-          ${t.status==='Registered' ? `<button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Received')">📦 Received</button>` : ''}
-          ${!t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" onclick="setTicketDiagnosed('${t.id}', true, event)">✅ Mark diagnosed</button>` : ''}
-          ${t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Undo diagnosed</button>` : ''}
+          <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+            <button class="btn-ghost" style="width:auto;padding:5px 8px;font-size:10px;" title="Move back one step" onclick="stepBackStatus('${t.id}', '${t.status}', event)" ${STATUSES.indexOf(t.status)<=0 ? 'disabled' : ''}>⬅</button>
+            ${actionsMenuHtml(t.id + '-row', [
+              ...(t.status==='Registered' ? [{label:'📦 Mark Received', onclick:`quickUpdateStatus('${t.id}', 'Received')`}] : []),
+              ...(!t.flaggedDiagnosed && !t.archived ? [{label:'✅ Mark diagnosed', onclick:`setTicketDiagnosed('${t.id}', true, event)`}] : []),
+              ...(t.flaggedDiagnosed && !t.archived ? [{label:'↩️ Undo diagnosed', onclick:`setTicketDiagnosed('${t.id}', false, event)`}] : []),
+              {label:'🖨️ Print sticker', onclick:`printSticker('${t.id}')`},
+            ])}
+          </div>
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
@@ -2589,7 +2666,7 @@ function ticketFullRowHtml(t){
         <label>Issue</label>
         <textarea id="edit-issue-${t.id}">${t.issue||''}</textarea>
         ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
-        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered (Yalidine)' : '🚚 In transit (Yalidine)'}</div>` : ''}` : ''}
+        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered' : '🚚 In transit'} · <span class="mono">${t.yalidineTracking}</span></div>` : ''}` : ''}
         ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
         <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
 
@@ -2602,9 +2679,10 @@ function ticketFullRowHtml(t){
           <label>Waiting for which part?</label>
           <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
         </div>
-        ${t.status==='Registered' ? `<button class="btn-ghost" style="margin-top:8px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Received')">📦 Received</button>` : ''}
-        ${!t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="margin-top:8px;" onclick="setTicketDiagnosed('${t.id}', true, event)">✅ Mark diagnosed</button>` : ''}
-        ${t.flaggedDiagnosed && !t.archived ? `<button class="btn-ghost" style="margin-top:8px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Undo diagnosed</button>` : ''}
+        <div id="waiting-part-row-${t.id}" style="display:${t.status==='Waiting for Parts' ? 'block' : 'none'};margin-top:8px;">
+          <label>Waiting for which part?</label>
+          <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
+        </div>
 
         <label>Note for customer (shown on their status page)</label>
         <textarea id="cnote-${t.id}">${t.customerNote||''}</textarea>
@@ -2615,7 +2693,10 @@ function ticketFullRowHtml(t){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn-ghost" style="background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="saveEntireTicket('${t.id}')">💾 Save ticket</button>
-            <button class="btn-ghost" onclick="printSticker('${t.id}')">Print sticker</button>
+            ${actionsMenuHtml(t.id + '-detail', [
+              {label:'🖨️ Print sticker', onclick:`printSticker('${t.id}')`},
+              {label:'🗑️ Delete ticket', onclick:`askDeleteTicket('${t.id}')`, danger:true},
+            ])}
           </div>
           ${confirmingDeleteId===t.id ? `
             <div style="display:flex;align-items:center;gap:8px;">
@@ -2623,9 +2704,7 @@ function ticketFullRowHtml(t){
               <button class="btn-ghost" style="background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="deleteTicket('${t.id}')">Confirm delete</button>
               <button class="btn-ghost" onclick="cancelDeleteTicket()">Cancel</button>
             </div>
-          ` : `
-            <button class="btn-ghost" style="color:var(--danger);border-color:var(--danger);" onclick="askDeleteTicket('${t.id}')">Delete ticket</button>
-          `}
+          ` : ''}
         </div>
       </div>
     </div>`;
@@ -2725,6 +2804,29 @@ function toggleExpand(id){
   expandedId = expandedId===id ? null : id;
   renderAdminList();
 }
+
+function actionsMenuHtml(id, items){
+  return `<div class="actions-menu-wrap">
+    <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="toggleActionsMenu('${id}', event)">⋯ More</button>
+    <div class="actions-menu" id="actions-menu-${id}">
+      ${items.map(it => `<button class="${it.danger?'danger':''}" onclick="${it.onclick}">${it.label}</button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function toggleActionsMenu(id, event){
+  if(event) event.stopPropagation();
+  const menu = document.getElementById('actions-menu-' + id);
+  if(!menu) return;
+  const isOpen = menu.classList.contains('open');
+  document.querySelectorAll('.actions-menu.open').forEach(m => m.classList.remove('open'));
+  if(!isOpen) menu.classList.add('open');
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.actions-menu-wrap')){
+    document.querySelectorAll('.actions-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
 
 function toggleSection(key){
   const body = document.getElementById('body-'+key);
@@ -3052,11 +3154,12 @@ function renderDiagnosedList(){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Tests OK', event)">🔧 Tests OK</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard repair</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Waiting for Parts')">⏳ Waiting for parts</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="toggleDiagnosticNote('${t.id}', event)">${t.diagnosticNotes ? '📝 Edit note' : '📝 Add note'}</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosticReportPDF('${t.id}', event)">📄 Download report</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to Tickets</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to queue</button>
+        ${actionsMenuHtml(t.id, [
+          {label: t.diagnosticNotes ? '📝 Edit note' : '📝 Add note', onclick:`toggleDiagnosticNote('${t.id}', event)`},
+          {label:'📄 Download report', onclick:`downloadDiagnosticReportPDF('${t.id}', event)`},
+          {label:'↩️ Back to Tickets', onclick:`setTicketDiagnosed('${t.id}', false, event)`},
+          {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
+        ])}
       </div>
       ${noteOpen ? `
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
@@ -3100,8 +3203,10 @@ function renderWaitingPartsList(){
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="receivePartAndStartTask('${t.id}', event)">📦 Received — To Fix</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Diagnosing')">↩️ Back to queue</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
+      ${actionsMenuHtml(t.id, [
+        {label:'↩️ Back to queue', onclick:`quickUpdateStatus('${t.id}', 'Diagnosing')`},
+        {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
+      ])}
     </div>`;
   }).join('');
 }
@@ -3133,11 +3238,13 @@ function renderFixableSection(){
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       ${fixNoFixPillHtml(t)}
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerWhatsApp('${t.id}', event)">📱 Notify customer</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosisQRLabel('${t.id}', event)">🏷️ QR ticket</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
+      ${actionsMenuHtml(t.id, [
+        {label:'📱 Notify customer', onclick:`notifyCustomerWhatsApp('${t.id}', event)`},
+        {label:'🏷️ QR ticket', onclick:`downloadDiagnosisQRLabel('${t.id}', event)`},
+        {label:'↩️ Back to Diagnosed', onclick:`setDiagnosisResult('${t.id}', '', event)`},
+        {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
+      ])}
     </div>`;
   }).join('');
 }
@@ -3171,12 +3278,16 @@ function renderClassifiedList(containerId, result, emptyMsg){
         ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       ${result === 'Not Fixable' ? fixNoFixPillHtml(t) : ''}
-      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerWhatsApp('${t.id}', event)">📱 Notify customer</button>` : ''}
       ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">📋 Evaluate</button>` : ''}
-      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosisQRLabel('${t.id}', event)">🏷️ QR ticket</button>` : ''}
       ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
+      ${actionsMenuHtml(t.id, [
+        ...(result === 'Not Fixable' ? [
+          {label:'📱 Notify customer', onclick:`notifyCustomerWhatsApp('${t.id}', event)`},
+          {label:'🏷️ QR ticket', onclick:`downloadDiagnosisQRLabel('${t.id}', event)`},
+        ] : []),
+        {label:'↩️ Back to Diagnosed', onclick:`setDiagnosisResult('${t.id}', '', event)`},
+        {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
+      ])}
     </div>`;
   }).join('');
 }
@@ -3355,8 +3466,10 @@ function toFixRowHtml(t, isNoFix){
   const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
   const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
   const actionButtons = `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
-    <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>
-    <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>`;
+    ${actionsMenuHtml(t.id, [
+      {label:'↩️ Back to Diagnosed', onclick:`quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();`},
+      {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
+    ])}`;
 
   return `
     <div class="ticket-row">
@@ -3452,8 +3565,10 @@ function renderHardList(){
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', false, event)">↩️ Back to Diagnosed</button>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
+      ${actionsMenuHtml(t.id, [
+        {label:'↩️ Back to Diagnosed', onclick:`setTicketFlag('${t.id}', false, event)`},
+        {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
+      ])}
     </div>`;
   }).join('');
 }
@@ -3578,7 +3693,7 @@ function shippingRowHtml(t){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered (Yalidine)' : '🚚 In transit (Yalidine)'}</div>` : ''}`
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered' : '🚚 In transit'} · <span class="mono">${t.yalidineTracking}</span></div>` : ''}`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -3592,12 +3707,14 @@ function shippingRowHtml(t){
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="printReceipt('${t.id}')">🖨️ Print receipt</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Repairing')">↩️ Back to To Fix</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="createYalidineParcel('${t.id}', event)">📮 Create Yalidine parcel</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerPickupWhatsApp('${t.id}', event)">📱 Notify customer</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
+        ${actionsMenuHtml(t.id, [
+          {label:'🖨️ Print receipt', onclick:`printReceipt('${t.id}')`},
+          {label:'📱 Notify customer', onclick:`notifyCustomerPickupWhatsApp('${t.id}', event)`},
+          {label:'📮 Create Yalidine parcel', onclick:`createYalidineParcel('${t.id}', event)`},
+          {label:'↩️ Back to To Fix', onclick:`quickUpdateStatus('${t.id}', 'Repairing')`},
+          {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
+        ])}
       </div>
     </div>`;
 }
@@ -3694,7 +3811,7 @@ function renderArchiveList(){
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
           ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered (Yalidine)' : '🚚 In transit (Yalidine)'}</div>` : ''}`
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered' : '🚚 In transit'} · <span class="mono">${t.yalidineTracking}</span></div>` : ''}`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
