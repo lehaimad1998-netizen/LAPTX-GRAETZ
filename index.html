@@ -50,10 +50,11 @@ body{
 .header .sub{color:var(--text-muted);font-size:13px;margin-top:4px;}
 
 .tabs{display:flex;gap:4px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;}
-.tab-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.03em;text-transform:uppercase;background:transparent;border:none;color:var(--text-muted);padding:8px 16px;border-radius:6px;cursor:pointer;transition:all .15s ease;}
+.tab-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.03em;text-transform:uppercase;background:transparent;border:none;color:var(--text-muted);padding:8px 16px;border-radius:7px;cursor:pointer;transition:background .15s ease, color .15s ease, transform .15s cubic-bezier(.34,1.56,.64,1);position:relative;}
 
-.tab-btn.active{background:var(--surface-2);color:var(--trace);}
-.tab-btn:hover:not(.active){color:var(--text);}
+.tab-btn.active{background:var(--surface-2);color:var(--trace);box-shadow:inset 0 0 0 1px rgba(51,196,129,0.25);}
+.tab-btn:hover:not(.active){color:var(--text);transform:translateY(-1px);}
+.tab-btn:active{transform:translateY(0);}
 
 .lang-toggle{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;}
 .lang-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.03em;background:transparent;border:none;color:var(--text-muted);padding:8px 14px;border-radius:6px;cursor:pointer;transition:all .15s ease;}
@@ -91,15 +92,22 @@ textarea{resize:vertical;min-height:56px;}
 .price-convert-result{font-size:12px;color:var(--text-muted);margin-top:8px;min-height:14px;}
 .price-convert-result .rate-value{color:var(--trace);font-weight:600;}
 
-.btn{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.03em;text-transform:uppercase;
-  background:var(--trace);color:#0C1712;border:none;border-radius:6px;padding:14px 16px;cursor:pointer;
-  font-weight:600;width:100%;margin-top:18px;transition:opacity .15s;}
-.btn:hover{opacity:0.88;}
-.btn:disabled{background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:0.6;}
-.btn:disabled:hover{opacity:0.6;}
-.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-muted);width:auto;margin-top:0;padding:7px 12px;font-size:11px;}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.04em;text-transform:uppercase;
+  background:linear-gradient(180deg, #3DDB93 0%, var(--trace) 100%);color:#0A1F15;border:none;border-radius:9px;padding:14px 16px;cursor:pointer;
+  font-weight:700;width:100%;margin-top:18px;
+  box-shadow:0 2px 10px rgba(51,196,129,0.28), inset 0 1px 0 rgba(255,255,255,0.2);
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease, opacity .15s ease;}
+.btn:hover{opacity:0.96;transform:translateY(-1px);box-shadow:0 5px 16px rgba(51,196,129,0.4), inset 0 1px 0 rgba(255,255,255,0.2);}
+.btn:active{transform:translateY(0) scale(0.98);box-shadow:0 1px 4px rgba(51,196,129,0.25), inset 0 1px 0 rgba(255,255,255,0.15);}
+.btn:disabled{background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:0.6;box-shadow:none;transform:none;}
+.btn:disabled:hover{opacity:0.6;transform:none;box-shadow:none;}
+.btn-ghost{background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);width:auto;margin-top:0;padding:8px 13px;font-size:11px;
+  border-radius:8px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.02em;cursor:pointer;
+  transition:transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, color .15s ease, border-color .15s ease, background .15s ease;}
 .quick-filter.active{background:var(--danger);border-color:var(--danger);color:#2A0E0C;}
-.btn-ghost:hover{color:var(--text);border-color:var(--text-muted);}
+.btn-ghost:hover{color:var(--text);border-color:var(--trace);background:var(--surface);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.3);}
+.btn-ghost:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,0.25);}
+.btn-ghost:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none;}
 
 .conditions-gate{display:flex;flex-direction:column;gap:10px;align-items:flex-start;margin-top:16px;padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;}
 .conditions-checkbox-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;}
@@ -241,9 +249,12 @@ textarea{resize:vertical;min-height:56px;}
 <body>
 <div id="app">
   <div class="header">
-    <div>
-      <h1>LAPTX<span> Graetz</span></h1>
-      <div class="sub">Assign a repair number and let customers check status by number + phone</div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <img src="logo.png" alt="LAPTX" style="width:44px;height:44px;flex-shrink:0;">
+      <div>
+        <h1>LAPTX<span> Graetz</span></h1>
+        <div class="sub">Assign a repair number and let customers check status by number + phone</div>
+      </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <div class="lang-toggle" id="lang-toggle">
@@ -743,8 +754,11 @@ textarea{resize:vertical;min-height:56px;}
 
   <div class="view active" id="view-register">
     <div class="panel" id="register-shopinfo-panel" style="max-width:520px;margin:0 auto 16px;">
-      <div data-i18n="delivery_info" style="font-size:20px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;margin-bottom:12px;color:var(--text);">DELIVERY INFORMATIONS</div>
-      <div class="shop-name" style="font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--trace);">LAPTX GPU</div>
+      <div style="display:flex;justify-content:center;margin-bottom:14px;">
+        <img src="logo.png" alt="LAPTX" style="width:72px;height:72px;">
+      </div>
+      <div data-i18n="delivery_info" style="font-size:20px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;margin-bottom:12px;color:var(--text);text-align:center;">DELIVERY INFORMATIONS</div>
+      <div class="shop-name" style="font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--trace);text-align:center;">LAPTX GPU</div>
       <div class="field-line" style="margin-top:10px;"><b data-i18n="yalidine_label">YALIDINE:</b> BLIDA OULED YAICHE (office)</div>
       <div class="field-line"><b data-i18n="other_company_label">Other company:</b> BLIDA OULED YAICHE CITE POLICE LCL N&deg;83 (home)</div>
       <div class="field-line" style="margin-bottom:0;"><b data-i18n="tel_label">TEL:</b> <span class="mono">0540174110</span></div>
@@ -1001,7 +1015,9 @@ const ACTION_TO_RPC = {
   getChatbotInfo: 'get_chatbot_info',
   customerChatSend: 'customer_chat_send',
   customerChatPoll: 'customer_chat_poll',
-  adminCreateYalidineParcel: 'admin_create_yalidine_parcel',
+  adminCreateYalidineParcelSend: 'admin_create_yalidine_parcel_send',
+  adminCreateYalidineParcelPoll: 'admin_create_yalidine_parcel_poll',
+  adminSaveYalidineTracking: 'admin_save_yalidine_tracking',
   partsDelete: 'parts_delete',
   partsAdjustStock: 'parts_adjust_stock',
   withdrawalsList: 'withdrawals_list',
@@ -1013,6 +1029,8 @@ const ACTION_TO_RPC = {
   customerLookup: 'customer_lookup',
   customerConfirmPickup: 'customer_confirm_pickup',
   customerSaveShippingInfo: 'customer_save_shipping_info',
+  customerLookupStopdesksSend: 'customer_lookup_stopdesks_send',
+  customerLookupStopdesksPoll: 'customer_lookup_stopdesks_poll',
   customerSavePackagePhoto: 'customer_save_package_photo',
   customerRegister: 'customer_register',
   publicWeeklyIntakeCount: 'public_weekly_intake_count'
@@ -1791,28 +1809,84 @@ async function createTicket(){
 }
 
 function printSticker(ticketId){
+  const t = tickets.find(x=>x.id===ticketId);
+  const idStr = '#' + ticketId;
+  const isClassified = t && (t.diagnosisResult === 'Fixable' || t.diagnosisResult === 'Not Fixable');
+
+  if(!isClassified){
+    // Not yet diagnosed — plain repair-number sticker, same as before
+    const w = window.open('', '_blank', 'width=300,height=200');
+    if(!w) return;
+    let numSize = 15;
+    if(idStr.length >= 5) numSize = 12;
+    if(idStr.length >= 6) numSize = 10;
+    if(idStr.length >= 7) numSize = 8.5;
+    w.document.write(
+      '<html><head><title>Sticker ' + idStr + '</title><style>' +
+      '@page{size:40mm 20mm;margin:0;}' +
+      'html,body{margin:0;padding:0;}' +
+      '.sticker{width:40mm;height:20mm;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:\'Arial\',sans-serif;overflow:hidden;}' +
+      '.sticker .lbl{font-size:3mm;letter-spacing:0.6mm;text-transform:uppercase;font-weight:700;margin-bottom:0.8mm;}' +
+      '.sticker .num{font-size:' + numSize + 'mm;font-weight:800;line-height:1;font-family:\'Courier New\',monospace;}' +
+      '</style></head><body>' +
+      '<div class="sticker"><div class="lbl">Repair</div><div class="num">' + idStr + '</div></div>' +
+      '<script>window.onload=function(){window.print();};<\/script>' +
+      '</body></html>'
+    );
+    w.document.close();
+    return;
+  }
+
+  // Classified — QR + Fixable/Not Fixable style, matching the downloadable QR ticket
+  const isFixable = t.diagnosisResult === 'Fixable';
+  const qrText = 'LAPTX-' + t.id + '-' + (isFixable ? 'FIXABLE' : 'NOTFIXABLE');
+
+  const hiddenBox = document.createElement('div');
+  hiddenBox.style.position = 'fixed';
+  hiddenBox.style.left = '-9999px';
+  document.body.appendChild(hiddenBox);
+  new QRCode(hiddenBox, {
+    text: qrText,
+    width: 300,
+    height: 300,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  const qrCanvas = hiddenBox.querySelector('canvas');
+  const qrDataUrl = qrCanvas ? qrCanvas.toDataURL('image/png') : '';
+  document.body.removeChild(hiddenBox);
+
   const w = window.open('', '_blank', 'width=300,height=200');
   if(!w) return;
-  const idStr = '#' + ticketId;
-  let numSize = 15; // mm — fits comfortably up to 4 characters (e.g. #320)
-  if(idStr.length >= 5) numSize = 12;
-  if(idStr.length >= 6) numSize = 10;
-  if(idStr.length >= 7) numSize = 8.5;
+  const diagColor = isFixable ? '#1a7a4c' : '#a3271f';
+  const diagText = isFixable ? 'FIXABLE' : 'NOT FIXABLE';
+  const diagFontSize = diagText.length > 8 ? '3.4mm' : '4.4mm';
+
   w.document.write(
     '<html><head><title>Sticker ' + idStr + '</title><style>' +
     '@page{size:40mm 20mm;margin:0;}' +
     'html,body{margin:0;padding:0;}' +
-    '.sticker{width:40mm;height:20mm;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:\'Arial\',sans-serif;overflow:hidden;}' +
-    '.sticker .lbl{font-size:3mm;letter-spacing:0.6mm;text-transform:uppercase;font-weight:700;margin-bottom:0.8mm;}' +
-    '.sticker .num{font-size:' + numSize + 'mm;font-weight:800;line-height:1;font-family:\'Courier New\',monospace;}' +
+    '.sticker{width:40mm;height:20mm;box-sizing:border-box;display:flex;align-items:center;font-family:\'Arial\',sans-serif;overflow:hidden;padding:1mm;}' +
+    '.qr{width:17mm;height:17mm;flex-shrink:0;}' +
+    '.right{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-left:1.5mm;}' +
+    '.right .num{font-size:4mm;font-weight:800;font-family:\'Courier New\',monospace;color:#000;}' +
+    '.right .diag{font-size:' + diagFontSize + ';font-weight:800;letter-spacing:0.2mm;color:' + diagColor + ';margin-top:0.8mm;}' +
+    '.right .brand{font-size:2mm;color:#555;margin-top:1mm;}' +
     '</style></head><body>' +
-    '<div class="sticker"><div class="lbl">Repair</div><div class="num">' + idStr + '</div></div>' +
+    '<div class="sticker">' +
+      '<img class="qr" src="' + qrDataUrl + '">' +
+      '<div class="right">' +
+        '<div class="num">' + idStr + '</div>' +
+        '<div class="diag">' + diagText + '</div>' +
+        '<div class="brand">LAPTX GPU</div>' +
+      '</div>' +
+    '</div>' +
     '<script>window.onload=function(){window.print();};<\/script>' +
     '</body></html>'
   );
   w.document.close();
 }
-
 const YALIDINE_HEADERS = [
   'Wilaya de départ', 'nom', 'prénom',
   'téléphone\n(si plusieurs numéro,\nséparez les par une virgule)',
@@ -2126,6 +2200,7 @@ function printReceipt(id){
   const partsTotal = partsList.reduce((sum,pu)=> sum + (parseFloat(pu.price)||0), 0);
   const grandTotal = repairCost + partsTotal;
   const today = new Date().toLocaleDateString('en-GB');
+  const logoUrl = window.location.origin + window.location.pathname.replace(/[^/]+$/, '') + 'logo.png';
 
   const partsRows = partsList.length===0
     ? '<tr><td colspan="3" style="text-align:center;color:#888;padding:10px;">No parts used</td></tr>'
@@ -2164,10 +2239,13 @@ function printReceipt(id){
   </style></head><body>
 
     <div class="header">
-      <div>
-        <div class="shop-name">LAPTX GPU</div>
-        <div class="shop-sub">GPU Repair Shop</div>
-        <div class="shop-sub">Tel: 0540174110</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <img src="${logoUrl}" alt="LAPTX" style="width:52px;height:52px;" onerror="this.style.display='none'">
+        <div>
+          <div class="shop-name">LAPTX GPU</div>
+          <div class="shop-sub">GPU Repair Shop</div>
+          <div class="shop-sub">Tel: 0540174110</div>
+        </div>
       </div>
       <div>
         <div class="receipt-title">Repair Receipt</div>
@@ -2232,14 +2310,16 @@ function renderStatusQR(containerId, ticketId, phone){
   el.innerHTML = '';
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
   wrap.style.alignItems = 'center';
-  wrap.style.gap = '12px';
+  wrap.style.gap = '10px';
   const qrBox = document.createElement('div');
   wrap.appendChild(qrBox);
   const caption = document.createElement('div');
-  caption.style.fontSize = '11px';
+  caption.style.fontSize = '12px';
   caption.style.color = 'var(--text-muted)';
-  caption.style.maxWidth = '160px';
+  caption.style.maxWidth = '220px';
+  caption.style.textAlign = 'center';
   caption.style.lineHeight = '1.4';
   caption.textContent = 'Scan to see the repair status instantly.';
   wrap.appendChild(caption);
@@ -2250,8 +2330,8 @@ function renderStatusQR(containerId, ticketId, phone){
   if(phone) deepLink += '&phone=' + encodeURIComponent(phone);
   new QRCode(qrBox, {
     text: deepLink,
-    width: 96,
-    height: 96,
+    width: 220,
+    height: 220,
     colorDark: '#14161A',
     colorLight: '#ffffff'
   });
@@ -2509,7 +2589,7 @@ function ticketFullRowHtml(t){
         <label>Issue</label>
         <textarea id="edit-issue-${t.id}">${t.issue||''}</textarea>
         ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
-        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>` : ''}
+        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered (Yalidine)' : '🚚 In transit (Yalidine)'}</div>` : ''}` : ''}
         ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
         <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
 
@@ -2975,6 +3055,7 @@ function renderDiagnosedList(){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="toggleDiagnosticNote('${t.id}', event)">${t.diagnosticNotes ? '📝 Edit note' : '📝 Add note'}</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosticReportPDF('${t.id}', event)">📄 Download report</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to Tickets</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketDiagnosed('${t.id}', false, event)">↩️ Back to queue</button>
       </div>
       ${noteOpen ? `
@@ -3020,6 +3101,7 @@ function renderWaitingPartsList(){
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="receivePartAndStartTask('${t.id}', event)">📦 Received — To Fix</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Diagnosing')">↩️ Back to queue</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
     </div>`;
   }).join('');
 }
@@ -3055,6 +3137,7 @@ function renderFixableSection(){
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosisQRLabel('${t.id}', event)">🏷️ QR ticket</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
     </div>`;
   }).join('');
 }
@@ -3093,6 +3176,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
       ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="downloadDiagnosisQRLabel('${t.id}', event)">🏷️ QR ticket</button>` : ''}
       ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', '', event)">↩️ Back to Diagnosed</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
     </div>`;
   }).join('');
 }
@@ -3271,7 +3355,8 @@ function toFixRowHtml(t, isNoFix){
   const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
   const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
   const actionButtons = `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
-    <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>`;
+    <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();">↩️ Back to Diagnosed</button>
+    <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>`;
 
   return `
     <div class="ticket-row">
@@ -3368,6 +3453,7 @@ function renderHardList(){
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', false, event)">↩️ Back to Diagnosed</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
     </div>`;
   }).join('');
 }
@@ -3492,7 +3578,7 @@ function shippingRowHtml(t){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered (Yalidine)' : '🚚 In transit (Yalidine)'}</div>` : ''}`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -3511,6 +3597,7 @@ function shippingRowHtml(t){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="createYalidineParcel('${t.id}', event)">📮 Create Yalidine parcel</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:#25D366;color:#062F1A;border-color:#25D366;" onclick="notifyCustomerPickupWhatsApp('${t.id}', event)">📱 Notify customer</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteTicketWithConfirm('${t.id}', event)">🗑️ Delete</button>
       </div>
     </div>`;
 }
@@ -3607,7 +3694,7 @@ function renderArchiveList(){
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
           ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdesk ? ' · ' + t.shippingStopdesk : ''}</div>`
+            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered (Yalidine)' : '🚚 In transit (Yalidine)'}</div>` : ''}`
             : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -4242,15 +4329,58 @@ async function createYalidineParcel(id, event){
   const btn = event ? event.target : null;
   if(btn){ btn.disabled = true; btn.textContent = 'Creating…'; }
 
-  const res = await apiGet('adminCreateYalidineParcel', {id:id});
+  const sendRes = await apiGet('adminCreateYalidineParcelSend', {id:id});
+  if(!sendRes.ok){
+    if(btn){ btn.disabled = false; btn.textContent = '📮 Create Yalidine parcel'; }
+    alert('Yalidine parcel creation failed:\n\n' + (sendRes.error || 'Unknown error'));
+    return;
+  }
+
+  // Poll for the answer every second instead of one long blocking call —
+  // avoids any single request timing out while Yalidine is still processing.
+  let attempts = 0;
+  const maxAttempts = 20;
+  let result = null;
+  while(attempts < maxAttempts){
+    await new Promise(r => setTimeout(r, 1000));
+    attempts++;
+    const pollRes = await apiGet('adminCreateYalidineParcelPoll', {requestId: sendRes.requestId});
+    if(!pollRes.pending){
+      result = pollRes;
+      break;
+    }
+    if(btn) btn.textContent = 'Creating… (' + attempts + 's)';
+  }
 
   if(btn){ btn.disabled = false; btn.textContent = '📮 Create Yalidine parcel'; }
 
-  if(!res.ok){
-    alert('Yalidine parcel creation failed:\\n\\n' + (res.error || 'Unknown error') + (res.response ? ('\\n\\nDetails: ' + JSON.stringify(res.response)) : ''));
+  if(!result){
+    alert('Yalidine is taking too long to respond. Check your Yalidine dashboard directly to confirm whether the parcel was created.');
     return;
   }
-  alert('Parcel created successfully!\\n\\n' + JSON.stringify(res.response));
+  if(!result.ok){
+    alert('Yalidine parcel creation failed:\n\n' + (result.error || 'Unknown error') + (result.response ? ('\n\nDetails: ' + JSON.stringify(result.response)) : ''));
+    return;
+  }
+
+  // Try to find the tracking number — exact response shape isn't fully confirmed,
+  // so check the couple of places it's most likely to appear
+  let trackingNum = '';
+  const resp = result.response;
+  if(resp && typeof resp === 'object'){
+    if(resp.tracking) trackingNum = resp.tracking;
+    else{
+      const firstKey = Object.keys(resp)[0];
+      if(firstKey && resp[firstKey] && resp[firstKey].tracking) trackingNum = resp[firstKey].tracking;
+    }
+  }
+
+  if(trackingNum){
+    await apiGet('adminSaveYalidineTracking', {id:id, tracking:trackingNum});
+    alert('Parcel created successfully! Tracking: ' + trackingNum + '\n\nYou\'ll get a Telegram alert once Yalidine marks it delivered.');
+  }else{
+    alert('Parcel created, but the tracking number wasn\'t found in the response — delivery notifications won\'t work for this one automatically.\n\nFull response: ' + JSON.stringify(resp));
+  }
 }
 
 async function getExchangeRateToDzd(currency){
@@ -4919,6 +5049,12 @@ async function deleteTicket(id){
   await refreshTicketsOnly();
 }
 
+async function deleteTicketWithConfirm(id, event){
+  if(event) event.stopPropagation();
+  if(!window.confirm('Delete repair #' + id + '? This is permanent and cannot be undone.')) return;
+  await deleteTicket(id);
+}
+
 const OVERDUE_CLEANUP_DAYS = 15;
 
 function ticketAgeDays(t){
@@ -5172,13 +5308,13 @@ async function customerLookup(){
         <h2 style="font-size:15px;margin-bottom:10px;">${I18N[currentLang].shipping_info_heading}</h2>
         ${t.shippingWilaya ? `<div class="field-line">✅ ${I18N[currentLang].shipping_saved_msg}</div>` : ''}
         <label>${I18N[currentLang].delivery_type_label}</label>
-        <select id="ship-delivery-type">
+        <select id="ship-delivery-type" onchange="onShippingSelectionChange()">
           <option value="">—</option>
           <option value="home" ${t.shippingDeliveryType==='home'?'selected':''}>${I18N[currentLang].delivery_type_home}</option>
           <option value="stopdesk" ${t.shippingDeliveryType==='stopdesk'?'selected':''}>${I18N[currentLang].delivery_type_stopdesk}</option>
         </select>
         <label>${I18N[currentLang].wilaya_label}</label>
-        <select id="ship-wilaya" onchange="populateCommuneOptions('${(t.shippingCommune||'').replace(/'/g,"\\'")}')">
+        <select id="ship-wilaya" onchange="populateCommuneOptions('${(t.shippingCommune||'').replace(/'/g,"\\'")}'); onShippingSelectionChange();">
           <option value="">—</option>
           ${WILAYAS.map(w=>`<option value="${w}" ${t.shippingWilaya===w?'selected':''}>${w}</option>`).join('')}
         </select>
@@ -5186,6 +5322,13 @@ async function customerLookup(){
         <select id="ship-commune">
           <option value="">—</option>
         </select>
+        <div id="ship-stopdesk-picker-wrap" style="display:none;">
+          <label>Stop-desk</label>
+          <select id="ship-stopdesk-picker" onchange="onStopdeskPicked()">
+            <option value="">—</option>
+          </select>
+          <div id="ship-stopdesk-status" style="font-size:12px;color:var(--text-muted);margin:-8px 0 12px;"></div>
+        </div>
         <label>${I18N[currentLang].stopdesk_label}</label>
         <input id="ship-stopdesk" placeholder="${I18N[currentLang].stopdesk_placeholder}" value="${(t.shippingStopdesk||'').replace(/"/g,'&quot;')}">
         <div class="pw-error" id="ship-info-error">${I18N[currentLang].wilaya_required_error}</div>
@@ -5194,7 +5337,77 @@ async function customerLookup(){
       ` : ''}
     </div>
   `;
-  if(t.status === 'To Pick Up') populateCommuneOptions(t.shippingCommune||'');
+  if(t.status === 'To Pick Up'){
+    populateCommuneOptions(t.shippingCommune||'');
+    selectedStopdeskId = t.shippingStopdeskId || null;
+    selectedStopdeskName = t.shippingStopdeskName || '';
+    onShippingSelectionChange(true);
+  }
+}
+
+let selectedStopdeskId = null;
+let selectedStopdeskName = '';
+let stopdeskLookupWilaya = null;
+
+function onStopdeskPicked(){
+  const picker = document.getElementById('ship-stopdesk-picker');
+  const opt = picker.options[picker.selectedIndex];
+  selectedStopdeskId = picker.value ? parseInt(picker.value, 10) : null;
+  selectedStopdeskName = opt ? opt.dataset.name || '' : '';
+}
+
+async function onShippingSelectionChange(isInitialLoad){
+  const deliveryType = document.getElementById('ship-delivery-type').value;
+  const wilayaVal = document.getElementById('ship-wilaya').value;
+  const wrap = document.getElementById('ship-stopdesk-picker-wrap');
+  const statusEl = document.getElementById('ship-stopdesk-status');
+
+  if(deliveryType !== 'stopdesk' || !wilayaVal){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+
+  const wilayaId = parseInt(wilayaVal.split(' - ')[0], 10);
+  if(!isInitialLoad && stopdeskLookupWilaya === wilayaId) return; // already loaded for this wilaya
+  stopdeskLookupWilaya = wilayaId;
+
+  statusEl.textContent = 'Loading stop-desks…';
+  const picker = document.getElementById('ship-stopdesk-picker');
+  picker.innerHTML = '<option value="">—</option>';
+
+  const sendRes = await apiGet('customerLookupStopdesksSend', {wilayaId: wilayaId});
+  if(!sendRes.ok){
+    statusEl.textContent = 'Could not load stop-desks — you can describe it below instead.';
+    return;
+  }
+
+  let attempts = 0;
+  let result = null;
+  while(attempts < 15){
+    await new Promise(r => setTimeout(r, 1000));
+    attempts++;
+    const pollRes = await apiGet('customerLookupStopdesksPoll', {requestId: sendRes.requestId});
+    if(!pollRes.pending){
+      result = pollRes;
+      break;
+    }
+  }
+
+  if(!result || !result.ok || !Array.isArray(result.centers) || result.centers.length === 0){
+    statusEl.textContent = 'No stop-desks listed for this wilaya — you can describe the nearest one below instead.';
+    return;
+  }
+
+  statusEl.textContent = '';
+  result.centers.forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name + (c.address ? ' — ' + c.address : '');
+    opt.dataset.name = c.name;
+    if(selectedStopdeskId && String(c.id) === String(selectedStopdeskId)) opt.selected = true;
+    picker.appendChild(opt);
+  });
 }
 
 function communeNameFromWilaya(wilayaValue){
@@ -5228,7 +5441,11 @@ async function saveShippingInfo(){
 
   const btn = document.getElementById('save-shipping-btn');
   btn.disabled = true;
-  const res = await apiGet('customerSaveShippingInfo', {id: lastLookupId, phone: lastLookupPhone, wilaya: wilaya, commune: commune, stopdesk: stopdesk, deliveryType: deliveryType});
+  const res = await apiGet('customerSaveShippingInfo', {
+    id: lastLookupId, phone: lastLookupPhone, wilaya: wilaya, commune: commune,
+    stopdesk: stopdesk, deliveryType: deliveryType,
+    stopdeskId: selectedStopdeskId, stopdeskName: selectedStopdeskName
+  });
   btn.disabled = false;
   if(!res.ok){
     errEl.textContent = res.error || errEl.textContent;
