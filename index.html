@@ -312,6 +312,7 @@ textarea{resize:vertical;min-height:56px;}
       <button class="tab-btn" id="subtab-diagnosed" onclick="switchAdminSubview('diagnosed')">Diagnostics</button>
       <button class="tab-btn" id="subtab-tofix" onclick="switchAdminSubview('tofix')">To Fix</button>
       <button class="tab-btn" id="subtab-shipping" onclick="switchAdminSubview('shipping')">To Pick Up</button>
+      <button class="tab-btn" id="subtab-shipped" onclick="switchAdminSubview('shipped')">🚚 Shipped</button>
       <button class="tab-btn" id="subtab-archive" onclick="switchAdminSubview('archive')">Archive</button>
       <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Revenue</button>
       <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
@@ -730,6 +731,18 @@ textarea{resize:vertical;min-height:56px;}
       </div>
     </div>
 
+    <div id="admin-shipped-subview" style="display:none;">
+      <div class="panel">
+        <h2>🚚 Shipped</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs with a Yalidine parcel created — tracked separately from in-person pickups. Mark it Picked Up once the customer confirms receipt; it archives automatically.</div>
+        <div class="list-controls">
+          <input id="shipped-search" placeholder="Search name, phone, ID, device..." oninput="renderShippedList()">
+          <span class="count-tag" id="shipped-count"></span>
+        </div>
+        <div id="shipped-list"></div>
+      </div>
+    </div>
+
     <div id="admin-archive-subview" style="display:none;">
       <div class="panel">
         <h2>Archive</h2>
@@ -908,7 +921,7 @@ textarea{resize:vertical;min-height:56px;}
           </div>
         </div>
         <label data-i18n="describe_issue">Describe the issue</label>
-        <textarea id="r-issue" data-i18n-placeholder="issue_placeholder" placeholder="What's wrong with the device? Be as detailed as you can." style="min-height:100px;"></textarea>
+        <textarea id="r-issue" dir="auto" data-i18n-placeholder="issue_placeholder" placeholder="What's wrong with the device? Be as detailed as you can." style="min-height:100px;"></textarea>
         <div class="callout" data-i18n="callout_photo" style="margin-top:16px;font-size:13px;">📷 Please send us a picture of the package when you send your device on WhatsApp</div>
 
         <div class="conditions-gate">
@@ -983,7 +996,6 @@ textarea{resize:vertical;min-height:56px;}
 const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
 
-
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // action (camelCase, matches the old Apps Script actions) -> Postgres RPC function name
@@ -1028,6 +1040,7 @@ const ACTION_TO_RPC = {
   adminCreateYalidineParcelSend: 'admin_create_yalidine_parcel_send',
   adminCreateYalidineParcelPoll: 'admin_create_yalidine_parcel_poll',
   adminSaveYalidineTracking: 'admin_save_yalidine_tracking',
+  adminClearYalidineTracking: 'admin_clear_yalidine_tracking',
   partsDelete: 'parts_delete',
   partsAdjustStock: 'parts_adjust_stock',
   withdrawalsList: 'withdrawals_list',
@@ -1741,6 +1754,7 @@ function switchAdminSubview(v){
   document.getElementById('admin-workshop-subview').style.display = v==='workshop' ? 'block' : 'none';
   document.getElementById('admin-stock-subview').style.display = v==='stock' ? 'block' : 'none';
   document.getElementById('admin-shipping-subview').style.display = v==='shipping' ? 'block' : 'none';
+  document.getElementById('admin-shipped-subview').style.display = v==='shipped' ? 'block' : 'none';
   document.getElementById('admin-archive-subview').style.display = v==='archive' ? 'block' : 'none';
   document.getElementById('admin-cleanup-subview').style.display = v==='cleanup' ? 'block' : 'none';
   document.getElementById('subtab-tickets').classList.toggle('active', v==='tickets');
@@ -1749,6 +1763,7 @@ function switchAdminSubview(v){
   document.getElementById('subtab-workshop').classList.toggle('active', v==='workshop');
   document.getElementById('subtab-stock').classList.toggle('active', v==='stock');
   document.getElementById('subtab-shipping').classList.toggle('active', v==='shipping');
+  document.getElementById('subtab-shipped').classList.toggle('active', v==='shipped');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   document.getElementById('subtab-cleanup').classList.toggle('active', v==='cleanup');
   renderVisibleAdminSubview();
@@ -1761,6 +1776,7 @@ function renderVisibleAdminSubview(){
   else if(currentAdminSubview==='workshop'){ renderWorkshopList(); renderRevenue(); }
   else if(currentAdminSubview==='stock') renderPartsList();
   else if(currentAdminSubview==='shipping') renderShippingList();
+  else if(currentAdminSubview==='shipped') renderShippedList();
   else if(currentAdminSubview==='archive') renderArchiveList();
   else if(currentAdminSubview==='cleanup') renderCleanupList();
 }
@@ -2349,12 +2365,12 @@ function printReceipt(id){
 
     <div class="section">
       <div class="section-label">Reported Issue</div>
-      <div class="notes-box">${t.issue || 'Not specified'}</div>
+      <div class="notes-box" dir="auto">${t.issue || 'Not specified'}</div>
     </div>
 
     <div class="section">
       <div class="section-label">Work Performed</div>
-      <div class="notes-box">${t.internalNotes || 'Not specified'}</div>
+      <div class="notes-box" dir="auto">${t.internalNotes || 'Not specified'}</div>
     </div>
 
     <div class="section">
@@ -2705,8 +2721,8 @@ function ticketFullRowHtml(t){
           </div>
         </div>
         <label>Issue</label>
-        <textarea id="edit-issue-${t.id}">${t.issue||''}</textarea>
-        ${t.diagnosticNotes ? `<div class="field-line issue-line" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
+        <textarea id="edit-issue-${t.id}" dir="auto">${t.issue||''}</textarea>
+        ${t.diagnosticNotes ? `<div class="field-line issue-line" dir="auto" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
         ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered' : '🚚 In transit'} · <span class="mono">${t.yalidineTracking}</span></div>` : ''}` : ''}
         ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
         <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
@@ -2726,9 +2742,9 @@ function ticketFullRowHtml(t){
         </div>
 
         <label>Note for customer (shown on their status page)</label>
-        <textarea id="cnote-${t.id}">${t.customerNote||''}</textarea>
+        <textarea id="cnote-${t.id}" dir="auto">${t.customerNote||''}</textarea>
         <label>Internal notes (staff only)</label>
-        <textarea id="inote-${t.id}">${t.internalNotes||''}</textarea>
+        <textarea id="inote-${t.id}" dir="auto">${t.internalNotes||''}</textarea>
 
         <div class="pw-error" id="edit-error-${t.id}">Phone number is required.</div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
@@ -2910,6 +2926,7 @@ function jumpToTicket(id){
 function ticketBucket(t){
   if(t.archived) return {tab:'archive', label: t.pendingShipping ? 'Archive · Pending Shipping' : 'Archive'};
   if(t.status === 'Cancelled') return {tab:'tickets', label:'Tickets · Cancelled'};
+  if(t.status === 'To Pick Up' && t.yalidineTracking) return {tab:'shipped', label:'Shipped'};
   if(t.status === 'To Pick Up') return {tab:'shipping', label: t.diagnosisResult === 'Not Fixable' ? 'To Pick Up · No fix' : 'To Pick Up · Fix'};
   if(t.status === 'Repairing' && t.diagnosisResult === 'Not Fixable') return {tab:'tofix', label:'To Fix · No fix'};
   if(t.status === 'Repairing' && (t.flaggedHard || t.diagnosisResult === 'Fixable')) return {tab:'tofix', label:'To Fix · Fix'};
@@ -2948,6 +2965,12 @@ function globalJumpToTicket(id){
       document.getElementById('shipping-search-fix').value = id;
     }
     renderShippingList();
+    return;
+  }
+  if(bucket.tab === 'shipped'){
+    switchAdminSubview('shipped');
+    document.getElementById('shipped-search').value = id;
+    renderShippedList();
     return;
   }
   if(bucket.tab === 'archive'){
@@ -3187,7 +3210,7 @@ function renderDiagnosedList(){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
-          ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
+          ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
         </div>
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Fixable', event)">✅ Fixable</button>
@@ -3240,7 +3263,7 @@ function renderWaitingPartsList(){
         ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
         ${overdueBadge(t)}
         ${t.waitingForPart ? `<div class="lowstock-flag" style="color:var(--danger);">⏳ Waiting for: ${t.waitingForPart}</div>` : ''}
-        ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
+        ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="receivePartAndStartTask('${t.id}', event)">📦 Received — To Fix</button>
@@ -3275,7 +3298,7 @@ function renderFixableSection(){
         <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
         ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
         ${overdueBadge(t)}
-        ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
+        ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       ${fixNoFixPillHtml(t)}
@@ -3316,7 +3339,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
         <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
         ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
         ${overdueBadge(t)}
-        ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
+        ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       ${result === 'Not Fixable' ? fixNoFixPillHtml(t) : ''}
       ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">📋 Evaluate</button>` : ''}
@@ -3528,7 +3551,7 @@ function toFixRowHtml(t, isNoFix){
       </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
         <label>What's been done</label>
-        <textarea id="task-note-${t.id}" placeholder="e.g. Replaced VRM MOSFET, reflowed core, testing under load...">${(t.internalNotes||'')}</textarea>
+        <textarea id="task-note-${t.id}" dir="auto" placeholder="e.g. Replaced VRM MOSFET, reflowed core, testing under load...">${(t.internalNotes||'')}</textarea>
 
         <label style="margin-top:14px;">Repair cost (labor)</label>
         <input id="tf-repaircost-${t.id}" type="number" value="${t.price||''}" placeholder="0" class="mono">
@@ -3601,7 +3624,7 @@ function renderHardList(){
         <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
         ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
         ${overdueBadge(t)}
-        ${t.diagnosticNotes ? `<div class="lowstock-flag" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
+        ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
@@ -3754,6 +3777,7 @@ function shippingRowHtml(t){
           {label:'🖨️ Print receipt', onclick:`printReceipt('${t.id}')`},
           {label:'📱 Notify customer', onclick:`notifyCustomerPickupWhatsApp('${t.id}', event)`},
           {label:'📮 Create Yalidine parcel', onclick:`createYalidineParcel('${t.id}', event)`},
+          ...(t.yalidineTracking ? [{label:'🔄 Clear Yalidine tracking', onclick:`clearYalidineTracking('${t.id}', event)`}] : []),
           {label:'↩️ Back to To Fix', onclick:`quickUpdateStatus('${t.id}', 'Repairing')`},
           {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
         ])}
@@ -3761,9 +3785,22 @@ function shippingRowHtml(t){
     </div>`;
 }
 
+function renderShippedList(){
+  const q = document.getElementById('shipped-search').value.toLowerCase();
+  const shipped = tickets
+    .filter(t=>!t.archived && t.status==='To Pick Up' && t.yalidineTracking)
+    .filter(t=>!q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q));
+
+  document.getElementById('shipped-count').textContent = shipped.length + ' total';
+  const list = document.getElementById('shipped-list');
+  list.innerHTML = shipped.length===0
+    ? '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>Nothing shipped right now.</div>'
+    : shipped.map(shippingRowHtml).join('');
+}
+
 function renderShippingList(){
   const paymentFilter = document.getElementById('shipping-payment-filter').value;
-  const allToPickUp = tickets.filter(t=>!t.archived && t.status==='To Pick Up' && (!paymentFilter || (t.paymentStatus||'Unpaid')===paymentFilter));
+  const allToPickUp = tickets.filter(t=>!t.archived && t.status==='To Pick Up' && !t.yalidineTracking && (!paymentFilter || (t.paymentStatus||'Unpaid')===paymentFilter));
 
   const qFix = document.getElementById('shipping-search-fix').value.toLowerCase();
   const fixList = allToPickUp
@@ -4234,6 +4271,13 @@ function autoSellPrice(costId, priceId){
   }
 }
 
+// Wraps an LTR token (numbers, English device names, brand names) with Unicode
+// directional isolate marks, so it renders as a self-contained unit inside RTL
+// Arabic text instead of confusing the bidirectional algorithm's ordering.
+function ltrIsolate(text){
+  return '\u2066' + text + '\u2069';
+}
+
 async function notifyCustomerWhatsApp(id, event){
   if(event) event.stopPropagation();
   const t = tickets.find(x=>x.id===id);
@@ -4251,14 +4295,29 @@ async function notifyCustomerWhatsApp(id, event){
   const name = t.customerName ? t.customerName : 'there';
   let message = '';
 
-  if(t.diagnosisResult === 'Fixable'){
-    message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Good news — we've diagnosed the issue and it's fixable. We'll get started on the repair. We'll let you know once it's ready. Thank you!`;
-  }else if(t.diagnosisResult === 'Not Fixable'){
-    message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). We've finished diagnosing your device, and unfortunately it's not fixable. Please come by or contact us to discuss next steps and arrange pickup. Thank you.`;
-  }else if(t.flaggedHard){
-    message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Just a heads up — this turned out to be a more complex repair than usual, so it'll take a bit longer than our typical turnaround. We're on it and will keep you updated. Thank you for your patience!`;
+  if(currentLang === 'ar'){
+    const idL = ltrIsolate(t.id);
+    const deviceL = ltrIsolate(deviceLine);
+    const brandL = ltrIsolate('LAPTX GPU');
+    if(t.diagnosisResult === 'Fixable'){
+      message = `مرحباً ${name}، معك محل ${brandL} بخصوص الإصلاح رقم ${idL} (${deviceL}). خبر جيد — قمنا بتشخيص العطل وهو قابل للإصلاح. سنبدأ في الإصلاح وسنعلمكم فور جاهزيته. شكراً لكم!`;
+    }else if(t.diagnosisResult === 'Not Fixable'){
+      message = `مرحباً ${name}، معك محل ${brandL} بخصوص الإصلاح رقم ${idL} (${deviceL}). للأسف، بعد التشخيص تبين أن الجهاز غير قابل للإصلاح. يرجى المرور بنا أو الاتصال بنا لمناقشة الخطوات القادمة واستلام الجهاز. شكراً لكم.`;
+    }else if(t.flaggedHard){
+      message = `مرحباً ${name}، معك محل ${brandL} بخصوص الإصلاح رقم ${idL} (${deviceL}). نود إعلامكم أن هذا الإصلاح أكثر تعقيداً من المعتاد، لذا سيستغرق وقتاً أطول قليلاً من المعتاد. نحن نعمل عليه وسنبقيكم على اطلاع. شكراً لصبركم!`;
+    }else{
+      message = `مرحباً ${name}، معك محل ${brandL} بخصوص الإصلاح رقم ${idL} (${deviceL}).`;
+    }
   }else{
-    message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}).`;
+    if(t.diagnosisResult === 'Fixable'){
+      message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Good news — we've diagnosed the issue and it's fixable. We'll get started on the repair. We'll let you know once it's ready. Thank you!`;
+    }else if(t.diagnosisResult === 'Not Fixable'){
+      message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). We've finished diagnosing your device, and unfortunately it's not fixable. Please come by or contact us to discuss next steps and arrange pickup. Thank you.`;
+    }else if(t.flaggedHard){
+      message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Just a heads up — this turned out to be a more complex repair than usual, so it'll take a bit longer than our typical turnaround. We're on it and will keep you updated. Thank you for your patience!`;
+    }else{
+      message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}).`;
+    }
   }
 
   const url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
@@ -4285,14 +4344,32 @@ async function notifyCustomerPickupWhatsApp(id, event){
   const wilayaName = (t.shippingWilaya || '').replace(/^\d+\s*-\s*/, '');
   let message;
 
-  if(t.shippingDeliveryType === 'stopdesk' && wilayaName){
-    message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) has been shipped via Yalidine to the ${t.shippingCommune || wilayaName} stop-desk` +
-      (wilayaName ? ` in ${wilayaName}` : '') + `. Please go collect your parcel as soon as you can. Thank you!`;
-  }else if(t.shippingDeliveryType === 'home'){
-    message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) has been shipped via Yalidine for home delivery` +
-      (wilayaName ? ` to ${t.shippingCommune ? t.shippingCommune + ', ' : ''}${wilayaName}` : '') + `. Please make sure you're available to receive it. Thank you!`;
+  if(currentLang === 'ar'){
+    const idL = ltrIsolate(t.id);
+    const deviceL = ltrIsolate(deviceLine);
+    const brandL = ltrIsolate('LAPTX GPU');
+    const yalidineL = ltrIsolate('Yalidine');
+    const wilayaL = ltrIsolate(wilayaName);
+    const communeL = ltrIsolate(t.shippingCommune || wilayaName);
+    if(t.shippingDeliveryType === 'stopdesk' && wilayaName){
+      message = `مرحباً ${name}، معك محل ${brandL}. تم شحن إصلاحكم رقم ${idL} (${deviceL}) عبر شركة ${yalidineL} إلى مكتب ${communeL}` +
+        (wilayaName ? ` في ولاية ${wilayaL}` : '') + `. يرجى التوجه لاستلام طردكم في أقرب وقت ممكن. شكراً لكم!`;
+    }else if(t.shippingDeliveryType === 'home'){
+      message = `مرحباً ${name}، معك محل ${brandL}. تم شحن إصلاحكم رقم ${idL} (${deviceL}) عبر شركة ${yalidineL} للتوصيل المنزلي` +
+        (wilayaName ? ` إلى ${t.shippingCommune ? ltrIsolate(t.shippingCommune) + '، ' : ''}${wilayaL}` : '') + `. يرجى التواجد لاستلامه. شكراً لكم!`;
+    }else{
+      message = `مرحباً ${name}، معك محل ${brandL}. إصلاحكم رقم ${idL} (${deviceL}) جاهز وتم شحنه عبر شركة ${yalidineL} — يرجى التحقق واستلام طردكم قريباً. شكراً لكم!`;
+    }
   }else{
-    message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) is ready and has been shipped via Yalidine — please check for it and collect your parcel soon. Thank you!`;
+    if(t.shippingDeliveryType === 'stopdesk' && wilayaName){
+      message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) has been shipped via Yalidine to the ${t.shippingCommune || wilayaName} stop-desk` +
+        (wilayaName ? ` in ${wilayaName}` : '') + `. Please go collect your parcel as soon as you can. Thank you!`;
+    }else if(t.shippingDeliveryType === 'home'){
+      message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) has been shipped via Yalidine for home delivery` +
+        (wilayaName ? ` to ${t.shippingCommune ? t.shippingCommune + ', ' : ''}${wilayaName}` : '') + `. Please make sure you're available to receive it. Thank you!`;
+    }else{
+      message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) is ready and has been shipped via Yalidine — please check for it and collect your parcel soon. Thank you!`;
+    }
   }
 
   const url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
@@ -4481,6 +4558,18 @@ async function resetRevenue(){
   }
   await loadRevenueReset();
   await renderRevenue();
+}
+
+async function clearYalidineTracking(id, event){
+  if(event) event.stopPropagation();
+  if(!window.confirm('Clear Yalidine tracking for #' + id + '? Use this if you removed the parcel directly on Yalidine\'s side. This only clears the tracking info here — it does not affect anything on Yalidine.')) return;
+
+  const res = await apiGet('adminClearYalidineTracking', {id:id});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
 }
 
 async function createYalidineParcel(id, event){
@@ -5458,7 +5547,7 @@ async function customerLookup(){
       ${traceHtml(t.status, t.diagnosisResult)}
       <div class="field-line"><b>${I18N[currentLang].entry_date_field}</b> ${t.entryDate || new Date(t.createdAt).toLocaleDateString()}</div>
       ${t.price ? `<div class="field-line"><b>${I18N[currentLang].price_field}</b> ${formatPrice(t.price)} <span style="color:${t.paymentStatus==='Paid'?'var(--trace)':'var(--danger)'};font-weight:600;">(${paymentStatusLabel(t.paymentStatus||'Unpaid')})</span></div>` : ''}
-      ${t.customerNote ? `<div class="customer-note"><div class="lbl">${I18N[currentLang].update_from_shop}</div>${t.customerNote}</div>` : ''}
+      ${t.customerNote ? `<div class="customer-note" dir="auto"><div class="lbl">${I18N[currentLang].update_from_shop}</div>${t.customerNote}</div>` : ''}
       ${t.status==='Picked Up' ? (
         t.customerConfirmedAt
           ? `<div class="callout" style="margin-top:16px;font-size:14px;">✅ ${I18N[currentLang].pickup_confirmed_msg}</div>`
