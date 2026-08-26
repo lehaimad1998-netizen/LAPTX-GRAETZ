@@ -797,7 +797,8 @@ textarea{resize:vertical;min-height:56px;}
         <label data-i18n="your_last_name">Last name</label>
         <input id="r-lastname" placeholder="Hachi">
         <label data-i18n="phone_number">Phone number</label>
-        <input id="r-phone" placeholder="0540174110">
+        <input id="r-phone" type="tel" inputmode="numeric" placeholder="0555123456" maxlength="10" oninput="formatPhoneInput(this)">
+        <div id="r-phone-preview" style="font-size:12px;color:var(--text-muted);margin:-8px 0 12px;"></div>
         <label data-i18n="entry_date">Entry date</label>
         <input id="r-entrydate" type="date">
         <div class="row2">
@@ -2416,6 +2417,29 @@ function renderStatusQR(containerId, ticketId, phone){
   });
 }
 
+function formatPhoneInput(input){
+  // Digits only, capped at 10 (Algerian local mobile format: 0 + 9 digits)
+  let digits = input.value.replace(/\D/g, '').slice(0, 10);
+  input.value = digits;
+
+  const preview = document.getElementById('r-phone-preview');
+  if(!preview) return;
+
+  const isValidPrefix = /^0(5|6|7)/.test(digits);
+  if(digits.length === 0){
+    preview.textContent = '';
+  }else if(digits.length < 10 || !isValidPrefix){
+    preview.textContent = !isValidPrefix && digits.length >= 2
+      ? '⚠️ Algerian mobile numbers start with 05, 06, or 07'
+      : '';
+    preview.style.color = 'var(--danger)';
+  }else{
+    const intl = '+213 ' + digits.slice(1,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7,10);
+    preview.textContent = intl;
+    preview.style.color = 'var(--trace)';
+  }
+}
+
 function toggleOtherBrandInput(){
   const sel = document.getElementById('r-brand').value;
   const otherInput = document.getElementById('r-brand-other');
@@ -2455,6 +2479,12 @@ async function registerDevice(){
     return;
   }
 
+  if(!/^0(5|6|7)\d{8}$/.test(phone)){
+    errEl.textContent = currentLang==='ar' ? 'أدخل رقم هاتف جزائري صحيح (10 أرقام، يبدأ بـ 05 أو 06 أو 07)' : 'Enter a valid Algerian phone number (10 digits, starting with 05, 06, or 07)';
+    errEl.style.display = 'block';
+    return;
+  }
+
   const res = await apiGet('customerRegister', {name:name, firstName:firstName, lastName:lastName, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
   if(!res.ok){
     errEl.textContent = res.error || (currentLang==='ar' ? 'حدث خطأ ما. حاول مرة أخرى.' : 'Something went wrong. Try again.');
@@ -2475,6 +2505,7 @@ async function registerDevice(){
   document.getElementById('package-photo-upload-btn').style.display = 'none';
   document.getElementById('package-photo-error').style.display = 'none';
   ['r-firstname','r-lastname','r-phone','r-brand','r-model','r-issue','r-brand-other','r-model-other'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('r-phone-preview').textContent = '';
   document.getElementById('r-brand-other').style.display = 'none';
   document.getElementById('r-model-other').style.display = 'none';
   document.getElementById('r-entrydate').value = new Date().toISOString().slice(0,10);
@@ -3576,6 +3607,7 @@ function renderHardList(){
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>
       ${actionsMenuHtml(t.id, [
+        {label:'📱 Notify customer', onclick:`notifyCustomerWhatsApp('${t.id}', event)`},
         {label:'↩️ Back to Diagnosed', onclick:`setTicketFlag('${t.id}', false, event)`},
         {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
       ])}
@@ -4223,6 +4255,8 @@ async function notifyCustomerWhatsApp(id, event){
     message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Good news — we've diagnosed the issue and it's fixable. We'll get started on the repair. We'll let you know once it's ready. Thank you!`;
   }else if(t.diagnosisResult === 'Not Fixable'){
     message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). We've finished diagnosing your device, and unfortunately it's not fixable. Please come by or contact us to discuss next steps and arrange pickup. Thank you.`;
+  }else if(t.flaggedHard){
+    message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Just a heads up — this turned out to be a more complex repair than usual, so it'll take a bit longer than our typical turnaround. We're on it and will keep you updated. Thank you for your patience!`;
   }else{
     message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}).`;
   }
