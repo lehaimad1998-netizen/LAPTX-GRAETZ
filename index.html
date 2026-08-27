@@ -2501,7 +2501,7 @@ async function registerDevice(){
     return;
   }
 
-  const res = await apiGet('customerRegister', {name:name, firstName:firstName, lastName:lastName, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
+  const res = await apiGet('customerRegister', {name:name, phone:phone, entryDate:entryDate, brand:brand, model:model, issue:issue});
   if(!res.ok){
     errEl.textContent = res.error || (currentLang==='ar' ? 'حدث خطأ ما. حاول مرة أخرى.' : 'Something went wrong. Try again.');
     errEl.style.display = 'block';
