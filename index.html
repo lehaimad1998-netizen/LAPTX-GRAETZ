@@ -487,6 +487,10 @@ textarea{resize:vertical;min-height:56px;}
             <div class="stat-label">Upcoming (To Pick Up)</div>
             <div class="stat-value mono" id="stat-upcoming-pickup" style="color:var(--trace);">0 DA</div>
           </div>
+          <div class="stat-card" style="border-color:#c9a227;">
+            <div class="stat-label">Pending Yalidine payout</div>
+            <div class="stat-value mono" id="stat-yalidine-pending" style="color:#c9a227;">0 DA</div>
+          </div>
         </div>
 
         <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:16px 0 8px;">Parts</div>
@@ -1041,6 +1045,8 @@ const ACTION_TO_RPC = {
   adminCreateYalidineParcelPoll: 'admin_create_yalidine_parcel_poll',
   adminSaveYalidineTracking: 'admin_save_yalidine_tracking',
   adminClearYalidineTracking: 'admin_clear_yalidine_tracking',
+  adminCheckYalidineStatusSend: 'admin_check_yalidine_status_send',
+  adminCheckYalidineStatusPoll: 'admin_check_yalidine_status_poll',
   partsDelete: 'parts_delete',
   partsAdjustStock: 'parts_adjust_stock',
   withdrawalsList: 'withdrawals_list',
@@ -3772,12 +3778,13 @@ function shippingRowHtml(t){
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>
+        ${!t.yalidineTracking ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>` : ''}
         ${actionsMenuHtml(t.id, [
           {label:'🖨️ Print receipt', onclick:`printReceipt('${t.id}')`},
           {label:'📱 Notify customer', onclick:`notifyCustomerPickupWhatsApp('${t.id}', event)`},
-          {label:'📮 Create Yalidine parcel', onclick:`createYalidineParcel('${t.id}', event)`},
-          ...(t.yalidineTracking ? [{label:'🔄 Clear Yalidine tracking', onclick:`clearYalidineTracking('${t.id}', event)`}] : []),
+          ...(!t.yalidineTracking ? [{label:'📮 Create Yalidine parcel', onclick:`createYalidineParcel('${t.id}', event)`}] : []),
+          ...(t.yalidineTracking ? [{label:'🔄 Check Yalidine status now', onclick:`checkYalidineStatusNow('${t.id}', event)`}] : []),
+          ...(t.yalidineTracking ? [{label:'🗑️ Clear Yalidine tracking', onclick:`clearYalidineTracking('${t.id}', event)`}] : []),
           {label:'↩️ Back to To Fix', onclick:`quickUpdateStatus('${t.id}', 'Repairing')`},
           {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
         ])}
@@ -4560,6 +4567,46 @@ async function resetRevenue(){
   await renderRevenue();
 }
 
+async function checkYalidineStatusNow(id, event){
+  if(event) event.stopPropagation();
+  const btn = event ? event.target : null;
+  if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
+
+  const sendRes = await apiGet('adminCheckYalidineStatusSend', {id:id});
+  if(!sendRes.ok){
+    if(btn){ btn.disabled = false; btn.textContent = '🔄 Check now'; }
+    alert('Could not check status: ' + (sendRes.error || 'Unknown error'));
+    return;
+  }
+
+  let attempts = 0;
+  const maxAttempts = 15;
+  let result = null;
+  while(attempts < maxAttempts){
+    await new Promise(r => setTimeout(r, 1000));
+    attempts++;
+    const pollRes = await apiGet('adminCheckYalidineStatusPoll', {id:id, requestId: sendRes.requestId});
+    if(!pollRes.pending){
+      result = pollRes;
+      break;
+    }
+  }
+
+  if(btn){ btn.disabled = false; btn.textContent = '🔄 Check now'; }
+
+  if(!result){
+    alert('Yalidine is taking too long to respond. Try again in a moment.');
+    return;
+  }
+  if(!result.ok){
+    alert('Could not check status: ' + (result.error || 'Unknown error'));
+    return;
+  }
+
+  alert('Yalidine status: ' + result.lastStatus);
+  await refreshTicketsOnly();
+}
+
 async function clearYalidineTracking(id, event){
   if(event) event.stopPropagation();
   if(!window.confirm('Clear Yalidine tracking for #' + id + '? Use this if you removed the parcel directly on Yalidine\'s side. This only clears the tracking info here — it does not affect anything on Yalidine.')) return;
@@ -5003,6 +5050,19 @@ function renderRevenue(){
     }
   });
   document.getElementById('stat-upcoming-pickup').textContent = upcomingPickup.toLocaleString() + ' DA';
+
+  // Pending Yalidine payout: repairs shipped via Yalidine where the confirmed
+  // payment_status is "not-ready" — meaning Yalidine has collected the COD from
+  // the customer but hasn't remitted it to you yet. Only one value confirmed so
+  // far from real data; as more payment_status values show up (e.g. once a real
+  // payout happens), this logic can be refined to distinguish paid-out amounts.
+  let yalidinePending = 0;
+  tickets.forEach(t=>{
+    if(t.archived || t.yalidinePaymentStatus !== 'not-ready') return;
+    const price = parseFloat(t.price);
+    if(!isNaN(price)) yalidinePending += price;
+  });
+  document.getElementById('stat-yalidine-pending').textContent = yalidinePending.toLocaleString() + ' DA';
   document.getElementById('stat-paid-count').textContent = paidCount;
 
   // Parts sold (sell value) and parts cost (current cost price), scoped by entry date
