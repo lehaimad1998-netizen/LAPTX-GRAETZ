@@ -371,9 +371,10 @@ textarea{resize:vertical;min-height:56px;}
         <button class="btn-ghost quick-filter" id="qf-cancelled" onclick="toggleQuickFilter('cancelled')">🚫 Cancelled only</button>
         <span class="count-tag" id="ticket-count"></span>
       </div>
-      <div style="display:flex;gap:8px;margin-top:12px;">
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
         <button class="btn-ghost" style="width:auto;" onclick="dropAllTicketsSections()">Drop all</button>
         <button class="btn-ghost" style="width:auto;" onclick="collapseAllTicketsSections()">Collapse all</button>
+        <button class="btn-ghost" style="width:auto;" onclick="exportSelectedStickersCSV()">📄 Export selected stickers (<span id="sticker-select-count-tickets">0</span>)</button>
       </div>
     </div>
 
@@ -383,6 +384,7 @@ textarea{resize:vertical;min-height:56px;}
     <div id="admin-diagnosed-subview" style="display:none;">
       <button class="btn-ghost" style="width:auto;margin-bottom:16px;" onclick="dropAllSections()">🔽 Drop all</button>
       <button class="btn-ghost" style="width:auto;margin-bottom:16px;margin-left:8px;" onclick="collapseAllSections()">🔼 Collapse all</button>
+      <button class="btn-ghost" style="width:auto;margin-bottom:16px;margin-left:8px;" onclick="exportSelectedStickersCSV()">📄 Export selected stickers (<span id="sticker-select-count-diagnosed">0</span>)</button>
       <div class="panel">
         <h2 class="collapsible-header" onclick="toggleSection('awaiting')"><span class="section-title-group">Awaiting classification <span class="count-tag" id="awaiting-count"></span></span> <span class="collapse-arrow collapsed" id="arrow-awaiting">▾</span></h2>
         <div id="body-awaiting" style="display:none;">
@@ -1773,7 +1775,18 @@ function switchAdminSubview(v){
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   document.getElementById('subtab-cleanup').classList.toggle('active', v==='cleanup');
   renderVisibleAdminSubview();
+
+  // Auto-refresh while viewing Shipped, so Yalidine status updates (from the
+  // background check) show up without needing a manual reload
+  if(shippedAutoRefreshInterval){ clearInterval(shippedAutoRefreshInterval); shippedAutoRefreshInterval = null; }
+  if(v === 'shipped'){
+    shippedAutoRefreshInterval = setInterval(()=>{
+      if(currentAdminSubview === 'shipped') refreshTicketsOnly();
+    }, 60000); // every 60 seconds
+  }
 }
+
+let shippedAutoRefreshInterval = null;
 
 function renderVisibleAdminSubview(){
   if(currentAdminSubview==='tickets'){ renderAdminList(); renderScheduler(); }
@@ -1845,84 +1858,81 @@ async function createTicket(){
   await loadAdminTickets();
 }
 
+const STICKER_CSV_HEADERS = ['repair_number'];
+
+function stickerCsvRow(t){
+  return [t.id];
+}
+
+function csvEscape(val){
+  const s = String(val == null ? '' : val);
+  if(/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function downloadCsvFile(filename, rows){
+  const csv = STICKER_CSV_HEADERS.join(',') + '\r\n' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = url;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(()=>URL.revokeObjectURL(url), 3000);
+}
+
 function printSticker(ticketId){
   const t = tickets.find(x=>x.id===ticketId);
-  const idStr = '#' + ticketId;
-  const isClassified = t && (t.diagnosisResult === 'Fixable' || t.diagnosisResult === 'Not Fixable');
-
-  if(!isClassified){
-    // Not yet diagnosed — plain repair-number sticker, same as before
-    const w = window.open('', '_blank', 'width=300,height=200');
-    if(!w) return;
-    let numSize = 15;
-    if(idStr.length >= 5) numSize = 12;
-    if(idStr.length >= 6) numSize = 10;
-    if(idStr.length >= 7) numSize = 8.5;
-    w.document.write(
-      '<html><head><title>Sticker ' + idStr + '</title><style>' +
-      '@page{size:40mm 20mm;margin:0;}' +
-      'html,body{margin:0;padding:0;}' +
-      '.sticker{width:40mm;height:20mm;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:\'Arial\',sans-serif;overflow:hidden;}' +
-      '.sticker .lbl{font-size:3mm;letter-spacing:0.6mm;text-transform:uppercase;font-weight:700;margin-bottom:0.8mm;}' +
-      '.sticker .num{font-size:' + numSize + 'mm;font-weight:800;line-height:1;font-family:\'Courier New\',monospace;}' +
-      '</style></head><body>' +
-      '<div class="sticker"><div class="lbl">Repair</div><div class="num">' + idStr + '</div></div>' +
-      '<script>window.onload=function(){window.print();};<\/script>' +
-      '</body></html>'
-    );
-    w.document.close();
+  if(!t){
+    alert('Ticket not found.');
     return;
   }
+  downloadCsvFile('sticker-' + t.id + '.csv', [stickerCsvRow(t)]);
+}
 
-  // Classified — QR + Fixable/Not Fixable style, matching the downloadable QR ticket
-  const isFixable = t.diagnosisResult === 'Fixable';
-  const qrText = 'LAPTX-' + t.id + '-' + (isFixable ? 'FIXABLE' : 'NOTFIXABLE');
+// Batch sticker selection — shared across Tickets and Diagnostics tabs
+let stickerSelectedIds = new Set();
 
-  const hiddenBox = document.createElement('div');
-  hiddenBox.style.position = 'fixed';
-  hiddenBox.style.left = '-9999px';
-  document.body.appendChild(hiddenBox);
-  new QRCode(hiddenBox, {
-    text: qrText,
-    width: 300,
-    height: 300,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.M
+function toggleStickerSelect(id){
+  if(stickerSelectedIds.has(id)) stickerSelectedIds.delete(id);
+  else stickerSelectedIds.add(id);
+  updateStickerSelectCountDisplays();
+}
+
+function updateStickerSelectCountDisplays(){
+  const n = stickerSelectedIds.size;
+  ['sticker-select-count-tickets', 'sticker-select-count-diagnosed'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = n;
   });
-  const qrCanvas = hiddenBox.querySelector('canvas');
-  const qrDataUrl = qrCanvas ? qrCanvas.toDataURL('image/png') : '';
-  document.body.removeChild(hiddenBox);
+}
 
-  const w = window.open('', '_blank', 'width=300,height=200');
-  if(!w) return;
-  const diagColor = isFixable ? '#1a7a4c' : '#a3271f';
-  const diagText = isFixable ? 'FIXABLE' : 'NOT FIXABLE';
-  const diagFontSize = diagText.length > 8 ? '3.4mm' : '4.4mm';
+function toggleStickerSelectAllVisible(ids){
+  const allSelected = ids.every(id => stickerSelectedIds.has(id));
+  if(allSelected){
+    ids.forEach(id => stickerSelectedIds.delete(id));
+  }else{
+    ids.forEach(id => stickerSelectedIds.add(id));
+  }
+  renderVisibleAdminSubview();
+}
 
-  w.document.write(
-    '<html><head><title>Sticker ' + idStr + '</title><style>' +
-    '@page{size:40mm 20mm;margin:0;}' +
-    'html,body{margin:0;padding:0;}' +
-    '.sticker{width:40mm;height:20mm;box-sizing:border-box;display:flex;align-items:center;font-family:\'Arial\',sans-serif;overflow:hidden;padding:1mm;}' +
-    '.qr{width:17mm;height:17mm;flex-shrink:0;}' +
-    '.right{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-left:1.5mm;}' +
-    '.right .num{font-size:4mm;font-weight:800;font-family:\'Courier New\',monospace;color:#000;}' +
-    '.right .diag{font-size:' + diagFontSize + ';font-weight:800;letter-spacing:0.2mm;color:' + diagColor + ';margin-top:0.8mm;}' +
-    '.right .brand{font-size:2mm;color:#555;margin-top:1mm;}' +
-    '</style></head><body>' +
-    '<div class="sticker">' +
-      '<img class="qr" src="' + qrDataUrl + '">' +
-      '<div class="right">' +
-        '<div class="num">' + idStr + '</div>' +
-        '<div class="diag">' + diagText + '</div>' +
-        '<div class="brand">LAPTX GPU</div>' +
-      '</div>' +
-    '</div>' +
-    '<script>window.onload=function(){window.print();};<\/script>' +
-    '</body></html>'
-  );
-  w.document.close();
+function exportSelectedStickersCSV(){
+  if(stickerSelectedIds.size === 0){
+    alert('No tickets selected.');
+    return;
+  }
+  const selected = tickets.filter(t => stickerSelectedIds.has(t.id));
+  if(selected.length === 0){
+    alert('No matching tickets found.');
+    return;
+  }
+  downloadCsvFile('stickers-batch-' + selected.length + '.csv', selected.map(stickerCsvRow));
+  stickerSelectedIds.clear();
+  updateStickerSelectCountDisplays();
+  renderVisibleAdminSubview();
 }
 const YALIDINE_HEADERS = [
   'Wilaya de départ', 'nom', 'prénom',
@@ -2685,13 +2695,16 @@ function ticketFullRowHtml(t){
   return `
     <div class="ticket-row" id="ticket-${t.id}">
       <div class="ticket-row-top" style="cursor:pointer;" onclick="toggleExpand('${t.id}')">
-        <div>
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <input type="checkbox" style="width:auto;margin-top:3px;" onclick="event.stopPropagation(); toggleStickerSelect('${t.id}')" ${stickerSelectedIds.has(t.id)?'checked':''}>
+          <div>
           <div class="ticket-id">#${t.id}</div>
           <div class="ticket-meta" style="font-size:15px;">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
           ${returningBadge(t)}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
+          </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
           <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
@@ -2703,7 +2716,7 @@ function ticketFullRowHtml(t){
               ...(t.status==='Registered' ? [{label:'📦 Mark Received', onclick:`quickUpdateStatus('${t.id}', 'Received')`}] : []),
               ...(!t.flaggedDiagnosed && !t.archived ? [{label:'✅ Mark diagnosed', onclick:`setTicketDiagnosed('${t.id}', true, event)`}] : []),
               ...(t.flaggedDiagnosed && !t.archived ? [{label:'↩️ Undo diagnosed', onclick:`setTicketDiagnosed('${t.id}', false, event)`}] : []),
-              {label:'🖨️ Print sticker', onclick:`printSticker('${t.id}')`},
+              {label:'📄 Export sticker (CSV)', onclick:`printSticker('${t.id}')`},
             ])}
           </div>
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
@@ -2757,7 +2770,7 @@ function ticketFullRowHtml(t){
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn-ghost" style="background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="saveEntireTicket('${t.id}')">💾 Save ticket</button>
             ${actionsMenuHtml(t.id + '-detail', [
-              {label:'🖨️ Print sticker', onclick:`printSticker('${t.id}')`},
+              {label:'📄 Export sticker (CSV)', onclick:`printSticker('${t.id}')`},
               {label:'🗑️ Delete ticket', onclick:`askDeleteTicket('${t.id}')`, danger:true},
             ])}
           </div>
@@ -3299,6 +3312,7 @@ function renderFixableSection(){
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
     return `
     <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;flex-wrap:wrap;" onclick="jumpToTicket('${t.id}')">
+      <input type="checkbox" style="width:auto;" onclick="event.stopPropagation(); toggleStickerSelect('${t.id}')" ${stickerSelectedIds.has(t.id)?'checked':''}>
       <div style="flex:1;min-width:180px;">
         <div class="ticket-id">#${t.id}</div>
         <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
@@ -3340,6 +3354,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
     return `
     <div class="ticket-row" style="cursor:pointer;display:flex;align-items:center;gap:16px;flex-wrap:wrap;" onclick="jumpToTicket('${t.id}')">
+      <input type="checkbox" style="width:auto;" onclick="event.stopPropagation(); toggleStickerSelect('${t.id}')" ${stickerSelectedIds.has(t.id)?'checked':''}>
       <div style="flex:1;min-width:180px;">
         <div class="ticket-id">#${t.id}</div>
         <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
