@@ -270,6 +270,7 @@ textarea{resize:vertical;min-height:56px;}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div id="header-clock" class="mono" style="font-size:14px;color:var(--text-muted);white-space:nowrap;"></div>
       <div class="lang-toggle" id="lang-toggle">
         <button class="lang-btn active" id="lang-btn-en" onclick="setLanguage('en')">EN</button>
         <button class="lang-btn" id="lang-btn-ar" onclick="setLanguage('ar')">عربي</button>
@@ -5971,6 +5972,17 @@ async function checkCapacityBanner(){
     banner.style.display = 'block';
   }
 }
+
+function updateHeaderClock(){
+  const el = document.getElementById('header-clock');
+  if(!el) return;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString(currentLang === 'ar' ? 'ar-DZ' : 'en-GB', { day: '2-digit', month: 'short' });
+  const timeStr = now.toLocaleTimeString(currentLang === 'ar' ? 'ar-DZ' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  el.textContent = dateStr + ' \u00b7 ' + timeStr;
+}
+updateHeaderClock();
+setInterval(updateHeaderClock, 1000);
 
 applyLanguage();
 switchView('register');
