@@ -62,6 +62,12 @@ body{
 .lang-btn:hover:not(.active){color:var(--text);}
 
 .view{display:none;}
+
+@keyframes shop-status-marquee{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
+.shop-status-scrolling{animation:shop-status-marquee linear infinite;}
 .view.active{display:block;}
 
 .grid-2{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
@@ -785,13 +791,21 @@ textarea{resize:vertical;min-height:56px;}
   </div>
 
   <div class="view active" id="view-register">
-    <div id="shop-status-banner" dir="auto" style="display:none;max-width:520px;margin:0 auto 16px;padding:16px 20px;background:rgba(201,162,39,0.12);border:2px solid #c9a227;color:#c9a227;border-radius:10px;font-size:20px;font-weight:800;text-align:center;line-height:1.4;"></div>
+    <div id="shop-status-banner" style="display:none;max-width:520px;margin:0 auto 16px;padding:16px 0;background:rgba(201,162,39,0.12);border:2px solid #c9a227;border-radius:10px;overflow:hidden;white-space:nowrap;">
+      <div id="shop-status-track" dir="auto" style="display:inline-block;color:#c9a227;font-size:20px;font-weight:800;"></div>
+    </div>
     <div class="panel" id="register-shopinfo-panel" style="max-width:520px;margin:0 auto 16px;">
       <div style="display:flex;justify-content:center;margin-bottom:14px;">
         <img src="logo.png" alt="LAPTX" style="width:72px;height:72px;">
       </div>
       <div data-i18n="delivery_info" style="font-size:20px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;margin-bottom:12px;color:var(--text);text-align:center;">DELIVERY INFORMATIONS</div>
-      <div class="shop-name" style="font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--trace);text-align:center;">LAPTX GPU</div>
+      <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:12px;">
+        <div class="shop-name" style="font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--trace);">LAPTX GPU</div>
+        <div id="shop-open-status" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;">
+          <span id="shop-open-dot" style="width:9px;height:9px;border-radius:50%;display:inline-block;"></span>
+          <span id="shop-open-label"></span>
+        </div>
+      </div>
       <div class="field-line" style="margin-top:10px;"><b data-i18n="yalidine_label">YALIDINE:</b> BLIDA OULED YAICHE (office)</div>
       <div class="field-line"><b data-i18n="other_company_label">Other company:</b> BLIDA OULED YAICHE CITE POLICE LCL N&deg;83 (home)</div>
       <div class="field-line" style="margin-bottom:0;"><b data-i18n="tel_label">TEL:</b> <span class="mono">0540174110</span></div>
@@ -819,11 +833,11 @@ textarea{resize:vertical;min-height:56px;}
         <div class="callout" id="capacity-banner" data-i18n="capacity_banner_msg" style="display:none;margin-bottom:16px;">⏳ We're at capacity this week — expect a longer turnaround than usual.</div>
         <h2 data-i18n="register_heading">Register your device</h2>
         <label data-i18n="your_first_name">First name</label>
-        <input id="r-firstname" placeholder="Mohamed">
+        <input id="r-firstname">
         <label data-i18n="your_last_name">Last name</label>
-        <input id="r-lastname" placeholder="Hachi">
+        <input id="r-lastname">
         <label data-i18n="phone_number">Phone number</label>
-        <input id="r-phone" type="tel" inputmode="numeric" placeholder="0555123456" maxlength="10" oninput="formatPhoneInput(this)">
+        <input id="r-phone" type="tel" inputmode="numeric" maxlength="10" oninput="formatPhoneInput(this)">
         <div id="r-phone-preview" style="font-size:12px;color:var(--text-muted);margin:-8px 0 12px;"></div>
         <label data-i18n="entry_date">Entry date</label>
         <input id="r-entrydate" type="date">
@@ -852,7 +866,7 @@ textarea{resize:vertical;min-height:56px;}
               <option value="Manli">Manli</option>
               <option value="__other__">Other…</option>
             </select>
-            <input id="r-brand-other" placeholder="Enter brand name" style="display:none;margin-top:8px;">
+            <input id="r-brand-other" style="display:none;margin-top:8px;">
           </div>
           <div>
             <label data-i18n="card_model">Card model</label>
@@ -930,11 +944,11 @@ textarea{resize:vertical;min-height:56px;}
               </optgroup>
               <option value="__other__">Other…</option>
             </select>
-            <input id="r-model-other" placeholder="Enter model name" style="display:none;margin-top:8px;">
+            <input id="r-model-other" style="display:none;margin-top:8px;">
           </div>
         </div>
         <label data-i18n="describe_issue">Describe the issue</label>
-        <textarea id="r-issue" dir="auto" data-i18n-placeholder="issue_placeholder" placeholder="What's wrong with the device? Be as detailed as you can." style="min-height:100px;"></textarea>
+        <textarea id="r-issue" dir="auto" style="min-height:100px;"></textarea>
         <div class="callout" data-i18n="callout_photo" style="margin-top:16px;font-size:13px;">📷 Please send us a picture of the package when you send your device on WhatsApp</div>
 
         <div class="conditions-gate">
@@ -982,6 +996,15 @@ textarea{resize:vertical;min-height:56px;}
     </div>
     <div class="disclaimer" style="max-width:600px;margin:16px auto 0;" data-i18n="disclaimer_status">Both the repair number and matching phone number are required, so a random guessed number alone can't show someone else's ticket.</div>
   </div>
+
+  <div class="view" id="view-setstatus">
+    <div class="panel" style="max-width:420px;margin:60px auto;text-align:center;">
+      <div style="font-size:20px;font-weight:800;margin-bottom:20px;">Set today's shop status</div>
+      <button class="btn" style="background:#33C481;color:#0A1F15;margin-bottom:12px;" onclick="setShopStatusFromLink(true)">🟢 Mark Open Today</button>
+      <button class="btn" style="background:#e5484d;color:#2A0E0C;" onclick="setShopStatusFromLink(false)">🔴 Mark Closed Today</button>
+      <div id="setstatus-result" style="margin-top:18px;font-size:14px;font-weight:600;"></div>
+    </div>
+  </div>
 </div>
 
 <button id="chat-widget-toggle" onclick="toggleChatWidget()" style="display:none;position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--trace);color:#0C1712;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:999;align-items:center;justify-content:center;">💬</button>
@@ -1008,6 +1031,7 @@ textarea{resize:vertical;min-height:56px;}
    ============================================================ */
 const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
+
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1045,6 +1069,8 @@ const ACTION_TO_RPC = {
   adminSetGroqKey: 'admin_set_groq_key',
   adminSetChatbotInfo: 'admin_set_chatbot_info',
   getShopStatus: 'get_shop_status',
+  getShopOpenStatus: 'get_shop_open_status',
+  setShopOpenStatusPublic: 'set_shop_open_status_public',
   adminSetShopStatus: 'admin_set_shop_status',
   adminResetRevenue: 'admin_reset_revenue',
   adminClearRevenueReset: 'admin_clear_revenue_reset',
@@ -1289,6 +1315,9 @@ function setLanguage(lang){
   // Re-render anything already on screen that includes translated text
   if(document.getElementById('customer-results').innerHTML.trim() !== ''){
     customerLookup();
+  }
+  if(document.getElementById('shop-open-status') && document.getElementById('shop-open-status').style.display !== 'none'){
+    loadShopOpenStatus();
   }
 }
 
@@ -4538,6 +4567,28 @@ async function saveShopStatus(){
   setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
 }
 
+async function loadShopOpenStatus(){
+  const res = await apiGet('getShopOpenStatus', {});
+  if(!res.ok) return;
+  const wrap = document.getElementById('shop-open-status');
+  const dot = document.getElementById('shop-open-dot');
+  const label = document.getElementById('shop-open-label');
+  if(!wrap || !dot || !label) return;
+
+  wrap.style.display = 'flex';
+  if(res.open){
+    dot.style.background = '#33C481';
+    dot.style.boxShadow = '0 0 6px #33C481';
+    label.textContent = currentLang === 'ar' ? 'مفتوح' : 'Open';
+    label.style.color = '#33C481';
+  }else{
+    dot.style.background = '#e5484d';
+    dot.style.boxShadow = '0 0 6px #e5484d';
+    label.textContent = currentLang === 'ar' ? 'مغلق' : 'Closed';
+    label.style.color = '#e5484d';
+  }
+}
+
 async function loadShopStatus(forRegisterPage){
   const res = await apiGet('getShopStatus', {});
   if(!res.ok) return;
@@ -4546,10 +4597,23 @@ async function loadShopStatus(forRegisterPage){
   }
   if(forRegisterPage){
     const banner = document.getElementById('shop-status-banner');
-    if(banner){
+    const track = document.getElementById('shop-status-track');
+    if(banner && track){
       if(res.message){
-        banner.textContent = res.message;
+        const separator = '\u00A0\u00A0\u00A0•\u00A0\u00A0\u00A0';
+        track.classList.remove('shop-status-scrolling');
+        track.textContent = res.message; // measure a single copy first
         banner.style.display = 'block';
+
+        requestAnimationFrame(()=>{
+          const singleWidth = track.scrollWidth;
+          // Duplicate the message so translating by -50% loops seamlessly
+          track.textContent = res.message + separator + res.message + separator;
+          const pxPerSecond = 60; // scroll speed — adjust to taste
+          const duration = Math.max(6, (singleWidth / pxPerSecond));
+          track.style.animationDuration = duration + 's';
+          track.classList.add('shop-status-scrolling');
+        });
       }else{
         banner.style.display = 'none';
       }
@@ -5831,6 +5895,7 @@ async function confirmPickup(){
 function applyDeepLink(){
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab');
+  const action = params.get('action');
   const id = params.get('id');
   const phone = params.get('phone');
   if(tab==='customer'){
@@ -5839,6 +5904,26 @@ function applyDeepLink(){
     if(phone) document.getElementById('customer-phone').value = phone;
     if(id && phone) customerLookup();
   }
+  if(action==='setstatus'){
+    showSetStatusPage();
+  }
+}
+
+function showSetStatusPage(){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-setstatus').classList.add('active');
+}
+
+async function setShopStatusFromLink(open){
+  const res = await apiGet('setShopOpenStatusPublic', {open:open});
+  const resultEl = document.getElementById('setstatus-result');
+  if(!res.ok){
+    resultEl.textContent = '❌ Something went wrong — try again.';
+    resultEl.style.color = 'var(--danger)';
+    return;
+  }
+  resultEl.textContent = open ? '✅ Shop marked OPEN — customers will see the green indicator.' : '🔴 Shop marked CLOSED — customers will see the closed indicator.';
+  resultEl.style.color = open ? '#33C481' : '#e5484d';
 }
 
 async function checkCapacityBanner(){
@@ -5855,6 +5940,7 @@ applyDeepLink();
 loadAdminPassword();
 checkCapacityBanner();
 loadShopStatus(true);
+loadShopOpenStatus();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
