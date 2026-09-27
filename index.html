@@ -323,6 +323,7 @@ textarea{resize:vertical;min-height:56px;}
       <button class="tab-btn" id="subtab-archive" onclick="switchAdminSubview('archive')">Archive</button>
       <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Revenue</button>
       <button class="tab-btn" id="subtab-stock" onclick="switchAdminSubview('stock')">Stock</button>
+      <button class="tab-btn" id="subtab-settings" onclick="switchAdminSubview('settings')">⚙️ Settings</button>
       <button class="tab-btn" id="subtab-cleanup" onclick="switchAdminSubview('cleanup')">🗑️ Cleanup</button>
     </div>
 
@@ -567,64 +568,6 @@ textarea{resize:vertical;min-height:56px;}
     </div>
 
     <div id="admin-stock-subview" style="display:none;">
-      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
-        <h2>Exchange rates (black market)</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Used by the AliExpress price converter instead of the official bank rate. Update these whenever the Square Port-Saïd rate moves — leave a field blank to fall back to the official live rate for that currency.</div>
-        <div class="row2">
-          <div>
-            <label>1 EUR = ? DA</label>
-            <input id="rate-eur" type="number" placeholder="276" class="mono">
-          </div>
-          <div>
-            <label>1 USD = ? DA</label>
-            <input id="rate-usd" type="number" placeholder="238" class="mono">
-          </div>
-        </div>
-        <label>1 CNY = ? DA</label>
-        <input id="rate-cny" type="number" placeholder="33" class="mono" style="max-width:160px;">
-        <button class="btn-ghost" style="margin-top:12px;" onclick="saveManualRates()">Save rates</button>
-        <div id="rates-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
-      </div>
-
-      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
-        <h2>Yalidine API (direct parcel creation)</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">From your Yalidine pro dashboard: Settings → API → Generate. Stored securely on the server, never visible in the app's source code. Test on one real repair before relying on this for bulk shipments.</div>
-        <label>API ID</label>
-        <input id="yalidine-api-id" placeholder="Your API ID" class="mono">
-        <label>API Token</label>
-        <input id="yalidine-api-token" type="password" placeholder="Your API Token" class="mono">
-        <button class="btn-ghost" style="margin-top:12px;" onclick="saveYalidineCredentials()">Save credentials</button>
-        <div id="yalidine-creds-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
-      </div>
-
-      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
-        <h2>Customer chatbot (GPU troubleshooting)</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Free API key from console.groq.com — sign in with email, no credit card needed. Stored securely on the server, same as your other credentials. Handles general GPU troubleshooting, general shop info (below), and can look up a customer's own repair once they've given their repair number + phone.</div>
-        <label>Groq API Key</label>
-        <input id="groq-api-key" type="password" placeholder="Your Groq API key" class="mono">
-        <button class="btn-ghost" style="margin-top:12px;" onclick="saveGroqKey()">Save key</button>
-        <div id="groq-key-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
-      </div>
-
-      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
-        <h2>Chatbot: general shop info</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Whatever you write here is exactly what the bot can tell customers — pricing ranges, diagnostic fees, payment methods, turnaround expectations, policies. It will never say anything about pricing/policies beyond what's written here, so keep it accurate and update it whenever something changes.</div>
-        <textarea id="chatbot-shop-info" rows="8" placeholder="e.g. Diagnostic fee is 500 DA, waived if you proceed with repair. Typical GPU repairs range from 3,000 to 15,000 DA depending on the issue. We accept cash and bank transfer. Most repairs take 3-7 days..."></textarea>
-        <button class="btn-ghost" style="margin-top:12px;" onclick="saveChatbotInfo()">Save shop info</button>
-        <div id="chatbot-info-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
-      </div>
-
-      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
-        <h2>Shop status message</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Shown large and bold at the top of the Register Device page, so customers see it immediately — e.g. "We're open today!" or "Closed for vacation until Sept 15". Leave empty to show nothing.</div>
-        <input id="shop-status-input" placeholder="e.g. Closed for vacation, back Sept 15">
-        <button class="btn-ghost" style="margin-top:12px;" onclick="saveShopStatus()">Save status</button>
-        <div id="shop-status-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">On vacation? Stop the daily "is the shop open?" bot message until you're back.</div>
-          <button class="btn-ghost" id="daily-ask-pause-btn" style="width:auto;" onclick="toggleDailyAskPause()">⏸️ Pause daily bot check</button>
-        </div>
-      </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 20px;">
         <h2>Add part</h2>
@@ -715,6 +658,74 @@ textarea{resize:vertical;min-height:56px;}
           <span class="count-tag" id="parts-count"></span>
         </div>
         <div id="parts-list"></div>
+      </div>
+    </div>
+
+    <div id="admin-settings-subview" style="display:none;">
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Exchange rates (black market)</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Used by the AliExpress price converter instead of the official bank rate. Update these whenever the Square Port-Saïd rate moves — leave a field blank to fall back to the official live rate for that currency.</div>
+        <div class="row2">
+          <div>
+            <label>1 EUR = ? DA</label>
+            <input id="rate-eur" type="number" placeholder="276" class="mono">
+          </div>
+          <div>
+            <label>1 USD = ? DA</label>
+            <input id="rate-usd" type="number" placeholder="238" class="mono">
+          </div>
+        </div>
+        <label>1 CNY = ? DA</label>
+        <input id="rate-cny" type="number" placeholder="33" class="mono" style="max-width:160px;">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveManualRates()">Save rates</button>
+        <div id="rates-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Yalidine API (direct parcel creation)</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">From your Yalidine pro dashboard: Settings → API → Generate. Stored securely on the server, never visible in the app's source code. Test on one real repair before relying on this for bulk shipments.</div>
+        <label>API ID</label>
+        <input id="yalidine-api-id" placeholder="Your API ID" class="mono">
+        <label>API Token</label>
+        <input id="yalidine-api-token" type="password" placeholder="Your API Token" class="mono">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveYalidineCredentials()">Save credentials</button>
+        <div id="yalidine-creds-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Customer chatbot (GPU troubleshooting)</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Free API key from console.groq.com — sign in with email, no credit card needed. Stored securely on the server, same as your other credentials. Handles general GPU troubleshooting, general shop info (below), and can look up a customer's own repair once they've given their repair number + phone.</div>
+        <label>Groq API Key</label>
+        <input id="groq-api-key" type="password" placeholder="Your Groq API key" class="mono">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveGroqKey()">Save key</button>
+        <div id="groq-key-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Chatbot: general shop info</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Whatever you write here is exactly what the bot can tell customers — pricing ranges, diagnostic fees, payment methods, turnaround expectations, policies. It will never say anything about pricing/policies beyond what's written here, so keep it accurate and update it whenever something changes.</div>
+        <textarea id="chatbot-shop-info" rows="8" placeholder="e.g. Diagnostic fee is 500 DA, waived if you proceed with repair. Typical GPU repairs range from 3,000 to 15,000 DA depending on the issue. We accept cash and bank transfer. Most repairs take 3-7 days..."></textarea>
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveChatbotInfo()">Save shop info</button>
+        <div id="chatbot-info-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Shop status message</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--surface-2);border-radius:8px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="admin-open-dot" style="width:10px;height:10px;border-radius:50%;display:inline-block;"></span>
+            <span id="admin-open-label" style="font-weight:700;font-size:13px;"></span>
+          </div>
+          <button class="btn-ghost" id="admin-open-toggle-btn" style="width:auto;" onclick="toggleAdminShopOpenStatus()"></button>
+        </div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Shown large and bold at the top of the Register Device page, so customers see it immediately — e.g. "We're open today!" or "Closed for vacation until Sept 15". Leave empty to show nothing.</div>
+        <input id="shop-status-input" placeholder="e.g. Closed for vacation, back Sept 15">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveShopStatus()">Save status</button>
+        <div id="shop-status-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">On vacation? Stop the daily "is the shop open?" bot message until you're back.</div>
+          <button class="btn-ghost" id="daily-ask-pause-btn" style="width:auto;" onclick="toggleDailyAskPause()">⏸️ Pause daily bot check</button>
+        </div>
       </div>
     </div>
 
@@ -1077,6 +1088,7 @@ const ACTION_TO_RPC = {
   getShopStatus: 'get_shop_status',
   getShopOpenStatus: 'get_shop_open_status',
   setShopOpenStatusPublic: 'set_shop_open_status_public',
+  adminSetShopOpenStatus: 'admin_set_shop_open_status',
   adminSetShopStatus: 'admin_set_shop_status',
   getDailyStatusAskPaused: 'get_daily_status_ask_paused',
   adminSetDailyStatusAskPaused: 'admin_set_daily_status_ask_paused',
@@ -1722,6 +1734,7 @@ function updateAdminVisibility(){
     loadRevenueReset();
     loadShopStatus(false);
     loadDailyAskPauseState();
+    loadShopOpenStatus();
   }else{
     renderLock();
   }
@@ -1809,6 +1822,7 @@ function switchAdminSubview(v){
   document.getElementById('admin-tofix-subview').style.display = v==='tofix' ? 'block' : 'none';
   document.getElementById('admin-workshop-subview').style.display = v==='workshop' ? 'block' : 'none';
   document.getElementById('admin-stock-subview').style.display = v==='stock' ? 'block' : 'none';
+  document.getElementById('admin-settings-subview').style.display = v==='settings' ? 'block' : 'none';
   document.getElementById('admin-shipping-subview').style.display = v==='shipping' ? 'block' : 'none';
   document.getElementById('admin-shipped-subview').style.display = v==='shipped' ? 'block' : 'none';
   document.getElementById('admin-archive-subview').style.display = v==='archive' ? 'block' : 'none';
@@ -1818,6 +1832,7 @@ function switchAdminSubview(v){
   document.getElementById('subtab-tofix').classList.toggle('active', v==='tofix');
   document.getElementById('subtab-workshop').classList.toggle('active', v==='workshop');
   document.getElementById('subtab-stock').classList.toggle('active', v==='stock');
+  document.getElementById('subtab-settings').classList.toggle('active', v==='settings');
   document.getElementById('subtab-shipping').classList.toggle('active', v==='shipping');
   document.getElementById('subtab-shipped').classList.toggle('active', v==='shipped');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
@@ -4577,26 +4592,50 @@ async function saveShopStatus(){
   setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
 }
 
+function applyOpenStatusVisual(dotEl, labelEl, open){
+  if(!dotEl || !labelEl) return;
+  const color = open ? '#33C481' : '#e5484d';
+  dotEl.style.background = color;
+  dotEl.style.boxShadow = '0 0 6px ' + color;
+  labelEl.textContent = currentLang === 'ar' ? (open ? 'مفتوح' : 'مغلق') : (open ? 'Open' : 'Closed');
+  labelEl.style.color = color;
+}
+
 async function loadShopOpenStatus(){
   const res = await apiGet('getShopOpenStatus', {});
   if(!res.ok) return;
-  const wrap = document.getElementById('shop-open-status');
-  const dot = document.getElementById('shop-open-dot');
-  const label = document.getElementById('shop-open-label');
-  if(!wrap || !dot || !label) return;
 
-  wrap.style.display = 'flex';
-  if(res.open){
-    dot.style.background = '#33C481';
-    dot.style.boxShadow = '0 0 6px #33C481';
-    label.textContent = currentLang === 'ar' ? 'مفتوح' : 'Open';
-    label.style.color = '#33C481';
-  }else{
-    dot.style.background = '#e5484d';
-    dot.style.boxShadow = '0 0 6px #e5484d';
-    label.textContent = currentLang === 'ar' ? 'مغلق' : 'Closed';
-    label.style.color = '#e5484d';
+  const wrap = document.getElementById('shop-open-status');
+  if(wrap){
+    wrap.style.display = 'flex';
+    applyOpenStatusVisual(document.getElementById('shop-open-dot'), document.getElementById('shop-open-label'), res.open);
   }
+
+  updateAdminOpenToggleDisplay(res.open);
+}
+
+function updateAdminOpenToggleDisplay(open){
+  const dot = document.getElementById('admin-open-dot');
+  const label = document.getElementById('admin-open-label');
+  const btn = document.getElementById('admin-open-toggle-btn');
+  if(!dot || !label || !btn) return;
+  applyOpenStatusVisual(dot, label, open);
+  btn.textContent = open ? '🔴 Mark Closed' : '🟢 Mark Open';
+  btn.dataset.open = open ? 'true' : 'false';
+}
+
+async function toggleAdminShopOpenStatus(){
+  const btn = document.getElementById('admin-open-toggle-btn');
+  const currentlyOpen = btn.dataset.open === 'true';
+  const newOpen = !currentlyOpen;
+  btn.disabled = true;
+  const res = await apiGet('adminSetShopOpenStatus', {open:newOpen});
+  btn.disabled = false;
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  updateAdminOpenToggleDisplay(newOpen);
 }
 
 async function loadDailyAskPauseState(){
