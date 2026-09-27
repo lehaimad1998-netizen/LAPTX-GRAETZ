@@ -619,6 +619,10 @@ textarea{resize:vertical;min-height:56px;}
         <input id="shop-status-input" placeholder="e.g. Closed for vacation, back Sept 15">
         <button class="btn-ghost" style="margin-top:12px;" onclick="saveShopStatus()">Save status</button>
         <div id="shop-status-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">On vacation? Stop the daily "is the shop open?" bot message until you're back.</div>
+          <button class="btn-ghost" id="daily-ask-pause-btn" style="width:auto;" onclick="toggleDailyAskPause()">⏸️ Pause daily bot check</button>
+        </div>
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 20px;">
@@ -1072,6 +1076,8 @@ const ACTION_TO_RPC = {
   getShopOpenStatus: 'get_shop_open_status',
   setShopOpenStatusPublic: 'set_shop_open_status_public',
   adminSetShopStatus: 'admin_set_shop_status',
+  getDailyStatusAskPaused: 'get_daily_status_ask_paused',
+  adminSetDailyStatusAskPaused: 'admin_set_daily_status_ask_paused',
   adminResetRevenue: 'admin_reset_revenue',
   adminClearRevenueReset: 'admin_clear_revenue_reset',
   getRevenueReset: 'get_revenue_reset',
@@ -1713,6 +1719,7 @@ function updateAdminVisibility(){
     loadChatbotInfo();
     loadRevenueReset();
     loadShopStatus(false);
+    loadDailyAskPauseState();
   }else{
     renderLock();
   }
@@ -4589,6 +4596,34 @@ async function loadShopOpenStatus(){
   }
 }
 
+async function loadDailyAskPauseState(){
+  const res = await apiGet('getDailyStatusAskPaused', {});
+  if(!res.ok) return;
+  updateDailyAskPauseButton(res.paused);
+}
+
+function updateDailyAskPauseButton(paused){
+  const btn = document.getElementById('daily-ask-pause-btn');
+  if(!btn) return;
+  btn.textContent = paused ? '▶️ Resume daily bot check' : '⏸️ Pause daily bot check';
+  btn.style.background = paused ? 'var(--trace)' : '';
+  btn.style.color = paused ? '#0C1712' : '';
+  btn.style.borderColor = paused ? 'var(--trace)' : '';
+  btn.dataset.paused = paused ? 'true' : 'false';
+}
+
+async function toggleDailyAskPause(){
+  const btn = document.getElementById('daily-ask-pause-btn');
+  const currentlyPaused = btn.dataset.paused === 'true';
+  const newPaused = !currentlyPaused;
+  const res = await apiGet('adminSetDailyStatusAskPaused', {paused:newPaused});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  updateDailyAskPauseButton(newPaused);
+}
+
 async function loadShopStatus(forRegisterPage){
   const res = await apiGet('getShopStatus', {});
   if(!res.ok) return;
@@ -5922,8 +5957,11 @@ async function setShopStatusFromLink(open){
     resultEl.style.color = 'var(--danger)';
     return;
   }
-  resultEl.textContent = open ? '✅ Shop marked OPEN — customers will see the green indicator.' : '🔴 Shop marked CLOSED — customers will see the closed indicator.';
+  resultEl.textContent = open ? '✅ Shop marked OPEN — redirecting...' : '🔴 Shop marked CLOSED — redirecting...';
   resultEl.style.color = open ? '#33C481' : '#e5484d';
+  setTimeout(()=>{
+    window.location.href = window.location.origin + window.location.pathname;
+  }, 1200);
 }
 
 async function checkCapacityBanner(){
