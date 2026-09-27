@@ -489,10 +489,6 @@ textarea{resize:vertical;min-height:56px;}
             <div class="stat-label">Upcoming (To Pick Up)</div>
             <div class="stat-value mono" id="stat-upcoming-pickup" style="color:var(--trace);">0 DA</div>
           </div>
-          <div class="stat-card" style="border-color:#c9a227;">
-            <div class="stat-label">Pending Yalidine payout</div>
-            <div class="stat-value mono" id="stat-yalidine-pending" style="color:#c9a227;">0 DA</div>
-          </div>
         </div>
 
         <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:16px 0 8px;">Parts</div>
@@ -609,6 +605,14 @@ textarea{resize:vertical;min-height:56px;}
         <textarea id="chatbot-shop-info" rows="8" placeholder="e.g. Diagnostic fee is 500 DA, waived if you proceed with repair. Typical GPU repairs range from 3,000 to 15,000 DA depending on the issue. We accept cash and bank transfer. Most repairs take 3-7 days..."></textarea>
         <button class="btn-ghost" style="margin-top:12px;" onclick="saveChatbotInfo()">Save shop info</button>
         <div id="chatbot-info-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>Shop status message</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Shown large and bold at the top of the Register Device page, so customers see it immediately — e.g. "We're open today!" or "Closed for vacation until Sept 15". Leave empty to show nothing.</div>
+        <input id="shop-status-input" placeholder="e.g. Closed for vacation, back Sept 15">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveShopStatus()">Save status</button>
+        <div id="shop-status-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 20px;">
@@ -740,7 +744,13 @@ textarea{resize:vertical;min-height:56px;}
     <div id="admin-shipped-subview" style="display:none;">
       <div class="panel">
         <h2>🚚 Shipped</h2>
-        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs with a Yalidine parcel created — tracked separately from in-person pickups. Mark it Picked Up once the customer confirms receipt; it archives automatically.</div>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Repairs with a Yalidine parcel created — tracked separately from in-person pickups. Auto-archives the moment Yalidine confirms delivery; no manual action needed.</div>
+        <div class="stat-row" style="margin-bottom:16px;">
+          <div class="stat-card" style="border-color:#c9a227;">
+            <div class="stat-label">Pending (in transit)</div>
+            <div class="stat-value mono" id="stat-shipped-pending" style="color:#c9a227;">0 DA</div>
+          </div>
+        </div>
         <div class="list-controls">
           <input id="shipped-search" placeholder="Search name, phone, ID, device..." oninput="renderShippedList()">
           <span class="count-tag" id="shipped-count"></span>
@@ -753,10 +763,6 @@ textarea{resize:vertical;min-height:56px;}
       <div class="panel">
         <h2>Archive</h2>
         <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">Every device that's been picked up — full record kept here, with shipping info and pricing.</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-          <button class="btn-ghost" style="width:auto;" onclick="toggleYalidineSelectAll('archive')">☑️ Select all</button>
-          <button class="btn-ghost" style="width:auto;" onclick="exportYalidineXlsx('archive')">📦 Export for Yalidine (.xlsx)</button>
-        </div>
         <div class="list-controls">
           <input id="archive-search" placeholder="Search name, phone, ID, device..." oninput="renderArchiveList()">
           <span class="count-tag" id="archive-count"></span>
@@ -779,6 +785,7 @@ textarea{resize:vertical;min-height:56px;}
   </div>
 
   <div class="view active" id="view-register">
+    <div id="shop-status-banner" dir="auto" style="display:none;max-width:520px;margin:0 auto 16px;padding:16px 20px;background:rgba(201,162,39,0.12);border:2px solid #c9a227;color:#c9a227;border-radius:10px;font-size:20px;font-weight:800;text-align:center;line-height:1.4;"></div>
     <div class="panel" id="register-shopinfo-panel" style="max-width:520px;margin:0 auto 16px;">
       <div style="display:flex;justify-content:center;margin-bottom:14px;">
         <img src="logo.png" alt="LAPTX" style="width:72px;height:72px;">
@@ -999,8 +1006,9 @@ textarea{resize:vertical;min-height:56px;}
    SETUP — paste your Supabase project URL and anon (public) key below.
    Project Settings > API in your Supabase dashboard.
    ============================================================ */
-const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
+const SUPABASE_URL = https://oobnilmduyndwdsqpzxy.supabase.co ;
+const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM
+;
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1037,6 +1045,8 @@ const ACTION_TO_RPC = {
   adminSetYalidineCredentials: 'admin_set_yalidine_credentials',
   adminSetGroqKey: 'admin_set_groq_key',
   adminSetChatbotInfo: 'admin_set_chatbot_info',
+  getShopStatus: 'get_shop_status',
+  adminSetShopStatus: 'admin_set_shop_status',
   adminResetRevenue: 'admin_reset_revenue',
   adminClearRevenueReset: 'admin_clear_revenue_reset',
   getRevenueReset: 'get_revenue_reset',
@@ -1674,6 +1684,7 @@ function updateAdminVisibility(){
     loadManualRates();
     loadChatbotInfo();
     loadRevenueReset();
+    loadShopStatus(false);
   }else{
     renderLock();
   }
@@ -3809,9 +3820,18 @@ function shippingRowHtml(t){
 
 function renderShippedList(){
   const q = document.getElementById('shipped-search').value.toLowerCase();
-  const shipped = tickets
-    .filter(t=>!t.archived && t.status==='To Pick Up' && t.yalidineTracking)
+  const allShipped = tickets.filter(t=>!t.archived && t.status==='To Pick Up' && t.yalidineTracking);
+  const shipped = allShipped
     .filter(t=>!q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q));
+
+  // Pending amount is based on everything in transit, not the search filter —
+  // this is a running total, not scoped to whatever you're currently searching for
+  let pendingTotal = 0;
+  allShipped.forEach(t=>{
+    const price = parseFloat(t.price);
+    if(!isNaN(price)) pendingTotal += price;
+  });
+  document.getElementById('stat-shipped-pending').textContent = pendingTotal.toLocaleString() + ' DA';
 
   document.getElementById('shipped-count').textContent = shipped.length + ' total';
   const list = document.getElementById('shipped-list');
@@ -3904,7 +3924,6 @@ function renderArchiveList(){
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ');
     return `
     <div class="ticket-row">
-      <input type="checkbox" style="width:auto;margin:0 0 8px 0;" onchange="toggleYalidineSelect('${t.id}')" ${yalidineSelectedIds.has(t.id)?'checked':''}>
       <div class="ticket-row-top">
         <div>
           <div class="ticket-id">#${t.id}</div>
@@ -4508,6 +4527,37 @@ async function loadChatbotInfo(){
   }
 }
 
+async function saveShopStatus(){
+  const message = document.getElementById('shop-status-input').value;
+  const res = await apiGet('adminSetShopStatus', {message:message});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  const msg = document.getElementById('shop-status-saved-msg');
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+}
+
+async function loadShopStatus(forRegisterPage){
+  const res = await apiGet('getShopStatus', {});
+  if(!res.ok) return;
+  if(document.getElementById('shop-status-input')){
+    document.getElementById('shop-status-input').value = res.message || '';
+  }
+  if(forRegisterPage){
+    const banner = document.getElementById('shop-status-banner');
+    if(banner){
+      if(res.message){
+        banner.textContent = res.message;
+        banner.style.display = 'block';
+      }else{
+        banner.style.display = 'none';
+      }
+    }
+  }
+}
+
 async function loadRevenueReset(){
   const res = await apiGet('getRevenueReset', {});
   if(res.ok){
@@ -5065,19 +5115,6 @@ function renderRevenue(){
     }
   });
   document.getElementById('stat-upcoming-pickup').textContent = upcomingPickup.toLocaleString() + ' DA';
-
-  // Pending Yalidine payout: repairs shipped via Yalidine where the confirmed
-  // payment_status is "not-ready" — meaning Yalidine has collected the COD from
-  // the customer but hasn't remitted it to you yet. Only one value confirmed so
-  // far from real data; as more payment_status values show up (e.g. once a real
-  // payout happens), this logic can be refined to distinguish paid-out amounts.
-  let yalidinePending = 0;
-  tickets.forEach(t=>{
-    if(t.archived || t.yalidinePaymentStatus !== 'not-ready') return;
-    const price = parseFloat(t.price);
-    if(!isNaN(price)) yalidinePending += price;
-  });
-  document.getElementById('stat-yalidine-pending').textContent = yalidinePending.toLocaleString() + ' DA';
   document.getElementById('stat-paid-count').textContent = paidCount;
 
   // Parts sold (sell value) and parts cost (current cost price), scoped by entry date
@@ -5818,6 +5855,7 @@ switchView('register');
 applyDeepLink();
 loadAdminPassword();
 checkCapacityBanner();
+loadShopStatus(true);
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
