@@ -762,6 +762,7 @@ textarea{resize:vertical;min-height:56px;}
             <div class="stat-value mono" id="stat-shipped-pending" style="color:#c9a227;">0 DA</div>
           </div>
         </div>
+        <div id="shipped-refresh-status" style="display:none;font-size:12px;color:var(--trace);margin-bottom:12px;"></div>
         <div class="list-controls">
           <input id="shipped-search" placeholder="Search name, phone, ID, device..." oninput="renderShippedList()">
           <span class="count-tag" id="shipped-count"></span>
@@ -1827,8 +1828,9 @@ function switchAdminSubview(v){
   // background check) show up without needing a manual reload
   if(shippedAutoRefreshInterval){ clearInterval(shippedAutoRefreshInterval); shippedAutoRefreshInterval = null; }
   if(v === 'shipped'){
+    refreshAllShippedStatuses(); // check live status immediately on opening the tab
     shippedAutoRefreshInterval = setInterval(()=>{
-      if(currentAdminSubview === 'shipped') refreshTicketsOnly();
+      if(currentAdminSubview === 'shipped') refreshAllShippedStatuses();
     }, 60000); // every 60 seconds
   }
 }
@@ -4731,39 +4733,57 @@ async function resetRevenue(){
   await renderRevenue();
 }
 
+// Core check logic, no UI side effects — reused by both the per-ticket
+// button and the automatic bulk refresh when opening the Shipped tab
+async function refreshAllShippedStatuses(){
+  const shippedIds = tickets
+    .filter(t=>!t.archived && t.status==='To Pick Up' && t.yalidineTracking)
+    .map(t=>t.id);
+
+  if(shippedIds.length === 0) return;
+
+  const statusEl = document.getElementById('shipped-refresh-status');
+  if(statusEl){
+    statusEl.textContent = '🔄 Checking Yalidine status for ' + shippedIds.length + ' parcel' + (shippedIds.length>1?'s':'') + '…';
+    statusEl.style.display = 'block';
+  }
+
+  await Promise.all(shippedIds.map(id => checkOneYalidineStatus(id)));
+
+  await refreshTicketsOnly();
+
+  if(statusEl){
+    statusEl.textContent = '✅ Status refreshed.';
+    setTimeout(()=>{ statusEl.style.display = 'none'; }, 2500);
+  }
+}
+
+async function checkOneYalidineStatus(id){
+  const sendRes = await apiGet('adminCheckYalidineStatusSend', {id:id});
+  if(!sendRes.ok) return {ok:false, error: sendRes.error || 'Unknown error'};
+
+  let attempts = 0;
+  const maxAttempts = 15;
+  while(attempts < maxAttempts){
+    await new Promise(r => setTimeout(r, 1000));
+    attempts++;
+    const pollRes = await apiGet('adminCheckYalidineStatusPoll', {id:id, requestId: sendRes.requestId});
+    if(!pollRes.pending) return pollRes;
+  }
+  return {ok:false, error:'Timed out waiting for a response.'};
+}
+
 async function checkYalidineStatusNow(id, event){
   if(event) event.stopPropagation();
   const btn = event ? event.target : null;
   if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
 
-  const sendRes = await apiGet('adminCheckYalidineStatusSend', {id:id});
-  if(!sendRes.ok){
-    if(btn){ btn.disabled = false; btn.textContent = '🔄 Check now'; }
-    alert('Could not check status: ' + (sendRes.error || 'Unknown error'));
-    return;
-  }
-
-  let attempts = 0;
-  const maxAttempts = 15;
-  let result = null;
-  while(attempts < maxAttempts){
-    await new Promise(r => setTimeout(r, 1000));
-    attempts++;
-    const pollRes = await apiGet('adminCheckYalidineStatusPoll', {id:id, requestId: sendRes.requestId});
-    if(!pollRes.pending){
-      result = pollRes;
-      break;
-    }
-  }
+  const result = await checkOneYalidineStatus(id);
 
   if(btn){ btn.disabled = false; btn.textContent = '🔄 Check now'; }
 
-  if(!result){
-    alert('Yalidine is taking too long to respond. Try again in a moment.');
-    return;
-  }
   if(!result.ok){
-    alert('Could not check status: ' + (result.error || 'Unknown error'));
+    alert('Could not check status: ' + result.error);
     return;
   }
 
