@@ -45,6 +45,10 @@ body{
 #app{max-width:1040px;margin:0 auto;padding:32px 20px 64px;}
 
 .header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+.header-clock{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;padding:6px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);white-space:nowrap;}
+.header-clock .hc-time{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:0.04em;color:var(--text);font-variant-numeric:tabular-nums;}
+.header-clock .hc-time .hc-sec{font-size:13px;color:var(--trace);margin-left:2px;font-weight:500;}
+.header-clock .hc-date{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);margin-top:3px;}
 .header h1{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;margin:0;letter-spacing:0.02em;}
 .header h1 span{color:var(--trace);}
 .header .sub{color:var(--text-muted);font-size:13px;margin-top:4px;}
@@ -270,7 +274,7 @@ textarea{resize:vertical;min-height:56px;}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <div id="header-clock" class="mono" style="font-size:14px;color:var(--text-muted);white-space:nowrap;"></div>
+      <div id="header-clock" class="header-clock"></div>
       <div class="lang-toggle" id="lang-toggle">
         <button class="lang-btn active" id="lang-btn-en" onclick="setLanguage('en')">EN</button>
         <button class="lang-btn" id="lang-btn-ar" onclick="setLanguage('ar')">عربي</button>
@@ -404,7 +408,24 @@ textarea{resize:vertical;min-height:56px;}
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
         <button class="btn-ghost" style="width:auto;" onclick="dropAllTicketsSections()">Drop all</button>
         <button class="btn-ghost" style="width:auto;" onclick="collapseAllTicketsSections()">Collapse all</button>
-        <button class="btn-ghost" style="width:auto;" onclick="exportSelectedStickersCSV()">📄 Export selected stickers (<span id="sticker-select-count-tickets">0</span>)</button>
+        <button class="btn-ghost" style="width:auto;" onclick="selectAllVisibleTickets()">☑️ Select all shown</button>
+        <span id="sticker-select-count-tickets" style="display:none;">0</span>
+      </div>
+      <div id="bulk-bar" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--trace);border-radius:10px;background:var(--surface);align-items:center;gap:8px;flex-wrap:wrap;">
+        <b class="mono" id="bulk-count" style="margin-right:6px;">0 selected</b>
+        <button class="btn-ghost" style="width:auto;" onclick="bulkMarkReceived()">📦 Mark received</button>
+        <select id="bulk-status" style="width:auto;" onchange="bulkSetStatus(this.value); this.value='';">
+          <option value="">Move to status…</option>
+          <option>Registered</option><option>Received</option><option>Diagnosing</option>
+          <option>Repairing</option><option>To Pick Up</option><option>Cancelled</option>
+        </select>
+        <button class="btn-ghost" style="width:auto;" onclick="bulkSetDiagnosed(true)">✅ Mark diagnosed</button>
+        <button class="btn-ghost" style="width:auto;" onclick="bulkSetSource('shop')">🏪 In-shop</button>
+        <button class="btn-ghost" style="width:auto;" onclick="bulkSetSource('remote')">📦 Remote</button>
+        <button class="btn-ghost" style="width:auto;" onclick="exportSelectedStickersPdf()">🖨️ Stickers (PDF)</button>
+        <button class="btn-ghost" style="width:auto;" onclick="exportSelectedStickersCSV()">📄 Stickers (CSV)</button>
+        <button class="btn-ghost" style="width:auto;background:var(--danger);color:#2A0E0C;border-color:var(--danger);" onclick="bulkDelete()">🗑️ Delete</button>
+        <button class="btn-ghost" style="width:auto;" onclick="clearBulkSelection()">✕ Clear</button>
       </div>
     </div>
 
@@ -414,6 +435,7 @@ textarea{resize:vertical;min-height:56px;}
     <div id="admin-diagnosed-subview" style="display:none;">
       <button class="btn-ghost" style="width:auto;margin-bottom:16px;" onclick="dropAllSections()">🔽 Drop all</button>
       <button class="btn-ghost" style="width:auto;margin-bottom:16px;margin-left:8px;" onclick="collapseAllSections()">🔼 Collapse all</button>
+      <button class="btn-ghost" style="width:auto;margin-bottom:16px;margin-left:8px;" onclick="exportSelectedStickersPdf()">🖨️ Selected stickers (PDF)</button>
       <button class="btn-ghost" style="width:auto;margin-bottom:16px;margin-left:8px;" onclick="exportSelectedStickersCSV()">📄 Export selected stickers (<span id="sticker-select-count-diagnosed">0</span>)</button>
       <div class="panel">
         <h2 class="collapsible-header" onclick="toggleSection('awaiting')"><span class="section-title-group">Awaiting classification <span class="count-tag" id="awaiting-count"></span></span> <span class="collapse-arrow collapsed" id="arrow-awaiting">▾</span></h2>
@@ -701,6 +723,19 @@ textarea{resize:vertical;min-height:56px;}
         <input id="rate-cny" type="number" placeholder="33" class="mono" style="max-width:160px;">
         <button class="btn-ghost" style="margin-top:12px;" onclick="saveManualRates()">Save rates</button>
         <div id="rates-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>⏱ Repair task timer</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">When you press Start task, a timer runs next to the repair. Every this-many minutes the Telegram bot asks if it's fixed, and keeps asking until you move the repair on.</div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="task-timer-enabled" style="width:auto;" onchange="saveTaskTimerEnabled(this.checked)">
+          <span>Enable the task timer and reminders</span>
+        </label>
+        <label>Remind me every (minutes)</label>
+        <input id="task-reminder-minutes" type="number" min="1" max="1440" class="mono" style="max-width:160px;" placeholder="30">
+        <button class="btn-ghost" style="margin-top:12px;" onclick="saveTaskReminderMinutes()">Save</button>
+        <div id="task-reminder-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 16px;">
@@ -1145,6 +1180,9 @@ const ACTION_TO_RPC = {
   customerSaveShippingInfo: 'customer_save_shipping_info',
   customerSaveNameParts: 'customer_save_name_parts',
   customerSaveSource: 'customer_save_source',
+  adminGetTaskReminderMinutes: 'admin_get_task_reminder_minutes',
+  adminSetTaskReminderMinutes: 'admin_set_task_reminder_minutes',
+  adminSetTaskTimerEnabled: 'admin_set_task_timer_enabled',
   adminSetTicketSource: 'admin_set_ticket_source',
   customerLookupStopdesksSend: 'customer_lookup_stopdesks_send',
   customerLookupStopdesksPoll: 'customer_lookup_stopdesks_poll',
@@ -1877,6 +1915,7 @@ function switchAdminSubview(v){
   document.getElementById('subtab-shipped').classList.toggle('active', v==='shipped');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   document.getElementById('subtab-cleanup').classList.toggle('active', v==='cleanup');
+  if(v==='settings') loadTaskReminderMinutes();
   renderVisibleAdminSubview();
 
   // Auto-refresh while viewing Shipped, so Yalidine status updates (from the
@@ -2019,6 +2058,37 @@ function printSticker(ticketId){
   downloadCsvFile('sticker-' + t.id + '.csv', [stickerCsvRow(t)]);
 }
 
+// Sticker as PDF: one 40x20 mm page per ticket, repair number only
+function buildStickerPdf(list, filename){
+  const { jsPDF } = window.jspdf;
+  const W = 40, H = 20;
+  const doc = new jsPDF({orientation:'landscape', unit:'mm', format:[W, H]});
+  list.forEach((t, i)=>{
+    if(i > 0) doc.addPage([W, H], 'landscape');
+    const text = String(t.id);
+    let size = 44;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(size);
+    while(size > 8 && doc.getTextWidth(text) > W - 4){ size -= 2; doc.setFontSize(size); }
+    doc.text(text, W/2, H/2, {align:'center', baseline:'middle'});
+  });
+  doc.save(filename);
+}
+function printStickerPdf(ticketId){
+  const t = tickets.find(x=>x.id===ticketId);
+  if(!t){ alert('Ticket not found.'); return; }
+  buildStickerPdf([t], 'sticker-' + t.id + '.pdf');
+}
+function exportSelectedStickersPdf(){
+  const sel = tickets.filter(t => stickerSelectedIds.has(t.id));
+  if(sel.length === 0){ alert('No tickets selected.'); return; }
+  sel.sort((a,b)=> (parseFloat(a.id)||0) - (parseFloat(b.id)||0));
+  buildStickerPdf(sel, 'stickers-batch-' + sel.length + '.pdf');
+  stickerSelectedIds.clear();
+  updateStickerSelectCountDisplays();
+  renderVisibleAdminSubview();
+}
+
 // Batch sticker selection — shared across Tickets and Diagnostics tabs
 let stickerSelectedIds = new Set();
 
@@ -2034,6 +2104,60 @@ function updateStickerSelectCountDisplays(){
     const el = document.getElementById(id);
     if(el) el.textContent = n;
   });
+  const bar = document.getElementById('bulk-bar');
+  if(bar){
+    bar.style.display = n > 0 ? 'flex' : 'none';
+    document.getElementById('bulk-count').textContent = n + ' selected';
+  }
+}
+
+let lastVisibleTicketIds = [];
+function selectAllVisibleTickets(){
+  const allSel = lastVisibleTicketIds.length > 0 && lastVisibleTicketIds.every(id => stickerSelectedIds.has(id));
+  lastVisibleTicketIds.forEach(id => allSel ? stickerSelectedIds.delete(id) : stickerSelectedIds.add(id));
+  renderVisibleAdminSubview();
+  updateStickerSelectCountDisplays();
+}
+function clearBulkSelection(){
+  stickerSelectedIds.clear();
+  renderVisibleAdminSubview();
+  updateStickerSelectCountDisplays();
+}
+function selectedTickets(){ return tickets.filter(t => stickerSelectedIds.has(t.id)); }
+async function runBulk(list, fn){
+  if(list.length === 0){ alert('Nothing to do for the selected tickets.'); return; }
+  let failed = 0;
+  for(const t of list){
+    try{ const r = await fn(t); if(!r || !r.ok) failed++; }catch(e){ failed++; }
+  }
+  stickerSelectedIds.clear();
+  await refreshTicketsOnly();
+  updateStickerSelectCountDisplays();
+  if(failed) alert(failed + ' of ' + list.length + ' failed.');
+}
+async function bulkMarkReceived(){
+  await runBulk(selectedTickets().filter(t=>t.status==='Registered'),
+    t=>apiGet('adminUpdateStatus', {id:t.id, status:'Received', note:''}));
+}
+async function bulkSetStatus(status){
+  if(!status) return;
+  const list = selectedTickets().filter(t=>t.status!==status);
+  if(list.length && !confirm('Move ' + list.length + ' ticket(s) to "' + status + '"?')) return;
+  await runBulk(list, t=>apiGet('adminUpdateStatus', {id:t.id, status:status, note:''}));
+}
+async function bulkSetDiagnosed(flag){
+  await runBulk(selectedTickets().filter(t=>!t.archived && !!t.flaggedDiagnosed !== flag),
+    t=>apiGet('adminSetTicketDiagnosed', {id:t.id, flag:flag}));
+}
+async function bulkSetSource(source){
+  await runBulk(selectedTickets().filter(t=>t.source!==source),
+    t=>apiGet('adminSetTicketSource', {id:t.id, source:source}));
+}
+async function bulkDelete(){
+  const list = selectedTickets();
+  if(list.length === 0) return;
+  if(!confirm('Permanently delete ' + list.length + ' ticket(s)? This cannot be undone.')) return;
+  await runBulk(list, t=>apiGet('adminDelete', {id:t.id}));
 }
 
 function toggleStickerSelectAllVisible(ids){
@@ -2544,6 +2668,7 @@ function printReceipt(id){
   w.document.close();
 }
 
+let receivePwCache = null;
 function renderStatusQR(containerId, ticketId, phone){
   const el = document.getElementById(containerId);
   el.innerHTML = '';
@@ -2562,17 +2687,29 @@ function renderStatusQR(containerId, ticketId, phone){
   caption.style.lineHeight = '1.4';
   caption.textContent = 'Scan to see the repair status instantly.';
   wrap.appendChild(caption);
-  if(adminPasswordValue){
+  {
     const rb = document.createElement('button');
     rb.className = 'btn-ghost';
     rb.style.cssText = 'background:var(--trace);color:#0C1712;border-color:var(--trace);width:auto;padding:10px 18px;';
-    rb.textContent = '✅ Mark received';
+    const label = adminPasswordValue ? '✅ Mark received' : '🔐 Staff: mark received';
+    rb.textContent = label;
     rb.onclick = async function(){
+      let pw = adminPasswordValue || receivePwCache;
+      if(!pw){
+        pw = window.prompt('Shop Desk password:', '');
+        if(!pw) return;
+      }
       rb.disabled = true; rb.textContent = 'Saving…';
-      const r = await apiGet('adminUpdateStatus', {id:String(ticketId), status:'Received', note:''});
-      if(!r.ok){ rb.disabled = false; rb.textContent = '✅ Mark received'; document.getElementById('save-error-banner').style.display = 'block'; return; }
+      const r = await apiGet('adminUpdateStatus', {id:String(ticketId), status:'Received', note:'', password: pw});
+      if(!r.ok){
+        rb.disabled = false; rb.textContent = label;
+        receivePwCache = null;
+        window.alert(r.error === 'Unauthorized' ? 'Incorrect password.' : 'Could not save. Try again.');
+        return;
+      }
+      receivePwCache = pw;
       rb.textContent = '✅ Received';
-      try{ await refreshTicketsOnly(); }catch(e){}
+      if(adminPasswordValue){ try{ await refreshTicketsOnly(); }catch(e){} }
     };
     wrap.appendChild(rb);
   }
@@ -2891,6 +3028,7 @@ function ticketFullRowHtml(t){
               ...(!t.flaggedDiagnosed && !t.archived ? [{label:'✅ Mark diagnosed', onclick:`setTicketDiagnosed('${t.id}', true, event)`}] : []),
               ...(t.flaggedDiagnosed && !t.archived ? [{label:'↩️ Undo diagnosed', onclick:`setTicketDiagnosed('${t.id}', false, event)`}] : []),
               ...sourceMenuItems(t),
+              {label:'🖨️ Sticker (PDF)', onclick:`printStickerPdf('${t.id}')`},
               {label:'📄 Export sticker (CSV)', onclick:`printSticker('${t.id}')`},
             ])}
           </div>
@@ -2949,6 +3087,7 @@ function ticketFullRowHtml(t){
               ...(!t.flaggedDiagnosed && !t.archived ? [{label:'✅ Mark diagnosed', onclick:`setTicketDiagnosed('${t.id}', true, event)`}] : []),
               ...(t.flaggedDiagnosed && !t.archived ? [{label:'↩️ Undo diagnosed', onclick:`setTicketDiagnosed('${t.id}', false, event)`}] : []),
               ...sourceMenuItems(t),
+              {label:'🖨️ Sticker (PDF)', onclick:`printStickerPdf('${t.id}')`},
               {label:'📄 Export sticker (CSV)', onclick:`printSticker('${t.id}')`},
               {label:'🗑️ Delete ticket', onclick:`askDeleteTicket('${t.id}')`, danger:true},
             ])}
@@ -3029,6 +3168,7 @@ function renderAdminList(){
   }
   // 'newest' uses the order already returned by the server (most recently created first)
 
+  lastVisibleTicketIds = filtered.map(t=>t.id);
   if(filtered.length===0){
     list.innerHTML = '<div class="panel"><div class="empty-state"><i class="ti" style="font-size:13px;"></i>No tickets match. Adjust your search or create a new ticket.</div></div>';
     return;
@@ -3859,6 +3999,7 @@ function toFixRowHtml(t, isNoFix){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
+          ${taskTimerHtml(t)}
         </div>
         <div class="mono" style="font-size:15px;font-weight:700;color:var(--trace);">${formatPrice(combinedTotal) || '0 DA'}</div>
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
@@ -4779,6 +4920,55 @@ async function saveYalidineCredentials(){
   msg.style.display = 'block';
   setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
 }
+
+async function loadTaskReminderMinutes(){
+  const res = await apiGet('adminGetTaskReminderMinutes');
+  const el = document.getElementById('task-reminder-minutes');
+  if(res && res.ok && el) el.value = res.minutes;
+  const cb = document.getElementById('task-timer-enabled');
+  if(res && res.ok && cb) cb.checked = res.enabled !== false;
+}
+async function saveTaskTimerEnabled(flag){
+  const res = await apiGet('adminSetTaskTimerEnabled', {enabled: !!flag});
+  if(!res.ok){ alert(res.error || 'Could not save.'); loadTaskReminderMinutes(); return; }
+  const msg = document.getElementById('task-reminder-saved-msg');
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+  refreshTicketsOnly();
+}
+async function saveTaskReminderMinutes(){
+  const v = document.getElementById('task-reminder-minutes').value.trim();
+  const res = await apiGet('adminSetTaskReminderMinutes', {minutes:v});
+  if(!res.ok){ alert(res.error || 'Could not save.'); return; }
+  const msg = document.getElementById('task-reminder-saved-msg');
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+}
+
+// Live task timers shown next to repairs in progress
+function fmtDuration(ms){
+  const s = Math.max(0, Math.floor(ms/1000));
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  return (h ? h+':'+String(m).padStart(2,'0') : m) + ':' + String(sec).padStart(2,'0');
+}
+function taskTimerHtml(t){
+  if(t.status !== 'Repairing' || !t.taskStartedAt) return '';
+  return `<div class="mono task-timer" data-start="${t.taskStartedAt}" data-next="${t.taskNextReminderAt||''}" style="font-size:12px;color:#c9a227;margin-top:4px;"></div>`;
+}
+function tickTaskTimers(){
+  document.querySelectorAll('.task-timer').forEach(el=>{
+    const start = new Date(el.dataset.start).getTime();
+    if(isNaN(start)) return;
+    let txt = '⏱ ' + fmtDuration(Date.now() - start);
+    const next = el.dataset.next ? new Date(el.dataset.next).getTime() : NaN;
+    if(!isNaN(next)){
+      const left = next - Date.now();
+      txt += left > 0 ? ' · reminder in ' + fmtDuration(left) : ' · reminder due';
+    }
+    el.textContent = txt;
+  });
+}
+setInterval(tickTaskTimers, 1000);
 
 async function saveGroqKey(){
   const key = document.getElementById('groq-api-key').value.trim();
@@ -6268,9 +6458,11 @@ function updateHeaderClock(){
   const el = document.getElementById('header-clock');
   if(!el) return;
   const now = new Date();
-  const dateStr = now.toLocaleDateString(currentLang === 'ar' ? 'ar-DZ' : 'en-GB', { day: '2-digit', month: 'short' });
-  const timeStr = now.toLocaleTimeString(currentLang === 'ar' ? 'ar-DZ' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  el.textContent = dateStr + ' \u00b7 ' + timeStr;
+  const loc = currentLang === 'ar' ? 'ar-DZ' : 'en-GB';
+  const hm = now.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit', hour12: false });
+  const sec = String(now.getSeconds()).padStart(2, '0');
+  const dateStr = now.toLocaleDateString(loc, { weekday: 'short', day: '2-digit', month: 'short' });
+  el.innerHTML = '<div class="hc-time">' + hm + '<span class="hc-sec">:' + sec + '</span></div><div class="hc-date">' + dateStr + '</div>';
 }
 updateHeaderClock();
 setInterval(updateHeaderClock, 1000);
