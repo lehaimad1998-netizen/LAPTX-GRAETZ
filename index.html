@@ -45,6 +45,14 @@ body{
 #app{max-width:1040px;margin:0 auto;padding:32px 20px 64px;}
 
 .header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+.dlv{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:10px;background:var(--surface-2);text-align:left;cursor:default}
+.dlv-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.dlv-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--trace);font-weight:700}
+.dlv-sec{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin:10px 0 2px}
+.dlv-r{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:5px 0;font-size:13px;border-top:1px dashed var(--border)}
+.dlv-r>span{color:var(--text-muted);white-space:nowrap}
+.dlv-r>b{text-align:right;word-break:break-word;font-weight:600}
+.dlv-warn{font-size:13px;color:#c9a227}
 .header-clock{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;padding:6px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);white-space:nowrap;}
 .header-clock .hc-time{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:0.04em;color:var(--text);font-variant-numeric:tabular-nums;}
 .header-clock .hc-time .hc-sec{font-size:13px;color:var(--trace);margin-left:2px;font-weight:500;}
@@ -231,6 +239,13 @@ textarea{resize:vertical;min-height:56px;}
 
 .disclaimer{font-size:12px;color:var(--text-muted);margin-top:24px;padding-top:16px;border-top:1px solid var(--border);}
 
+.ship-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:10px;text-align:start}
+.ship-card-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ship-ico{font-size:22px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:var(--trace-dim);border-radius:10px;flex:none}
+.ship-t{font-size:14px;font-weight:700}
+.ship-s{font-size:11px;color:var(--text-muted);margin-top:1px}
+.ship-addr{display:block;font-size:15px;font-weight:600;line-height:1.45;word-break:break-word;user-select:all}
+.ship-copy{width:auto;margin-top:8px;padding:5px 12px;font-size:12px}
 .callout{
   background:var(--amber-dim);border:1.5px solid var(--amber);border-radius:10px;
   padding:16px 18px;margin-top:16px;font-size:15px;font-weight:600;line-height:1.5;
@@ -880,9 +895,21 @@ textarea{resize:vertical;min-height:56px;}
           <span id="shop-open-label"></span>
         </div>
       </div>
-      <div class="field-line" style="margin-top:10px;"><b data-i18n="yalidine_label">YALIDINE:</b> BLIDA OULED YAICHE (office)</div>
-      <div class="field-line"><b data-i18n="other_company_label">Other company:</b> BLIDA OULED YAICHE CITE POLICE LCL N&deg;83 (home)</div>
-      <div class="field-line" style="margin-bottom:0;"><b data-i18n="tel_label">TEL:</b> <span class="mono">0540174110</span></div>
+      <div class="ship-card">
+        <div class="ship-card-h"><span class="ship-ico">🏢</span><div><div class="ship-t" data-i18n="ship_yalidine_t">Yalidine</div><div class="ship-s" data-i18n="ship_yalidine_s">Pick-up office (stop-desk)</div></div></div>
+        <div class="ship-addr" id="ship-addr-1" dir="ltr">BLIDA OULED YAICHE</div>
+        <button class="btn-ghost ship-copy" onclick="copyShopField('ship-addr-1', this)" data-i18n="copy_btn">📋 Copy</button>
+      </div>
+      <div class="ship-card">
+        <div class="ship-card-h"><span class="ship-ico">🏠</span><div><div class="ship-t" data-i18n="ship_other_t">Other delivery companies</div><div class="ship-s" data-i18n="ship_other_s">Home delivery address</div></div></div>
+        <div class="ship-addr" id="ship-addr-2" dir="ltr">BLIDA OULED YAICHE CITE POLICE LCL N&deg;83</div>
+        <button class="btn-ghost ship-copy" onclick="copyShopField('ship-addr-2', this)" data-i18n="copy_btn">📋 Copy</button>
+      </div>
+      <div class="ship-card">
+        <div class="ship-card-h"><span class="ship-ico">📞</span><div><div class="ship-t" data-i18n="ship_tel_t">Phone</div><div class="ship-s" data-i18n="ship_tel_s">Write it on the parcel / delivery form</div></div></div>
+        <a class="ship-addr mono" id="ship-addr-3" dir="ltr" href="tel:0540174110" style="color:var(--trace);text-decoration:none;">0540174110</a>
+        <button class="btn-ghost ship-copy" onclick="copyShopField('ship-addr-3', this)" data-i18n="copy_btn">📋 Copy</button>
+      </div>
     </div>
     <div class="panel" style="max-width:520px;margin:0 auto;">
       <div class="new-id-banner" id="register-banner">
@@ -1258,6 +1285,7 @@ const PAYMENT_STATUSES = ['Unpaid','Partial','Paid'];
 const I18N = {
   en: {
     delivery_info: 'DELIVERY INFORMATIONS',
+    ship_yalidine_t: 'Yalidine', ship_yalidine_s: 'Pick-up office (stop-desk)', ship_other_t: 'Other delivery companies', ship_other_s: 'Home delivery address', ship_tel_t: 'Phone', ship_tel_s: 'Write it on the parcel / delivery form', copy_btn: '📋 Copy', copied_msg: '✓ Copied',
     yalidine_label: 'YALIDINE:',
     other_company_label: 'Other company:',
     tel_label: 'TEL:',
@@ -1345,6 +1373,7 @@ const I18N = {
   },
   ar: {
     delivery_info: 'معلومات التسليم',
+    ship_yalidine_t: 'ياليدين', ship_yalidine_s: 'مكتب الاستلام (Stop-desk)', ship_other_t: 'شركات التوصيل الأخرى', ship_other_s: 'عنوان التوصيل للمنزل', ship_tel_t: 'الهاتف', ship_tel_s: 'اكتبه على الطرد / وثيقة التوصيل', copy_btn: '📋 نسخ', copied_msg: '✓ تم النسخ',
     yalidine_label: 'ياليدين:',
     other_company_label: 'شركة أخرى:',
     tel_label: 'الهاتف:',
@@ -1507,6 +1536,56 @@ async function savePackageInfoAdmin(id, event){
   const res2 = await apiGet('adminSetOriginWilaya', {id:id, wilaya:g('origin')});
   if(!res.ok || !res2.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
   await refreshTicketsOnly();
+}
+
+// ---------- Delivery / package card (shared by all tabs) ----------
+function deliveryCopyText(t){
+  const wilayaName = (t.shippingWilaya || '').replace(/^\d+\s*-\s*/, '');
+  return [t.customerName, t.phone, wilayaName, t.shippingCommune,
+    t.shippingDeliveryType==='home' ? 'Home delivery' : (t.shippingStopdeskName || t.shippingStopdesk ? 'Stop-desk: ' + (t.shippingStopdeskName || t.shippingStopdesk) : '')
+  ].filter(Boolean).join('\n');
+}
+async function copyDeliveryInfo(id, btn, event){
+  if(event) event.stopPropagation();
+  const t = tickets.find(x=>x.id===id); if(!t) return;
+  const txt = deliveryCopyText(t);
+  try{ await navigator.clipboard.writeText(txt); }
+  catch(e){ const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(_){} ta.remove(); }
+  const old = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>{ btn.textContent = old; }, 1500);
+}
+function deliveryCardHtml(t, showWarnIfEmpty){
+  const row = (k, v, mono) => v ? `<div class="dlv-r"><span>${k}</span><b dir="auto" ${mono?'class="mono"':''}>${v}</b></div>` : '';
+  const e = escHtml;
+  const hasShip = !!t.shippingWilaya;
+  const method = t.shippingDeliveryType==='home' ? '🏠 Home delivery' : (t.shippingDeliveryType==='stopdesk' ? '🏢 Stop-desk' : '');
+  const stopdesk = t.shippingStopdeskName || t.shippingStopdesk || '';
+  let ship = '';
+  if(hasShip){
+    ship = row('Method', method) + row('Wilaya', e(t.shippingWilaya)) + row('Commune', e(t.shippingCommune||'')) + (t.shippingDeliveryType!=='home' ? row('Stop-desk', e(stopdesk)) : '');
+  }
+  let yal = '';
+  if(t.yalidineTracking){
+    const st = t.yalidineDelivered ? '<span style="color:var(--trace);">✅ Delivered</span>' : '<span style="color:#c9a227;">🚚 In transit</span>';
+    yal = row('Yalidine', `${st} · <span class="mono">${e(t.yalidineTracking)}</span>`);
+  }
+  const inbound = row('Customer wilaya', e(t.originWilaya||'')) + row('Sent with', e(t.packageCarrier||'')) + row('Tracking #', e(t.packageTracking||''), true) + row('Sender name', e(t.packageSenderName||''));
+  if(!hasShip && !inbound && !yal){
+    return showWarnIfEmpty ? `<div class="dlv"><div class="dlv-warn">⚠️ No delivery info from the customer yet</div></div>` : '';
+  }
+  const phoneLink = t.phone ? `<a href="tel:${e(t.phone)}" class="mono" style="color:inherit;" onclick="event.stopPropagation()">${e(t.phone)}</a>` : '';
+  return `<div class="dlv" onclick="event.stopPropagation()">
+    <div class="dlv-top"><span class="dlv-h">🚚 Delivery details</span>${hasShip ? `<button class="btn-ghost" style="width:auto;padding:4px 10px;font-size:11px;" onclick="copyDeliveryInfo('${t.id}', this, event)">📋 Copy</button>` : ''}</div>
+    ${hasShip ? row('Name', e(t.customerName||'')) + row('Phone', phoneLink) + ship : `<div class="dlv-warn" style="margin:4px 0;">⚠️ Customer hasn't entered delivery info yet</div>`}
+    ${yal}
+    ${inbound ? `<div class="dlv-sec">📦 Package from customer</div>${inbound}` : ''}
+  </div>`;
+}
+
+async function copyShopField(id, btn){
+  const txt = document.getElementById(id).textContent.trim();
+  try{ await navigator.clipboard.writeText(txt); }
+  catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(_){} ta.remove(); }
+  const old = btn.textContent; btn.textContent = (I18N[currentLang]||I18N.en).copied_msg || '✓'; setTimeout(()=>{ btn.textContent = old; }, 1500);
 }
 function packageInfoLineHtml(t){
   const originLine = t.originWilaya ? `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">📍 Wilaya: ${escHtml(t.originWilaya)}</div>` : '';
@@ -3241,7 +3320,7 @@ function ticketFullRowHtml(t){
         <label>Issue</label>
         <textarea id="edit-issue-${t.id}" dir="auto">${t.issue||''}</textarea>
         ${t.diagnosticNotes ? `<div class="field-line issue-line" dir="auto" style="color:var(--trace);"><b>Diagnostic notes:</b><br>${t.diagnosticNotes}</div>` : ''}
-        ${t.shippingWilaya ? `<div class="field-line"><b>Shipping:</b> ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered' : '🚚 In transit'} · <span class="mono">${t.yalidineTracking}</span></div>` : ''}` : ''}
+        ${deliveryCardHtml(t, false)}
         ${t.packagePhotoUrl ? `<div class="field-line"><b>Package photo:</b><br><a href="${t.packagePhotoUrl}" target="_blank"><img src="${t.packagePhotoUrl}" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-top:6px;"></a></div>` : ''}
         <div class="field-line"><b>Logged:</b> ${new Date(t.createdAt).toLocaleString()}</div>
 
@@ -3669,9 +3748,7 @@ function toggleDiagDetail(id){
 
 function diagDetailHtml(t){
   if(!diagDetailOpenIds.has(t.id)) return '';
-  const shipLine = t.shippingWilaya
-    ? `<div class="field-line"><b>Shipping:</b> ${escHtml(t.shippingWilaya)}${t.shippingCommune ? ' · ' + escHtml(t.shippingCommune) : ''}</div>`
-    : '';
+  const shipLine = deliveryCardHtml(t, false);
   return `
     <div style="flex-basis:100%;margin-top:4px;padding-top:12px;border-top:1px solid var(--border);cursor:default;" onclick="event.stopPropagation()">
       <label>Customer name</label>
@@ -4444,9 +4521,6 @@ function shippingRowHtml(t){
           <div class="ticket-id">#${t.id}</div>
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
-          ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered' : '🚚 In transit'} · <span class="mono">${t.yalidineTracking}</span></div>` : ''}`
-            : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
           <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
@@ -4458,6 +4532,7 @@ function shippingRowHtml(t){
           ${t.price ? `<div style="font-size:11px;color:var(--text-muted);" class="mono">${formatPrice(t.price)}</div>` : ''}
         </div>
       </div>
+      ${deliveryCardHtml(t, true)}
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
         ${!t.yalidineTracking ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="markPickedUpAndPaid('${t.id}', event)">✅ Picked up</button>` : ''}
         ${actionsMenuHtml(t.id, [
@@ -4585,9 +4660,6 @@ function renderArchiveList(){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
-          ${t.shippingWilaya
-            ? `<div class="lowstock-flag" style="color:var(--trace);">📍 ${t.shippingDeliveryType ? (t.shippingDeliveryType==='home' ? '🏠 Home delivery · ' : '🏢 Stop-desk · ') : ''}${t.shippingWilaya}${t.shippingCommune ? ' · ' + t.shippingCommune : ''}${t.shippingStopdeskName ? ' · 🏢 ' + t.shippingStopdeskName : (t.shippingStopdesk ? ' · ' + t.shippingStopdesk : '')}</div>${t.yalidineTracking ? `<div class="lowstock-flag" style="color:${t.yalidineDelivered ? 'var(--trace)' : '#c9a227'};">${t.yalidineDelivered ? '✅ Delivered' : '🚚 In transit'} · <span class="mono">${t.yalidineTracking}</span></div>` : ''}`
-            : `<div class="lowstock-flag">⚠️ No shipping info from customer yet</div>`}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
           <div style="display:flex;gap:6px;align-items:center;">
@@ -4596,6 +4668,7 @@ function renderArchiveList(){
           </div>
         </div>
       </div>
+      ${deliveryCardHtml(t, false)}
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="printReceipt('${t.id}')">🖨️ Print receipt</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="reopenToPickup('${t.id}', event)">↩️ Back to To Pick Up</button>
