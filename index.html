@@ -938,7 +938,7 @@ textarea{resize:vertical;min-height:56px;}
           <option value="shop" data-i18n="reg_source_shop">I will drop it at the shop</option>
           <option value="remote" data-i18n="reg_source_remote">I am far — I will ship it</option>
         </select>
-        <div id="r-origin-wrap" style="display:none;">
+        <div id="r-origin-wrap">
           <label data-i18n="reg_origin_label">Wilaya you are sending from</label>
           <select id="r-origin-wilaya"></select>
         </div>
@@ -1269,7 +1269,7 @@ const I18N = {
     your_first_name: 'First name',
     your_last_name: 'Last name',
     reg_source_label: 'How will you bring the device?',
-    reg_origin_label: 'Wilaya you are sending from',
+    reg_origin_label: 'Your wilaya',
     reg_origin_choose: '— Choose your wilaya —',
     reg_source_choose: '— Choose —',
     reg_source_shop: 'I will drop it at the shop',
@@ -1356,7 +1356,7 @@ const I18N = {
     your_first_name: 'الاسم الأول',
     your_last_name: 'اللقب',
     reg_source_label: 'كيف ستوصل الجهاز؟',
-    reg_origin_label: 'الولاية التي سترسل منها',
+    reg_origin_label: 'ولايتك',
     reg_origin_choose: '— اختر ولايتك —',
     reg_source_choose: '— اختر —',
     reg_source_shop: 'سأحضره إلى المحل',
@@ -1509,7 +1509,7 @@ async function savePackageInfoAdmin(id, event){
   await refreshTicketsOnly();
 }
 function packageInfoLineHtml(t){
-  const originLine = t.originWilaya ? `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">📍 From: ${escHtml(t.originWilaya)}</div>` : '';
+  const originLine = t.originWilaya ? `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">📍 Wilaya: ${escHtml(t.originWilaya)}</div>` : '';
   const parts = [t.packageCarrier, t.packageTracking && ('#' + t.packageTracking), t.packageSenderName && ('sender: ' + t.packageSenderName)].filter(Boolean);
   if(!parts.length) return originLine;
   return originLine + `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">📦 ${escHtml(parts.join(' · '))}</div>`;
@@ -1530,8 +1530,6 @@ function populateOriginWilayaOptions(){
 function applyRegisterSourceUI(){
   const sel = document.getElementById('r-source');
   const remoteForm = sel && sel.value === 'remote';
-  const ow = document.getElementById('r-origin-wrap');
-  if(ow) ow.style.display = remoteForm ? 'block' : 'none';
   populateOriginWilayaOptions();
   ['callout-photo','callout-writenum'].forEach(id=>{ const e = document.getElementById(id); if(e) e.style.display = remoteForm ? 'block' : 'none'; });
   const remoteBanner = lastRegisteredSource === 'remote';
@@ -2961,8 +2959,8 @@ async function registerDevice(){
 
   const sourceVal = document.getElementById('r-source').value;
   const originWilaya = document.getElementById('r-origin-wilaya').value;
-  if(sourceVal === 'remote' && !originWilaya){
-    errEl.textContent = currentLang==='ar' ? 'اختر الولاية التي سترسل منها' : 'Please choose the wilaya you are sending from';
+  if(!originWilaya){
+    errEl.textContent = currentLang==='ar' ? 'اختر ولايتك' : 'Please choose your wilaya';
     errEl.style.display = 'block';
     return;
   }
@@ -2995,7 +2993,7 @@ async function registerDevice(){
   lastRegisteredPhone = phone;
   apiGet('customerSaveNameParts', {id: res.id, phone: phone, firstName: firstName, lastName: lastName});
   apiGet('customerSaveSource', {id: res.id, phone: phone, source: sourceVal});
-  if(sourceVal === 'remote') apiGet('customerSaveOriginWilaya', {id: res.id, phone: phone, wilaya: originWilaya});
+  apiGet('customerSaveOriginWilaya', {id: res.id, phone: phone, wilaya: originWilaya});
   document.getElementById('package-photo-idle').style.display = 'block';
   document.getElementById('package-photo-done').style.display = 'none';
   document.getElementById('package-photo-input').value = '';
@@ -3261,7 +3259,7 @@ function ticketFullRowHtml(t){
           <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
         </div>
 
-        <label>📍 Wilaya the customer ships from</label>
+        <label>📍 Customer's wilaya</label>
         <select id="pkg-origin-${t.id}"><option value=""></option>${WILAYAS.map(w=>`<option value="${w}" ${t.originWilaya===w?'selected':''}>${w}</option>`).join('')}</select>
         <label>📦 Package — sender name on the parcel</label>
         <input id="pkg-sender-${t.id}" dir="auto" value="${escHtml(t.packageSenderName||'')}">
