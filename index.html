@@ -938,6 +938,10 @@ textarea{resize:vertical;min-height:56px;}
           <option value="shop" data-i18n="reg_source_shop">I will drop it at the shop</option>
           <option value="remote" data-i18n="reg_source_remote">I am far — I will ship it</option>
         </select>
+        <div id="r-origin-wrap" style="display:none;">
+          <label data-i18n="reg_origin_label">Wilaya you are sending from</label>
+          <select id="r-origin-wilaya"></select>
+        </div>
         <label data-i18n="entry_date">Entry date</label>
         <input id="r-entrydate" type="date">
         <div class="row2">
@@ -1200,6 +1204,8 @@ const ACTION_TO_RPC = {
   customerSaveShippingInfo: 'customer_save_shipping_info',
   customerSaveNameParts: 'customer_save_name_parts',
   customerSaveSource: 'customer_save_source',
+  customerSaveOriginWilaya: 'customer_save_origin_wilaya',
+  adminSetOriginWilaya: 'admin_set_origin_wilaya',
   customerSavePackageInfo: 'customer_save_package_info',
   adminSetPackageInfo: 'admin_set_package_info',
   adminGetTaskReminderMinutes: 'admin_get_task_reminder_minutes',
@@ -1263,6 +1269,8 @@ const I18N = {
     your_first_name: 'First name',
     your_last_name: 'Last name',
     reg_source_label: 'How will you bring the device?',
+    reg_origin_label: 'Wilaya you are sending from',
+    reg_origin_choose: '— Choose your wilaya —',
     reg_source_choose: '— Choose —',
     reg_source_shop: 'I will drop it at the shop',
     reg_source_remote: 'I am far — I will ship it',
@@ -1348,6 +1356,8 @@ const I18N = {
     your_first_name: 'الاسم الأول',
     your_last_name: 'اللقب',
     reg_source_label: 'كيف ستوصل الجهاز؟',
+    reg_origin_label: 'الولاية التي سترسل منها',
+    reg_origin_choose: '— اختر ولايتك —',
     reg_source_choose: '— اختر —',
     reg_source_shop: 'سأحضره إلى المحل',
     reg_source_remote: 'أنا بعيد — سأرسله بالشحن',
@@ -1494,23 +1504,35 @@ async function savePackageInfoAdmin(id, event){
   if(event) event.stopPropagation();
   const g = k => document.getElementById('pkg-' + k + '-' + id).value.trim();
   const res = await apiGet('adminSetPackageInfo', {id:id, senderName:g('sender'), carrier:g('carrier'), tracking:g('tracking')});
-  if(!res.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
+  const res2 = await apiGet('adminSetOriginWilaya', {id:id, wilaya:g('origin')});
+  if(!res.ok || !res2.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
   await refreshTicketsOnly();
 }
 function packageInfoLineHtml(t){
+  const originLine = t.originWilaya ? `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">📍 From: ${escHtml(t.originWilaya)}</div>` : '';
   const parts = [t.packageCarrier, t.packageTracking && ('#' + t.packageTracking), t.packageSenderName && ('sender: ' + t.packageSenderName)].filter(Boolean);
-  if(!parts.length) return '';
-  return `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">📦 ${escHtml(parts.join(' · '))}</div>`;
+  if(!parts.length) return originLine;
+  return originLine + `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">📦 ${escHtml(parts.join(' · '))}</div>`;
 }
 function ticketSearchText(t){
-  return [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel,t.packageSenderName,t.packageCarrier,t.packageTracking].join(' ').toLowerCase();
+  return [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel,t.packageSenderName,t.packageCarrier,t.packageTracking,t.originWilaya].join(' ').toLowerCase();
 }
 
 // Remote customers ship the device: show package/shipment tools, no "Mark received".
 // In-shop customers hand it over directly: show "Mark received", hide the shipping tools.
+function populateOriginWilayaOptions(){
+  const o = document.getElementById('r-origin-wilaya');
+  if(!o) return;
+  const cur = o.value;
+  o.innerHTML = '<option value="">' + I18N[currentLang].reg_origin_choose + '</option>' + WILAYAS.map(w=>`<option value="${w}">${w}</option>`).join('');
+  o.value = cur;
+}
 function applyRegisterSourceUI(){
   const sel = document.getElementById('r-source');
   const remoteForm = sel && sel.value === 'remote';
+  const ow = document.getElementById('r-origin-wrap');
+  if(ow) ow.style.display = remoteForm ? 'block' : 'none';
+  populateOriginWilayaOptions();
   ['callout-photo','callout-writenum'].forEach(id=>{ const e = document.getElementById(id); if(e) e.style.display = remoteForm ? 'block' : 'none'; });
   const remoteBanner = lastRegisteredSource === 'remote';
   ['register-ship-section','register-slip-section','register-photo-section'].forEach(id=>{ const e = document.getElementById(id); if(e) e.style.display = remoteBanner ? 'block' : 'none'; });
@@ -1549,6 +1571,7 @@ function applyLanguage(){
   document.getElementById('lang-btn-en').classList.toggle('active', currentLang==='en');
   document.getElementById('lang-btn-ar').classList.toggle('active', currentLang==='ar');
   updatePkgNote();
+  populateOriginWilayaOptions();
 }
 
 function setLanguage(lang){
@@ -2937,6 +2960,12 @@ async function registerDevice(){
   }
 
   const sourceVal = document.getElementById('r-source').value;
+  const originWilaya = document.getElementById('r-origin-wilaya').value;
+  if(sourceVal === 'remote' && !originWilaya){
+    errEl.textContent = currentLang==='ar' ? 'اختر الولاية التي سترسل منها' : 'Please choose the wilaya you are sending from';
+    errEl.style.display = 'block';
+    return;
+  }
   if(!sourceVal){
     errEl.textContent = currentLang==='ar' ? 'اختر كيف ستوصل الجهاز' : 'Please choose how you will bring the device';
     errEl.style.display = 'block';
@@ -2966,13 +2995,14 @@ async function registerDevice(){
   lastRegisteredPhone = phone;
   apiGet('customerSaveNameParts', {id: res.id, phone: phone, firstName: firstName, lastName: lastName});
   apiGet('customerSaveSource', {id: res.id, phone: phone, source: sourceVal});
+  if(sourceVal === 'remote') apiGet('customerSaveOriginWilaya', {id: res.id, phone: phone, wilaya: originWilaya});
   document.getElementById('package-photo-idle').style.display = 'block';
   document.getElementById('package-photo-done').style.display = 'none';
   document.getElementById('package-photo-input').value = '';
   document.getElementById('package-photo-preview').innerHTML = '';
   document.getElementById('package-photo-upload-btn').style.display = 'none';
   document.getElementById('package-photo-error').style.display = 'none';
-  ['r-firstname','r-lastname','r-phone','r-source','r-brand','r-model','r-issue','r-brand-other','r-model-other'].forEach(id=>document.getElementById(id).value='');
+  ['r-firstname','r-lastname','r-phone','r-source','r-origin-wilaya','r-brand','r-model','r-issue','r-brand-other','r-model-other'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('r-phone-preview').textContent = '';
   document.getElementById('r-brand-other').style.display = 'none';
   document.getElementById('r-model-other').style.display = 'none';
@@ -3231,6 +3261,8 @@ function ticketFullRowHtml(t){
           <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
         </div>
 
+        <label>📍 Wilaya the customer ships from</label>
+        <select id="pkg-origin-${t.id}"><option value=""></option>${WILAYAS.map(w=>`<option value="${w}" ${t.originWilaya===w?'selected':''}>${w}</option>`).join('')}</select>
         <label>📦 Package — sender name on the parcel</label>
         <input id="pkg-sender-${t.id}" dir="auto" value="${escHtml(t.packageSenderName||'')}">
         <div class="row2">
