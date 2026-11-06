@@ -892,7 +892,7 @@ textarea{resize:vertical;min-height:56px;}
         </div>
         <div id="register-qr" style="margin-top:12px;"></div>
         <div id="register-pkg-note" style="margin-top:18px;padding:14px 16px;border:2px solid #c9a227;border-radius:12px;color:#c9a227;font-weight:700;font-size:16px;line-height:1.5;"></div>
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
+        <div id="register-ship-section" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
           <label data-i18n="pkg_info_heading">🚚 Your shipment details (optional)</label>
           <div style="font-size:12px;color:var(--text-muted);margin:2px 0 8px;" data-i18n="pkg_info_hint">Helps us recognise your parcel when it arrives.</div>
           <input id="pkg-sender" dir="auto" data-i18n-placeholder="pkg_sender_ph" placeholder="Sender name on the package (if not your name)">
@@ -907,10 +907,10 @@ textarea{resize:vertical;min-height:56px;}
           <div class="pw-error" id="pkg-info-error"></div>
           <div id="pkg-info-done" style="display:none;font-size:13px;color:var(--trace);margin-top:8px;">✅ <span data-i18n="pkg_saved_msg">Saved — thanks!</span></div>
         </div>
-        <div style="margin-top:16px;text-align:center;">
+        <div id="register-slip-section" style="margin-top:16px;text-align:center;">
           <button class="btn-ghost" onclick="downloadPackageSlip()" data-i18n="slip_btn">⬇️ Download package slip (put it inside the box)</button>
         </div>
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
+        <div id="register-photo-section" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
           <label data-i18n="package_photo_heading">📷 Photo of the package (optional)</label>
           <div id="package-photo-idle">
             <input type="file" id="package-photo-input" accept="image/*" capture="environment" onchange="previewPackagePhoto()">
@@ -933,7 +933,7 @@ textarea{resize:vertical;min-height:56px;}
         <input id="r-phone" type="tel" inputmode="numeric" maxlength="10" oninput="formatPhoneInput(this)">
         <div id="r-phone-preview" style="font-size:12px;color:var(--text-muted);margin:-8px 0 12px;"></div>
         <label data-i18n="reg_source_label">How will you bring the device?</label>
-        <select id="r-source">
+        <select id="r-source" onchange="applyRegisterSourceUI()">
           <option value="" data-i18n="reg_source_choose">— Choose —</option>
           <option value="shop" data-i18n="reg_source_shop">I will drop it at the shop</option>
           <option value="remote" data-i18n="reg_source_remote">I am far — I will ship it</option>
@@ -1048,8 +1048,8 @@ textarea{resize:vertical;min-height:56px;}
         </div>
         <label data-i18n="describe_issue">Describe the issue</label>
         <textarea id="r-issue" dir="auto" style="min-height:100px;"></textarea>
-        <div class="callout" data-i18n="callout_photo" style="margin-top:16px;font-size:13px;">📷 Please send us a picture of the package when you send your device on WhatsApp</div>
-        <div class="callout" data-i18n="callout_write_number" style="margin-top:10px;font-size:13px;">✏️ After registering you'll get a repair number — please write it clearly on the package before sending it, so we can recognise your parcel.</div>
+        <div class="callout" id="callout-photo" data-i18n="callout_photo" style="display:none;margin-top:16px;font-size:13px;">📷 Please send us a picture of the package when you send your device on WhatsApp</div>
+        <div class="callout" id="callout-writenum" data-i18n="callout_write_number" style="display:none;margin-top:10px;font-size:13px;">✏️ After registering you'll get a repair number — please write it clearly on the package before sending it, so we can recognise your parcel.</div>
 
         <div class="conditions-gate">
           <button type="button" class="btn-ghost" style="width:auto;" onclick="openConditionsModal()">📄 <span data-i18n="view_conditions_btn">LAPTX Conditions</span></button>
@@ -1506,10 +1506,21 @@ function ticketSearchText(t){
   return [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel,t.packageSenderName,t.packageCarrier,t.packageTracking].join(' ').toLowerCase();
 }
 
+// Remote customers ship the device: show package/shipment tools, no "Mark received".
+// In-shop customers hand it over directly: show "Mark received", hide the shipping tools.
+function applyRegisterSourceUI(){
+  const sel = document.getElementById('r-source');
+  const remoteForm = sel && sel.value === 'remote';
+  ['callout-photo','callout-writenum'].forEach(id=>{ const e = document.getElementById(id); if(e) e.style.display = remoteForm ? 'block' : 'none'; });
+  const remoteBanner = lastRegisteredSource === 'remote';
+  ['register-ship-section','register-slip-section','register-photo-section'].forEach(id=>{ const e = document.getElementById(id); if(e) e.style.display = remoteBanner ? 'block' : 'none'; });
+  updatePkgNote();
+}
+
 function updatePkgNote(){
   const el = document.getElementById('register-pkg-note');
   if(!el) return;
-  if(!lastRegisteredId){ el.style.display = 'none'; return; }
+  if(!lastRegisteredId || lastRegisteredSource !== 'remote'){ el.style.display = 'none'; return; }
   el.style.display = 'block';
   el.setAttribute('dir', currentLang==='ar' ? 'rtl' : 'ltr');
   const n = '\u2066#' + lastRegisteredId + '\u2069';
@@ -2805,7 +2816,7 @@ function printReceipt(id){
 }
 
 let receivePwCache = null;
-function renderStatusQR(containerId, ticketId, phone){
+function renderStatusQR(containerId, ticketId, phone, hideReceive){
   const el = document.getElementById(containerId);
   el.innerHTML = '';
   const wrap = document.createElement('div');
@@ -2823,7 +2834,7 @@ function renderStatusQR(containerId, ticketId, phone){
   caption.style.lineHeight = '1.4';
   caption.textContent = 'Scan to see the repair status instantly.';
   wrap.appendChild(caption);
-  {
+  if(!hideReceive){
     const rb = document.createElement('button');
     rb.className = 'btn-ghost';
     rb.style.cssText = 'background:var(--trace);color:#0C1712;border-color:var(--trace);width:auto;padding:10px 18px;';
@@ -2947,10 +2958,11 @@ async function registerDevice(){
 
   document.getElementById('register-id-val').textContent = '#' + res.id;
   document.getElementById('register-banner').classList.add('show');
-  renderStatusQR('register-qr', res.id, phone);
+  lastRegisteredSource = sourceVal;
+  renderStatusQR('register-qr', res.id, phone, sourceVal === 'remote');
   lastRegisteredId = res.id;
   lastRegisteredInfo = {name:name, phone:phone, device:[brand, model].filter(Boolean).join(' ')};
-  updatePkgNote();
+  applyRegisterSourceUI();
   lastRegisteredPhone = phone;
   apiGet('customerSaveNameParts', {id: res.id, phone: phone, firstName: firstName, lastName: lastName});
   apiGet('customerSaveSource', {id: res.id, phone: phone, source: sourceVal});
@@ -2988,12 +3000,13 @@ function resetRegisterForm(){
   lastRegisteredId = null;
   lastRegisteredPhone = null;
   lastRegisteredInfo = null;
+  lastRegisteredSource = '';
   selectedPackagePhotoFile = null;
   ['pkg-sender','pkg-carrier','pkg-carrier-other','pkg-tracking'].forEach(i=>{const e=document.getElementById(i); if(e) e.value='';});
   document.getElementById('pkg-carrier-other').style.display = 'none';
   document.getElementById('pkg-info-done').style.display = 'none';
   document.getElementById('pkg-info-error').style.display = 'none';
-  updatePkgNote();
+  applyRegisterSourceUI();
 }
 
 function isOverdue(t){
@@ -6309,6 +6322,7 @@ let lastLookupId = null;
 let lastLookupPhone = null;
 let lastRegisteredId = null;
 let lastRegisteredInfo = null;
+let lastRegisteredSource = '';
 let lastRegisteredPhone = null;
 let selectedPackagePhotoFile = null;
 
