@@ -314,7 +314,7 @@ textarea{resize:vertical;min-height:56px;}
     </div>
 
     <div class="panel" style="margin-bottom:16px;padding:16px;">
-      <input id="global-search-input" placeholder="🔍 Find a repair by ID or phone number — searches every tab..." oninput="renderGlobalSearch()" style="margin:0;">
+      <input id="global-search-input" placeholder="🔍 Find a repair by ID, phone, name or tracking number — searches every tab..." oninput="renderGlobalSearch()" style="margin:0;">
       <div id="global-search-results"></div>
     </div>
 
@@ -891,6 +891,25 @@ textarea{resize:vertical;min-height:56px;}
           <div class="id-val mono" id="register-id-val"></div>
         </div>
         <div id="register-qr" style="margin-top:12px;"></div>
+        <div id="register-pkg-note" style="margin-top:18px;padding:14px 16px;border:2px solid #c9a227;border-radius:12px;color:#c9a227;font-weight:700;font-size:16px;line-height:1.5;"></div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
+          <label data-i18n="pkg_info_heading">🚚 Your shipment details (optional)</label>
+          <div style="font-size:12px;color:var(--text-muted);margin:2px 0 8px;" data-i18n="pkg_info_hint">Helps us recognise your parcel when it arrives.</div>
+          <input id="pkg-sender" dir="auto" data-i18n-placeholder="pkg_sender_ph" placeholder="Sender name on the package (if not your name)">
+          <select id="pkg-carrier" style="margin-top:8px;" onchange="document.getElementById('pkg-carrier-other').style.display = this.value==='__other__' ? 'block' : 'none'">
+            <option value="" data-i18n="pkg_carrier_choose">Delivery company…</option>
+            <option>Yalidine</option><option>ZR Express</option><option>Ecotrack</option><option>Maystro Delivery</option><option>Procolis</option><option>Noest</option><option>Algérie Poste</option>
+            <option value="__other__" data-i18n="pkg_carrier_other">Other</option>
+          </select>
+          <input id="pkg-carrier-other" dir="auto" style="display:none;margin-top:8px;" data-i18n-placeholder="pkg_carrier_other_ph" placeholder="Delivery company name">
+          <input id="pkg-tracking" class="mono" style="margin-top:8px;" data-i18n-placeholder="pkg_tracking_ph" placeholder="Tracking number">
+          <button class="btn-ghost" style="margin-top:10px;" onclick="savePackageInfoFromBanner()" data-i18n="pkg_save_btn">Save shipment details</button>
+          <div class="pw-error" id="pkg-info-error"></div>
+          <div id="pkg-info-done" style="display:none;font-size:13px;color:var(--trace);margin-top:8px;">✅ <span data-i18n="pkg_saved_msg">Saved — thanks!</span></div>
+        </div>
+        <div style="margin-top:16px;text-align:center;">
+          <button class="btn-ghost" onclick="downloadPackageSlip()" data-i18n="slip_btn">⬇️ Download package slip (put it inside the box)</button>
+        </div>
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
           <label data-i18n="package_photo_heading">📷 Photo of the package (optional)</label>
           <div id="package-photo-idle">
@@ -1030,6 +1049,7 @@ textarea{resize:vertical;min-height:56px;}
         <label data-i18n="describe_issue">Describe the issue</label>
         <textarea id="r-issue" dir="auto" style="min-height:100px;"></textarea>
         <div class="callout" data-i18n="callout_photo" style="margin-top:16px;font-size:13px;">📷 Please send us a picture of the package when you send your device on WhatsApp</div>
+        <div class="callout" data-i18n="callout_write_number" style="margin-top:10px;font-size:13px;">✏️ After registering you'll get a repair number — please write it clearly on the package before sending it, so we can recognise your parcel.</div>
 
         <div class="conditions-gate">
           <button type="button" class="btn-ghost" style="width:auto;" onclick="openConditionsModal()">📄 <span data-i18n="view_conditions_btn">LAPTX Conditions</span></button>
@@ -1180,6 +1200,8 @@ const ACTION_TO_RPC = {
   customerSaveShippingInfo: 'customer_save_shipping_info',
   customerSaveNameParts: 'customer_save_name_parts',
   customerSaveSource: 'customer_save_source',
+  customerSavePackageInfo: 'customer_save_package_info',
+  adminSetPackageInfo: 'admin_set_package_info',
   adminGetTaskReminderMinutes: 'admin_get_task_reminder_minutes',
   adminSetTaskReminderMinutes: 'admin_set_task_reminder_minutes',
   adminSetTaskTimerEnabled: 'admin_set_task_timer_enabled',
@@ -1251,6 +1273,18 @@ const I18N = {
     describe_issue: 'Describe the issue',
     issue_placeholder: "What's wrong with the device? Be as detailed as you can.",
     callout_photo: '📷 Please send us a picture of the package when you send your device on WhatsApp',
+    pkg_info_heading: '🚚 Your shipment details (optional)',
+    pkg_info_hint: 'Helps us recognise your parcel when it arrives.',
+    pkg_sender_ph: 'Sender name on the package (if not your name)',
+    pkg_carrier_choose: 'Delivery company…',
+    pkg_carrier_other: 'Other',
+    pkg_carrier_other_ph: 'Delivery company name',
+    pkg_tracking_ph: 'Tracking number',
+    pkg_save_btn: 'Save shipment details',
+    pkg_saved_msg: 'Saved — thanks!',
+    slip_btn: '⬇️ Download package slip (put it inside the box)',
+    callout_write_number: '✏️ After registering you\'ll get a repair number — please write it clearly on the package before sending it, so we can recognise your parcel.',
+    write_number_note: '✏️ Write your repair number {n} clearly on the package before sending it — so we can recognise your parcel.',
     form_error_register: 'Enter your name and phone number.',
     submit_btn: 'Submit',
     reg_callout: "⚠️ You'll be given a repair number after submitting — save it along with your phone number to check your status later.",
@@ -1324,6 +1358,18 @@ const I18N = {
     describe_issue: 'صف المشكلة',
     issue_placeholder: 'ما هي المشكلة في الجهاز؟ كن دقيقاً قدر الإمكان.',
     callout_photo: '📷 يرجى إرسال صورة للطرد عند إرسال جهازك عبر واتساب',
+    pkg_info_heading: '🚚 معلومات شحنتك (اختياري)',
+    pkg_info_hint: 'تساعدنا على التعرف على طردك عند وصوله.',
+    pkg_sender_ph: 'اسم المرسل على الطرد (إن لم يكن اسمك)',
+    pkg_carrier_choose: 'شركة التوصيل…',
+    pkg_carrier_other: 'أخرى',
+    pkg_carrier_other_ph: 'اسم شركة التوصيل',
+    pkg_tracking_ph: 'رقم التتبع',
+    pkg_save_btn: 'حفظ معلومات الشحنة',
+    pkg_saved_msg: 'تم الحفظ — شكراً!',
+    slip_btn: '⬇️ تحميل ورقة الطرد (ضعها داخل الصندوق)',
+    callout_write_number: '✏️ بعد التسجيل ستحصل على رقم الإصلاح — يرجى كتابته بوضوح على الطرد قبل إرساله حتى نتعرف على طردك.',
+    write_number_note: '✏️ اكتب رقم الإصلاح {n} بوضوح على الطرد قبل إرساله — حتى نتعرف على طردك.',
     form_error_register: 'أدخل اسمك ورقم هاتفك.',
     submit_btn: 'إرسال',
     reg_callout: '⚠️ سيتم إعطاؤك رقم إصلاح بعد الإرسال — احتفظ به مع رقم هاتفك للتحقق من حالتك لاحقاً.',
@@ -1381,6 +1427,95 @@ let currentLang = localStorage.getItem('laptx_lang') || 'en';
 function statusLabel(status){ return (I18N[currentLang].statuses[status]) || status; }
 function paymentStatusLabel(status){ return (I18N[currentLang].payment[status]) || status; }
 
+
+async function savePackageInfoFromBanner(){
+  const errEl = document.getElementById('pkg-info-error');
+  errEl.style.display = 'none';
+  if(!lastRegisteredId) return;
+  const sender = document.getElementById('pkg-sender').value.trim();
+  let carrier = document.getElementById('pkg-carrier').value;
+  if(carrier === '__other__') carrier = document.getElementById('pkg-carrier-other').value.trim();
+  const tracking = document.getElementById('pkg-tracking').value.trim();
+  if(!sender && !carrier && !tracking){ return; }
+  const res = await apiGet('customerSavePackageInfo', {id:String(lastRegisteredId), phone:lastRegisteredPhone, senderName:sender, carrier:carrier, tracking:tracking});
+  if(!res.ok){
+    errEl.textContent = res.error || (currentLang==='ar' ? 'حدث خطأ ما. حاول مرة أخرى.' : 'Something went wrong. Try again.');
+    errEl.style.display = 'block';
+    return;
+  }
+  document.getElementById('pkg-info-done').style.display = 'block';
+}
+
+// Printable slip (A6 @ 300dpi) the customer puts inside the box
+function downloadPackageSlip(){
+  if(!lastRegisteredId){ return; }
+  if(typeof QRCode === 'undefined'){ alert('QR code library did not load. Check your connection and try again.'); return; }
+  const id = String(lastRegisteredId);
+  const info = lastRegisteredInfo || {};
+  const link = window.location.origin + window.location.pathname + '?tab=customer&id=' + encodeURIComponent(id) + (info.phone ? '&phone=' + encodeURIComponent(info.phone) : '');
+  const hidden = document.createElement('div');
+  hidden.style.position = 'fixed'; hidden.style.left = '-9999px';
+  document.body.appendChild(hidden);
+  new QRCode(hidden, {text: link, width: 420, height: 420, colorDark:'#000000', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M});
+  const qrCanvas = hidden.querySelector('canvas');
+  const W = 1240, H = 1748;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+  x.strokeStyle = '#000000'; x.lineWidth = 6; x.setLineDash([24, 16]); x.strokeRect(30, 30, W-60, H-60); x.setLineDash([]);
+  x.fillStyle = '#000000'; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  const font = (px, w) => x.font = (w||'700') + ' ' + px + 'px Arial, sans-serif';
+  const isAr = s => /[؀-ۿ]/.test(s||'');
+  const draw = (txt, y, px, w) => { font(px, w); x.direction = isAr(txt) ? 'rtl' : 'ltr'; x.fillText(txt, W/2, y); x.direction = 'ltr'; };
+  draw('LAPTX GRAETZ', 150, 70);
+  draw('GPU REPAIR', 215, 40, '400');
+  x.fillRect(120, 260, W-240, 4);
+  draw('REPAIR NUMBER', 350, 46, '400');
+  draw('#' + id, 590, 300);
+  const qs = 420;
+  x.drawImage(qrCanvas, (W-qs)/2, 650, qs, qs);
+  draw(info.name || '', 1170, 64);
+  draw(info.phone || '', 1245, 54, '400');
+  draw(info.device || '', 1320, 54, '400');
+  x.fillRect(120, 1380, W-240, 4);
+  draw('PUT THIS SLIP INSIDE THE BOX', 1470, 52);
+  draw('Also write the number ' + '#' + id + ' on the outside of the package.', 1535, 38, '400');
+  draw('ضع هذه الورقة داخل الصندوق', 1620, 52);
+  draw('واكتب الرقم #' + id + ' على الطرد من الخارج.', 1680, 38, '400');
+  hidden.remove();
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/png');
+  a.download = 'laptx-package-slip-' + id + '.png';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// Staff side: save package info for a ticket
+async function savePackageInfoAdmin(id, event){
+  if(event) event.stopPropagation();
+  const g = k => document.getElementById('pkg-' + k + '-' + id).value.trim();
+  const res = await apiGet('adminSetPackageInfo', {id:id, senderName:g('sender'), carrier:g('carrier'), tracking:g('tracking')});
+  if(!res.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
+  await refreshTicketsOnly();
+}
+function packageInfoLineHtml(t){
+  const parts = [t.packageCarrier, t.packageTracking && ('#' + t.packageTracking), t.packageSenderName && ('sender: ' + t.packageSenderName)].filter(Boolean);
+  if(!parts.length) return '';
+  return `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">📦 ${escHtml(parts.join(' · '))}</div>`;
+}
+function ticketSearchText(t){
+  return [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel,t.packageSenderName,t.packageCarrier,t.packageTracking].join(' ').toLowerCase();
+}
+
+function updatePkgNote(){
+  const el = document.getElementById('register-pkg-note');
+  if(!el) return;
+  if(!lastRegisteredId){ el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.setAttribute('dir', currentLang==='ar' ? 'rtl' : 'ltr');
+  const n = '\u2066#' + lastRegisteredId + '\u2069';
+  el.textContent = I18N[currentLang].write_number_note.replace('{n}', n);
+}
+
 function applyLanguage(){
   const dict = I18N[currentLang];
   const isAr = currentLang === 'ar';
@@ -1402,6 +1537,7 @@ function applyLanguage(){
 
   document.getElementById('lang-btn-en').classList.toggle('active', currentLang==='en');
   document.getElementById('lang-btn-ar').classList.toggle('active', currentLang==='ar');
+  updatePkgNote();
 }
 
 function setLanguage(lang){
@@ -2813,6 +2949,8 @@ async function registerDevice(){
   document.getElementById('register-banner').classList.add('show');
   renderStatusQR('register-qr', res.id, phone);
   lastRegisteredId = res.id;
+  lastRegisteredInfo = {name:name, phone:phone, device:[brand, model].filter(Boolean).join(' ')};
+  updatePkgNote();
   lastRegisteredPhone = phone;
   apiGet('customerSaveNameParts', {id: res.id, phone: phone, firstName: firstName, lastName: lastName});
   apiGet('customerSaveSource', {id: res.id, phone: phone, source: sourceVal});
@@ -2849,7 +2987,13 @@ function resetRegisterForm(){
   document.getElementById('register-submit-btn').disabled = true;
   lastRegisteredId = null;
   lastRegisteredPhone = null;
+  lastRegisteredInfo = null;
   selectedPackagePhotoFile = null;
+  ['pkg-sender','pkg-carrier','pkg-carrier-other','pkg-tracking'].forEach(i=>{const e=document.getElementById(i); if(e) e.value='';});
+  document.getElementById('pkg-carrier-other').style.display = 'none';
+  document.getElementById('pkg-info-done').style.display = 'none';
+  document.getElementById('pkg-info-error').style.display = 'none';
+  updatePkgNote();
 }
 
 function isOverdue(t){
@@ -3012,6 +3156,7 @@ function ticketFullRowHtml(t){
           <div class="ticket-id">#${t.id}${sourceBadgeHtml(t)}</div>
           <div class="ticket-meta" style="font-size:15px;">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          ${packageInfoLineHtml(t)}
           ${overdueBadge(t)}
           ${returningBadge(t)}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
@@ -3072,6 +3217,14 @@ function ticketFullRowHtml(t){
           <label>Waiting for which part?</label>
           <input id="waiting-part-${t.id}" placeholder="e.g. GPU core chip" value="${(t.waitingForPart||'').replace(/"/g,'&quot;')}">
         </div>
+
+        <label>📦 Package — sender name on the parcel</label>
+        <input id="pkg-sender-${t.id}" dir="auto" value="${escHtml(t.packageSenderName||'')}">
+        <div class="row2">
+          <div><label>Delivery company</label><input id="pkg-carrier-${t.id}" dir="auto" value="${escHtml(t.packageCarrier||'')}"></div>
+          <div><label>Tracking number</label><input id="pkg-tracking-${t.id}" class="mono" value="${escHtml(t.packageTracking||'')}"></div>
+        </div>
+        <button class="btn-ghost" style="margin-top:8px;width:auto;" onclick="savePackageInfoAdmin('${t.id}', event)">💾 Save package info</button>
 
         <label>Note for customer (shown on their status page)</label>
         <textarea id="cnote-${t.id}" dir="auto">${t.customerNote||''}</textarea>
@@ -3154,7 +3307,7 @@ function renderAdminList(){
 
   let filtered = tickets.filter(t=>{
     if(t.archived) return false;
-    const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+    const matchesQ = !q || ticketSearchText(t).includes(q);
     const matchesF = !filter || t.status===filter;
     const matchesQuick = quickFilter==='overdue' ? isOverdue(t) : (quickFilter==='cancelled' ? t.status==='Cancelled' : (quickFilter==='shop' || quickFilter==='remote' ? t.source===quickFilter : true));
     const matchesCounter = matchesCounterFilter(t);
@@ -3346,7 +3499,8 @@ function renderGlobalSearch(){
     const idMatch = t.id.toLowerCase().includes(q);
     const phoneMatch = (t.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')) && q.replace(/\D/g,'').length>0;
     const nameMatch = (t.customerName||'').toLowerCase().includes(q);
-    return idMatch || phoneMatch || nameMatch;
+    const pkgMatch = [t.packageSenderName,t.packageCarrier,t.packageTracking].join(' ').toLowerCase().includes(q);
+    return idMatch || phoneMatch || nameMatch || pkgMatch;
   }).slice(0, 15);
 
   if(matches.length===0){
@@ -3553,6 +3707,25 @@ async function saveDiagDetail(id, event){
 
 let diagnosedNoteOpenId = null;
 
+let customerNoteOpenId = null;
+function toggleCustomerNote(id, event){
+  if(event) event.stopPropagation();
+  customerNoteOpenId = customerNoteOpenId === id ? null : id;
+  renderVisibleAdminSubview();
+}
+async function saveCustomerNote(id, event){
+  if(event) event.stopPropagation();
+  const t = tickets.find(x=>x.id===id);
+  const note = document.getElementById('cust-note-'+id).value.trim();
+  const res = await apiGet('adminSaveNotes', {id:id, customerNote:note, internalNotes:(t ? t.internalNotes : '')});
+  if(!res.ok){
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  customerNoteOpenId = null;
+  await refreshTicketsOnly();
+}
+
 function toggleDiagnosticNote(id, event){
   if(event) event.stopPropagation();
   diagnosedNoteOpenId = diagnosedNoteOpenId === id ? null : id;
@@ -3660,7 +3833,8 @@ function renderDiagnosedList(){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
-          ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
+          ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${escHtml(t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes)}</div>` : ''}
+          ${t.customerNote ? `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">💬 ${escHtml(t.customerNote.length>80 ? t.customerNote.slice(0,80)+'…' : t.customerNote)}</div>` : ''}
         </div>
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Fixable', event)">✅ Fixable</button>
@@ -3669,6 +3843,7 @@ function renderDiagnosedList(){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard repair</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Waiting for Parts')">⏳ Waiting for parts</button>
         ${actionsMenuHtml(t.id, [
+          {label: t.customerNote ? '💬 Edit note for customer' : '💬 Add note for customer', onclick:`toggleCustomerNote('${t.id}', event)`},
           {label: t.diagnosticNotes ? '📝 Edit note' : '📝 Add note', onclick:`toggleDiagnosticNote('${t.id}', event)`},
           {label:'📄 Download report', onclick:`downloadDiagnosticReportPDF('${t.id}', event)`},
           {label:'↩️ Back to Tickets', onclick:`setTicketDiagnosed('${t.id}', false, event)`},
@@ -3676,6 +3851,16 @@ function renderDiagnosedList(){
         ])}
       </div>
       ${diagDetailHtml(t)}
+      ${customerNoteOpenId === t.id ? `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);" onclick="event.stopPropagation()">
+          <label>Note for customer (shown on their status page)</label>
+          <textarea id="cust-note-${t.id}" dir="auto" placeholder="e.g. Your card needs a new VRM chip — we'll update you tomorrow.">${escHtml(t.customerNote||'')}</textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn-ghost" style="background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="saveCustomerNote('${t.id}', event)">Save note</button>
+            <button class="btn-ghost" onclick="toggleCustomerNote('${t.id}', event)">Cancel</button>
+          </div>
+        </div>
+      ` : ''}
       ${noteOpen ? `
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
           <label>Diagnostic notes — what you found, what it needs</label>
@@ -3798,7 +3983,8 @@ function renderClassifiedList(containerId, result, emptyMsg){
       </div>
       ${result === 'Not Fixable' ? fixNoFixPillHtml(t) : ''}
       ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">📋 Evaluate</button>` : ''}
-      ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>` : ''}
+      ${result === 'Tests OK' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="notifyCustomerWhatsApp('${t.id}', event)">${t.notifiedDiagnosis ? '✅ Notified' : '📱 Notify customer'}</button>` : ''}
+      ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — move to To Pick Up</button>` : ''}
       ${actionsMenuHtml(t.id, [
         ...(result === 'Not Fixable' ? [
           {label:'📱 Notify customer', onclick:`notifyCustomerWhatsApp('${t.id}', event)`},
@@ -3816,8 +4002,8 @@ async function endTaskBackToCustomer(id, event){
   if(event) event.stopPropagation();
   const ticket = tickets.find(x=>x.id===id);
 
-  if(ticket && ticket.diagnosisResult === 'Not Fixable'){
-    const fee = window.prompt('Diagnostic fee for #' + id + ' (DA) — leave blank to skip:', ticket.price || '500');
+  if(ticket && (ticket.diagnosisResult === 'Not Fixable' || ticket.diagnosisResult === 'Tests OK')){
+    const fee = window.prompt((ticket.diagnosisResult === 'Tests OK' ? 'Testing fee for #' : 'Diagnostic fee for #') + id + ' (DA) — leave blank to skip:', ticket.price || (ticket.diagnosisResult === 'Tests OK' ? '' : '500'));
     if(fee === null) return; // cancelled entirely
     if(fee.trim() !== ''){
       const priceRes = await apiGet('adminSetPricing', {
@@ -3832,7 +4018,7 @@ async function endTaskBackToCustomer(id, event){
       }
     }
 
-    // Not Fixable devices move to To Pick Up — customer still needs to come collect it,
+    // Not Fixable / Tests OK devices move to To Pick Up — customer still needs to come collect it,
     // no different from a repaired device, just without the repair itself.
     const statusRes = await apiGet('adminUpdateStatus', {id:id, status:'To Pick Up', note:''});
     if(!statusRes.ok){
@@ -4113,7 +4299,7 @@ function renderDoneList(){
   document.getElementById('done-count').textContent = done.length + ' total';
 
   const filtered = done.filter(t=>{
-    return !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+    return !q || ticketSearchText(t).includes(q);
   });
 
   if(filtered.length===0){
@@ -4177,7 +4363,7 @@ function renderReadySimpleList(){
   document.getElementById('ready-count').textContent = ready.length + ' total';
 
   const filtered = ready.filter(t=>{
-    return !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+    return !q || ticketSearchText(t).includes(q);
   });
 
   if(filtered.length===0){
@@ -4248,7 +4434,7 @@ function renderShippedList(){
   const q = document.getElementById('shipped-search').value.toLowerCase();
   const allShipped = tickets.filter(t=>!t.archived && t.status==='To Pick Up' && t.yalidineTracking);
   const shipped = allShipped
-    .filter(t=>!q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q));
+    .filter(t=>!q || ticketSearchText(t).includes(q));
 
   // Pending amount is based on everything in transit, not the search filter —
   // this is a running total, not scoped to whatever you're currently searching for
@@ -4273,7 +4459,7 @@ function renderShippingList(){
   const qFix = document.getElementById('shipping-search-fix').value.toLowerCase();
   const fixList = allToPickUp
     .filter(t=>t.diagnosisResult !== 'Not Fixable')
-    .filter(t=>!qFix || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(qFix));
+    .filter(t=>!qFix || ticketSearchText(t).includes(qFix));
   document.getElementById('shipping-count-fix').textContent = fixList.length + ' total';
   const fixContainer = document.getElementById('shipping-list-fix');
   fixContainer.innerHTML = fixList.length===0
@@ -4283,7 +4469,7 @@ function renderShippingList(){
   const qNoFix = document.getElementById('shipping-search-nofix').value.toLowerCase();
   const noFixList = allToPickUp
     .filter(t=>t.diagnosisResult === 'Not Fixable')
-    .filter(t=>!qNoFix || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(qNoFix));
+    .filter(t=>!qNoFix || ticketSearchText(t).includes(qNoFix));
   document.getElementById('shipping-count-nofix').textContent = noFixList.length + ' total';
   const noFixContainer = document.getElementById('shipping-list-nofix');
   noFixContainer.innerHTML = noFixList.length===0
@@ -4338,7 +4524,7 @@ function renderArchiveList(){
   document.getElementById('archive-count').textContent = pickedUp.length + ' total';
 
   const filtered = pickedUp.filter(t=>{
-    return !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+    return !q || ticketSearchText(t).includes(q);
   });
 
   if(filtered.length===0){
@@ -4469,7 +4655,7 @@ function renderWorkshopList(){
   document.getElementById('workshop-count').textContent = tickets.length + ' total';
 
   let filtered = tickets.filter(t=>{
-    const matchesQ = !q || [t.id,t.customerName,t.phone,t.deviceBrand,t.deviceModel].join(' ').toLowerCase().includes(q);
+    const matchesQ = !q || ticketSearchText(t).includes(q);
     const matchesF = !filter || (t.paymentStatus || 'Unpaid')===filter;
     return matchesQ && matchesF;
   });
@@ -4770,6 +4956,8 @@ async function notifyCustomerWhatsApp(id, event){
       message = `مرحباً ${name}، معك محل ${brandL} بخصوص الإصلاح رقم ${idL} (${deviceL}). خبر جيد — قمنا بتشخيص العطل وهو قابل للإصلاح. سنبدأ في الإصلاح وسنعلمكم فور جاهزيته. شكراً لكم!`;
     }else if(t.diagnosisResult === 'Not Fixable'){
       message = `مرحباً ${name}، معك محل ${brandL} بخصوص الإصلاح رقم ${idL} (${deviceL}). للأسف، بعد التشخيص تبين أن الجهاز غير قابل للإصلاح. يرجى المرور بنا أو الاتصال بنا لمناقشة الخطوات القادمة واستلام الجهاز. شكراً لكم.`;
+    }else if(t.diagnosisResult === 'Tests OK'){
+      message = `مرحباً ${name}، معك محل ${brandL} بخصوص الإصلاح رقم ${idL} (${deviceL}). أنهينا فحص جهازك، وجميع الاختبارات سليمة ✅ ولم نجد أي عطل. يمكنكم المرور لاستلامه أو التواصل معنا لأي استفسار.`;
     }else if(t.flaggedHard){
       message = `مرحباً ${name}، معك محل ${brandL} بخصوص الإصلاح رقم ${idL} (${deviceL}). نود إعلامكم أن هذا الإصلاح أكثر تعقيداً من المعتاد، لذا سيستغرق وقتاً أطول قليلاً من المعتاد. نحن نعمل عليه وسنبقيكم على اطلاع. شكراً لصبركم!`;
     }else{
@@ -4780,6 +4968,8 @@ async function notifyCustomerWhatsApp(id, event){
       message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Good news — we've diagnosed the issue and it's fixable. We'll get started on the repair. We'll let you know once it's ready. Thank you!`;
     }else if(t.diagnosisResult === 'Not Fixable'){
       message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). We've finished diagnosing your device, and unfortunately it's not fixable. Please come by or contact us to discuss next steps and arrange pickup. Thank you.`;
+    }else if(t.diagnosisResult === 'Tests OK'){
+      message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). We've finished testing your device and everything tested OK ✅ — we couldn't find any fault. You're welcome to come by and pick it up, or contact us if you have any questions.`;
     }else if(t.flaggedHard){
       message = `Hi ${name}, this is LAPTX GPU regarding repair #${t.id} (${deviceLine}). Just a heads up — this turned out to be a more complex repair than usual, so it'll take a bit longer than our typical turnaround. We're on it and will keep you updated. Thank you for your patience!`;
     }else{
@@ -4808,35 +4998,24 @@ async function notifyCustomerPickupWhatsApp(id, event){
 
   const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'your device';
   const name = t.customerName ? t.customerName : 'there';
-  const wilayaName = (t.shippingWilaya || '').replace(/^\d+\s*-\s*/, '');
+  const link = window.location.origin + window.location.pathname + '?tab=customer&id=' + encodeURIComponent(t.id) + '&phone=' + encodeURIComponent(t.phone || '');
+  const hasShipping = !!t.shippingWilaya;
   let message;
 
   if(currentLang === 'ar'){
     const idL = ltrIsolate(t.id);
     const deviceL = ltrIsolate(deviceLine);
     const brandL = ltrIsolate('LAPTX GPU');
-    const yalidineL = ltrIsolate('Yalidine');
-    const wilayaL = ltrIsolate(wilayaName);
-    const communeL = ltrIsolate(t.shippingCommune || wilayaName);
-    if(t.shippingDeliveryType === 'stopdesk' && wilayaName){
-      message = `مرحباً ${name}، معك محل ${brandL}. تم شحن إصلاحكم رقم ${idL} (${deviceL}) عبر شركة ${yalidineL} إلى مكتب ${communeL}` +
-        (wilayaName ? ` في ولاية ${wilayaL}` : '') + `. يرجى التوجه لاستلام طردكم في أقرب وقت ممكن. شكراً لكم!`;
-    }else if(t.shippingDeliveryType === 'home'){
-      message = `مرحباً ${name}، معك محل ${brandL}. تم شحن إصلاحكم رقم ${idL} (${deviceL}) عبر شركة ${yalidineL} للتوصيل المنزلي` +
-        (wilayaName ? ` إلى ${t.shippingCommune ? ltrIsolate(t.shippingCommune) + '، ' : ''}${wilayaL}` : '') + `. يرجى التواجد لاستلامه. شكراً لكم!`;
-    }else{
-      message = `مرحباً ${name}، معك محل ${brandL}. إصلاحكم رقم ${idL} (${deviceL}) جاهز وتم شحنه عبر شركة ${yalidineL} — يرجى التحقق واستلام طردكم قريباً. شكراً لكم!`;
-    }
+    const linkL = ltrIsolate(link);
+    message = `مرحباً ${name}، معك محل ${brandL}. إصلاحكم رقم ${idL} (${deviceL}) جاهز للاستلام ✅` + '\n' +
+      (hasShipping
+        ? `يمكنكم المرور لاستلامه من المحل، أو سنرسله لكم حسب معلومات التوصيل التي أدخلتموها.`
+        : `يمكنكم المرور لاستلامه من المحل، أو اختيار التوصيل بإدخال معلومات الشحن الخاصة بكم عبر هذا الرابط:` + '\n' + linkL) + '\n' + `شكراً لكم!`;
   }else{
-    if(t.shippingDeliveryType === 'stopdesk' && wilayaName){
-      message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) has been shipped via Yalidine to the ${t.shippingCommune || wilayaName} stop-desk` +
-        (wilayaName ? ` in ${wilayaName}` : '') + `. Please go collect your parcel as soon as you can. Thank you!`;
-    }else if(t.shippingDeliveryType === 'home'){
-      message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) has been shipped via Yalidine for home delivery` +
-        (wilayaName ? ` to ${t.shippingCommune ? t.shippingCommune + ', ' : ''}${wilayaName}` : '') + `. Please make sure you're available to receive it. Thank you!`;
-    }else{
-      message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) is ready and has been shipped via Yalidine — please check for it and collect your parcel soon. Thank you!`;
-    }
+    message = `Hi ${name}, this is LAPTX GPU. Your repair #${t.id} (${deviceLine}) is ready for pickup ✅` + '\n' +
+      (hasShipping
+        ? `You can come collect it at the shop, or we'll ship it using the delivery details you entered.`
+        : `You can come collect it at the shop, or choose delivery by entering your shipping information here:` + '\n' + link) + '\n' + `Thank you!`;
   }
 
   const url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
@@ -6129,6 +6308,7 @@ function traceHtml(status, diagnosisResult){
 let lastLookupId = null;
 let lastLookupPhone = null;
 let lastRegisteredId = null;
+let lastRegisteredInfo = null;
 let lastRegisteredPhone = null;
 let selectedPackagePhotoFile = null;
 
