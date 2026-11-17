@@ -1163,7 +1163,6 @@ textarea{resize:vertical;min-height:56px;}
 const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
 
-
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // action (camelCase, matches the old Apps Script actions) -> Postgres RPC function name
@@ -2169,10 +2168,10 @@ function switchAdminSubview(v){
   // background check) show up without needing a manual reload
   if(shippedAutoRefreshInterval){ clearInterval(shippedAutoRefreshInterval); shippedAutoRefreshInterval = null; }
   if(v === 'shipped'){
-    refreshAllShippedStatuses(); // check live status immediately on opening the tab
+    refreshAllShippedStatuses(); // skips parcels checked in the last 5 min and delivered ones
     shippedAutoRefreshInterval = setInterval(()=>{
       if(currentAdminSubview === 'shipped') refreshAllShippedStatuses();
-    }, 60000); // every 60 seconds
+    }, YAL_AUTO_EVERY_MS); // every 5 minutes
   }
 }
 
@@ -5491,40 +5490,68 @@ async function resetRevenue(){
 
 // Core check logic, no UI side effects — reused by both the per-ticket
 // button and the automatic bulk refresh when opening the Shipped tab
-async function refreshAllShippedStatuses(){
-  const shippedIds = tickets
-    .filter(t=>!t.archived && t.status==='To Pick Up' && t.yalidineTracking)
-    .map(t=>t.id);
+// Yalidine limits how many requests we can make (per second / minute / hour),
+// so checks are spaced out, skipped when recent, and paused after a rate-limit error.
+const YAL_MIN_GAP_MS = 1300;          // pause between two parcels
+const YAL_RECHECK_MS = 5*60*1000;     // don't re-check the same parcel within 5 min (auto refresh)
+const YAL_AUTO_EVERY_MS = 5*60*1000;  // Shipped tab auto-refresh interval
+let yalCheckedAt = {};                // ticketId -> timestamp of last check
+let yalBackoffUntil = 0;              // timestamp: no Yalidine calls before this
+let yalRefreshing = false;            // prevents overlapping runs
+function yalBackoffLeft(){ return Math.max(0, Math.ceil((yalBackoffUntil - Date.now())/1000)); }
+function yalSetBackoff(sec){ yalBackoffUntil = Date.now() + (sec||120)*1000; }
 
-  if(shippedIds.length === 0) return;
-
+async function refreshAllShippedStatuses(manual){
+  if(yalRefreshing) return;
   const statusEl = document.getElementById('shipped-refresh-status');
-  if(statusEl){
-    statusEl.textContent = '🔄 Checking Yalidine status for ' + shippedIds.length + ' parcel' + (shippedIds.length>1?'s':'') + '…';
-    statusEl.style.display = 'block';
-  }
+  const showStatus = (txt, hideAfter) => { if(!statusEl) return; statusEl.textContent = txt; statusEl.style.display = 'block'; if(hideAfter) setTimeout(()=>{ statusEl.style.display = 'none'; }, hideAfter); };
 
-  await Promise.all(shippedIds.map(id => checkOneYalidineStatus(id)));
+  if(yalBackoffLeft() > 0){ showStatus('⏸ Yalidine rate limit — paused for ' + yalBackoffLeft() + 's to avoid repeated requests.', 4000); return; }
 
-  await refreshTicketsOnly();
+  const now = Date.now();
+  const ids = tickets
+    .filter(t=>!t.archived && t.status==='To Pick Up' && t.yalidineTracking)
+    .filter(t=> manual || !t.yalidineDelivered)                         // delivered parcels don't need constant polling
+    .filter(t=> manual || !yalCheckedAt[t.id] || now - yalCheckedAt[t.id] > YAL_RECHECK_MS)
+    .map(t=>t.id);
+  if(ids.length === 0) return;
 
-  if(statusEl){
-    statusEl.textContent = '✅ Status refreshed.';
-    setTimeout(()=>{ statusEl.style.display = 'none'; }, 2500);
-  }
+  yalRefreshing = true;
+  try{
+    let done = 0, stopped = false;
+    for(const id of ids){
+      if(currentAdminSubview !== 'shipped' && !manual) break;           // user left the tab
+      showStatus('🔄 Checking Yalidine ' + (done+1) + '/' + ids.length + '…');
+      const res = await checkOneYalidineStatus(id);
+      yalCheckedAt[id] = Date.now();
+      done++;
+      if(res && res.rateLimited){ stopped = true; break; }
+      if(done < ids.length) await new Promise(r => setTimeout(r, YAL_MIN_GAP_MS));
+    }
+    await refreshTicketsOnly();
+    if(stopped) showStatus('⏸ Yalidine says too many requests — paused for ' + yalBackoffLeft() + 's. Will resume automatically.', 6000);
+    else showStatus('✅ Status refreshed.', 2500);
+  } finally { yalRefreshing = false; }
 }
 
 async function checkOneYalidineStatus(id){
+  if(yalBackoffLeft() > 0) return {ok:false, rateLimited:true, error:'Yalidine rate limit — paused for ' + yalBackoffLeft() + 's.'};
   const sendRes = await apiGet('adminCheckYalidineStatusSend', {id:id});
-  if(!sendRes.ok) return {ok:false, error: sendRes.error || 'Unknown error'};
+  if(!sendRes.ok){
+    if(sendRes.rateLimited) yalSetBackoff(sendRes.retryAfter || 120);
+    return {ok:false, rateLimited:!!sendRes.rateLimited, cooldown:!!sendRes.cooldown, error: sendRes.error || 'Unknown error'};
+  }
 
   let attempts = 0;
   const maxAttempts = 15;
   while(attempts < maxAttempts){
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 1200));
     attempts++;
     const pollRes = await apiGet('adminCheckYalidineStatusPoll', {id:id, requestId: sendRes.requestId});
-    if(!pollRes.pending) return pollRes;
+    if(!pollRes.pending){
+      if(pollRes.rateLimited) yalSetBackoff(pollRes.retryAfter || 120);
+      return pollRes;
+    }
   }
   return {ok:false, error:'Timed out waiting for a response.'};
 }
@@ -5534,7 +5561,9 @@ async function checkYalidineStatusNow(id, event){
   const btn = event ? event.target : null;
   if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
 
+  if(yalRefreshing){ if(btn){ btn.disabled = false; btn.textContent = '🔄 Check now'; } alert('A status refresh is already running — please wait a moment.'); return; }
   const result = await checkOneYalidineStatus(id);
+  yalCheckedAt[id] = Date.now();
 
   if(btn){ btn.disabled = false; btn.textContent = '🔄 Check now'; }
 
