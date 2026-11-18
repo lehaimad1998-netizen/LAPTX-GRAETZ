@@ -578,6 +578,14 @@ textarea{resize:vertical;min-height:56px;}
         <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:12px;">Shows money withdrawn each day, not raw customer payments. Always shows the current calendar month, regardless of the period filter above.</div>
         <div id="monthly-daily-breakdown"></div>
 
+        <h2 style="margin-top:28px;">🔧 Fixed per day — estimated revenue</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:12px;">Devices are counted on the day they were moved to To Pick Up after the repair. Estimated revenue = the price set on the ticket; profit subtracts the cost of the parts used. Tap a day to see its devices.</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+          <label style="margin:0;">Month</label>
+          <input type="month" id="fixed-month" class="mono" style="max-width:180px;" onchange="renderFixedPerDay()">
+        </div>
+        <div id="fixed-per-day"></div>
+
         <div style="margin-top:20px;">
           <div id="withdraw-idle">
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -5939,6 +5947,116 @@ function ticketPaidInPeriod(t, period){
   return false;
 }
 
+// ---------- Fixed devices per day ----------
+let fixedDayOpen = new Set();
+function ticketFixedAt(t){
+  let at = null;
+  (t.history || []).forEach(h=>{
+    if(h && h.status === 'To Pick Up' && h.at){
+      const d = new Date(h.at);
+      if(!isNaN(d.getTime()) && (!at || d > at)) at = d;
+    }
+  });
+  return at;
+}
+function ticketPartsCost(t){
+  let c = 0;
+  (t.partsUsed || []).forEach(pu=>{
+    const cp = parts.find(p=>p.partNumber===pu.partNumber);
+    const v = cp ? parseFloat(cp.costPrice) : NaN;
+    if(!isNaN(v)) c += v;
+  });
+  return c;
+}
+function ticketCollectedAmount(t){
+  const st = t.paymentStatus || 'Unpaid';
+  const paid = parseFloat(t.amountPaid), price = parseFloat(t.price);
+  if(st==='Paid') return (!isNaN(paid) && paid>0) ? paid : (!isNaN(price) ? price : 0);
+  if(st==='Partial') return !isNaN(paid) ? paid : 0;
+  return 0;
+}
+function toggleFixedDay(key){ if(fixedDayOpen.has(key)) fixedDayOpen.delete(key); else fixedDayOpen.add(key); renderFixedPerDay(); }
+function renderFixedPerDay(){
+  const box = document.getElementById('fixed-per-day');
+  const mEl = document.getElementById('fixed-month');
+  if(!box || !mEl) return;
+  const now = new Date();
+  if(!mEl.value) mEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const [yy, mm] = mEl.value.split('-').map(Number);
+
+  const days = {}; // 'YYYY-MM-DD' -> {fixed:[], feeOnly:[]}
+  tickets.forEach(t=>{
+    if(!['To Pick Up','Picked Up'].includes(t.status)) return;
+    const at = ticketFixedAt(t);
+    if(!at || at.getFullYear()!==yy || at.getMonth()+1!==mm) return;
+    const key = at.getFullYear() + '-' + String(at.getMonth()+1).padStart(2,'0') + '-' + String(at.getDate()).padStart(2,'0');
+    const d = days[key] || (days[key] = {fixed:[], feeOnly:[]});
+    (['Not Fixable','Tests OK'].includes(t.diagnosisResult) ? d.feeOnly : d.fixed).push(t);
+  });
+
+  const keys = Object.keys(days).sort().reverse();
+  if(keys.length === 0){
+    box.innerHTML = '<div class="empty-state"><i class="ti" style="font-size:13px;"></i>No devices were fixed in this month.</div>';
+    return;
+  }
+
+  const sum = (arr, fn) => arr.reduce((a,t)=> a + (fn(t) || 0), 0);
+  const priceOf = t => { const p = parseFloat(t.price); return isNaN(p) ? 0 : p; };
+  const stats = keys.map(k=>{
+    const d = days[k];
+    const rev = sum(d.fixed, priceOf);
+    const cost = sum(d.fixed, ticketPartsCost);
+    return {k, d, count:d.fixed.length, rev, cost, profit: rev - cost,
+            collected: sum(d.fixed, ticketCollectedAmount),
+            feeRev: sum(d.feeOnly, priceOf),
+            noPrice: d.fixed.filter(t=>isNaN(parseFloat(t.price))).length};
+  });
+  const totCount = sum(stats, s=>s.count), totRev = sum(stats, s=>s.rev), totProfit = sum(stats, s=>s.profit), totCollected = sum(stats, s=>s.collected);
+  const activeDays = stats.filter(s=>s.count>0).length || 1;
+  const best = stats.reduce((a,b)=> b.rev > a.rev ? b : a, stats[0]);
+  const maxRev = Math.max(1, ...stats.map(s=>s.rev));
+  const fmt = n => Math.round(n).toLocaleString() + ' DA';
+  const lbl = k => new Date(k + 'T00:00:00').toLocaleDateString('en-GB', {weekday:'short', day:'2-digit', month:'short'});
+
+  const summary = `
+    <div class="stat-row" style="margin-bottom:12px;">
+      <div class="stat-card"><div class="stat-label">Devices fixed</div><div class="stat-value mono">${totCount}</div></div>
+      <div class="stat-card" style="border-color:var(--trace);"><div class="stat-label">Estimated revenue</div><div class="stat-value mono" style="color:var(--trace);font-size:22px;">${fmt(totRev)}</div></div>
+      <div class="stat-card"><div class="stat-label">Estimated profit</div><div class="stat-value mono" style="font-size:22px;">${fmt(totProfit)}</div></div>
+    </div>
+    <div class="stat-row" style="margin-bottom:14px;">
+      <div class="stat-card"><div class="stat-label">Average per active day</div><div class="stat-value mono" style="font-size:20px;">${fmt(totRev/activeDays)}</div><div style="font-size:11px;color:var(--text-muted);">${(totCount/activeDays).toFixed(1)} devices / day</div></div>
+      <div class="stat-card"><div class="stat-label">Best day</div><div class="stat-value mono" style="font-size:20px;">${fmt(best.rev)}</div><div style="font-size:11px;color:var(--text-muted);">${lbl(best.k)} · ${best.count} devices</div></div>
+      <div class="stat-card"><div class="stat-label">Already collected</div><div class="stat-value mono" style="font-size:20px;">${fmt(totCollected)}</div><div style="font-size:11px;color:var(--text-muted);">of ${fmt(totRev)}</div></div>
+    </div>`;
+
+  const rows = stats.map(s=>{
+    const open = fixedDayOpen.has(s.k);
+    const w = Math.round((s.rev / maxRev) * 100);
+    const items = open ? `<div style="margin:6px 0 10px 0;padding:8px 10px;background:var(--surface-2);border-radius:8px;">
+      ${s.d.fixed.concat(s.d.feeOnly).map(t=>{
+        const dev = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || '—';
+        const fee = ['Not Fixable','Tests OK'].includes(t.diagnosisResult);
+        const p = parseFloat(t.price);
+        return `<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:12px;border-top:1px dashed var(--border);">
+          <span><b class="mono">#${escHtml(t.id)}</b> · ${escHtml(dev)}${fee ? ` <span style="color:var(--text-muted);">(${escHtml(t.diagnosisResult)})</span>` : ''}</span>
+          <span class="mono">${isNaN(p) ? '<i style="color:var(--danger);">no price</i>' : fmt(p)}</span></div>`;
+      }).join('')}</div>` : '';
+    return `
+      <div style="padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="toggleFixedDay('${s.k}')">
+        <div class="daily-bar-row" style="padding:2px 0;">
+          <div class="daily-bar-day" style="width:92px;">${lbl(s.k)}</div>
+          <div class="daily-bar-track"><div class="daily-bar-fill" style="width:${w}%;"></div></div>
+          <div class="daily-bar-value" style="width:104px;">${fmt(s.rev)}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);padding-left:102px;">
+          🔧 ${s.count} fixed · profit ${fmt(s.profit)} · collected ${fmt(s.collected)}${s.d.feeOnly.length ? ` · +${s.d.feeOnly.length} fee-only (${fmt(s.feeRev)})` : ''}${s.noPrice ? ` · <span style="color:var(--danger);">${s.noPrice} without price</span>` : ''}
+        </div>${items}
+      </div>`;
+  }).join('');
+  box.innerHTML = summary + rows;
+}
+
 function renderMonthlyDailyBreakdown(){
   const container = document.getElementById('monthly-daily-breakdown');
   if(!container) return;
@@ -5989,6 +6107,7 @@ function renderRevenue(){
 
   updateRevenueResetLabel();
   renderMonthlyDailyBreakdown();
+  renderFixedPerDay();
 
   let collected = 0; // now: total withdrawn in this period (money you've actually taken out)
   let outstanding = 0;
