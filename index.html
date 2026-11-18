@@ -741,6 +741,16 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>📋 Customer queue position</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Customers see their place in line ("2 devices ahead of you") when they check their status. The queue is every device in Received or Diagnosing, ordered by the date it was received. Customers only see numbers, never other customers' details.</div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="queue-enabled" style="width:auto;" onchange="saveQueueEnabled(this.checked)">
+          <span>Show queue position to customers</span>
+        </label>
+        <div id="queue-saved-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
         <h2>⏱ Repair task timer</h2>
         <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">When you press Start task, a timer runs next to the repair. Every this-many minutes the Telegram bot asks if it's fixed, and keeps asking until you move the repair on.</div>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
@@ -1237,6 +1247,8 @@ const ACTION_TO_RPC = {
   adminGetTaskReminderMinutes: 'admin_get_task_reminder_minutes',
   adminSetTaskReminderMinutes: 'admin_set_task_reminder_minutes',
   adminSetTaskTimerEnabled: 'admin_set_task_timer_enabled',
+  adminGetQueueEnabled: 'admin_get_queue_enabled',
+  adminSetQueueEnabled: 'admin_set_queue_enabled',
   adminSetTicketSource: 'admin_set_ticket_source',
   customerLookupStopdesksSend: 'customer_lookup_stopdesks_send',
   customerLookupStopdesksPoll: 'customer_lookup_stopdesks_poll',
@@ -1284,6 +1296,7 @@ const PAYMENT_STATUSES = ['Unpaid','Partial','Paid'];
 const I18N = {
   en: {
     delivery_info: 'DELIVERY INFORMATIONS',
+    queue_title: 'Your place in the queue', queue_next: "You're next — your device is first in line.", queue_ahead: '{a} device(s) ahead of you · {t} waiting in total', queue_wait_device: "We're waiting to receive your device.", queue_in_repair: 'Your device is being worked on.', queue_total: '{t} device(s) currently waiting in the queue', queue_note: 'Approximate — the order may change depending on the repair.',
     ship_yalidine_t: 'Yalidine', ship_yalidine_s: 'Pick-up office (stop-desk)', ship_other_t: 'Other delivery companies', ship_other_s: 'Home delivery address', ship_tel_t: 'Phone', ship_tel_s: 'Write it on the parcel / delivery form', copy_btn: '📋 Copy', copied_msg: '✓ Copied',
     yalidine_label: 'YALIDINE:',
     other_company_label: 'Other company:',
@@ -1372,6 +1385,7 @@ const I18N = {
   },
   ar: {
     delivery_info: 'معلومات التسليم',
+    queue_title: 'ترتيبك في قائمة الانتظار', queue_next: 'أنت التالي — جهازك الأول في الدور.', queue_ahead: 'يوجد {a} جهاز قبلك · {t} في الانتظار إجمالاً', queue_wait_device: 'ننتظر وصول جهازك إلينا.', queue_in_repair: 'جهازك قيد الإصلاح الآن.', queue_total: '{t} جهاز في قائمة الانتظار حالياً', queue_note: 'تقريبي — قد يتغير الترتيب حسب نوع الإصلاح.',
     ship_yalidine_t: 'ياليدين', ship_yalidine_s: 'مكتب الاستلام (Stop-desk)', ship_other_t: 'شركات التوصيل الأخرى', ship_other_s: 'عنوان التوصيل للمنزل', ship_tel_t: 'الهاتف', ship_tel_s: 'اكتبه على الطرد / وثيقة التوصيل', copy_btn: '📋 نسخ', copied_msg: '✓ تم النسخ',
     yalidine_label: 'ياليدين:',
     other_company_label: 'شركة أخرى:',
@@ -2161,7 +2175,7 @@ function switchAdminSubview(v){
   document.getElementById('subtab-shipped').classList.toggle('active', v==='shipped');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   document.getElementById('subtab-cleanup').classList.toggle('active', v==='cleanup');
-  if(v==='settings') loadTaskReminderMinutes();
+  if(v==='settings'){ loadTaskReminderMinutes(); loadQueueEnabled(); }
   renderVisibleAdminSubview();
 
   // Auto-refresh while viewing Shipped, so Yalidine status updates (from the
@@ -5222,6 +5236,18 @@ async function loadTaskReminderMinutes(){
   const cb = document.getElementById('task-timer-enabled');
   if(res && res.ok && cb) cb.checked = res.enabled !== false;
 }
+async function loadQueueEnabled(){
+  const res = await apiGet('adminGetQueueEnabled');
+  const cb = document.getElementById('queue-enabled');
+  if(res && res.ok && cb) cb.checked = res.enabled !== false;
+}
+async function saveQueueEnabled(flag){
+  const res = await apiGet('adminSetQueueEnabled', {enabled: !!flag});
+  if(!res.ok){ alert(res.error || 'Could not save.'); loadQueueEnabled(); return; }
+  const msg = document.getElementById('queue-saved-msg');
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display = 'none'; }, 2500);
+}
 async function saveTaskTimerEnabled(flag){
   const res = await apiGet('adminSetTaskTimerEnabled', {enabled: !!flag});
   if(!res.ok){ alert(res.error || 'Could not save.'); loadTaskReminderMinutes(); return; }
@@ -6396,6 +6422,27 @@ async function saveNotes(id){
   document.getElementById('save-error-banner').style.display = 'none';
 }
 
+function queueBlockHtml(q){
+  if(!q || !q.enabled || !q.state || q.state==='none') return '';
+  const L = I18N[currentLang];
+  const n = x => `<b class="mono">${x}</b>`;
+  let main = '', sub = '';
+  if(q.state==='queued'){
+    main = `<div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--trace);font-weight:700;">${L.queue_title}</div>
+      <div style="font-size:34px;font-weight:800;line-height:1.1;margin:4px 0;" class="mono">#${q.position}</div>`;
+    sub = q.ahead===0 ? L.queue_next : L.queue_ahead.replace('{a}', n(q.ahead)).replace('{t}', n(q.total));
+  } else if(q.state==='waiting_device'){
+    main = `<div style="font-size:14px;font-weight:700;">${L.queue_wait_device}</div>`;
+    sub = L.queue_total.replace('{t}', n(q.total));
+  } else if(q.state==='in_repair'){
+    main = `<div style="font-size:14px;font-weight:700;">${L.queue_in_repair}</div>`;
+    sub = L.queue_total.replace('{t}', n(q.total));
+  }
+  return `<div style="margin:14px 0;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);text-align:center;">
+    ${main}<div style="font-size:13px;color:var(--text-muted);margin-top:2px;">${sub}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px;opacity:.8;">${L.queue_note}</div></div>`;
+}
+
 function traceHtml(status, diagnosisResult){
   if(status==='Cancelled'){
     const msg = I18N[currentLang].cancelled_msg;
@@ -6563,6 +6610,7 @@ async function customerLookup(){
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${statusLabel(t.status)}</div>
       </div>
       ${traceHtml(t.status, t.diagnosisResult)}
+      ${queueBlockHtml(res.queue)}
       <div class="field-line"><b>${I18N[currentLang].entry_date_field}</b> ${t.entryDate || new Date(t.createdAt).toLocaleDateString()}</div>
       ${t.price ? `<div class="field-line"><b>${I18N[currentLang].price_field}</b> ${formatPrice(t.price)} <span style="color:${t.paymentStatus==='Paid'?'var(--trace)':'var(--danger)'};font-weight:600;">(${paymentStatusLabel(t.paymentStatus||'Unpaid')})</span></div>` : ''}
       ${t.customerNote ? `<div class="customer-note" dir="auto"><div class="lbl">${I18N[currentLang].update_from_shop}</div>${t.customerNote}</div>` : ''}
