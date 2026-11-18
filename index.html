@@ -749,6 +749,17 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>📊 Daily revenue report</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Every day at 6:05 PM (just after the shop closes automatically) the Telegram bot sends the day's devices fixed, estimated revenue, estimated profit and amount already collected — the same figures as the "Fixed per day" section in Revenue.</div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="revenue-report-enabled" style="width:auto;" onchange="saveRevenueReportEnabled(this.checked)">
+          <span>Send the daily revenue report</span>
+        </label>
+        <button class="btn-ghost" style="margin-top:12px;" id="revenue-report-now-btn" onclick="sendRevenueReportNow()">📨 Send today's report now</button>
+        <div id="revenue-report-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;"></div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
         <h2>📋 Customer queue position</h2>
         <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Customers see their place in line ("2 devices ahead of you") when they check their status. The queue is every device in Received or Diagnosing, ordered by the date it was received. Customers only see numbers, never other customers' details.</div>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
@@ -1256,6 +1267,9 @@ const ACTION_TO_RPC = {
   adminSetTaskReminderMinutes: 'admin_set_task_reminder_minutes',
   adminSetTaskTimerEnabled: 'admin_set_task_timer_enabled',
   adminGetQueueEnabled: 'admin_get_queue_enabled',
+  adminGetDailyRevenueReportEnabled: 'admin_get_daily_revenue_report_enabled',
+  adminSetDailyRevenueReportEnabled: 'admin_set_daily_revenue_report_enabled',
+  adminSendRevenueReportNow: 'admin_send_revenue_report_now',
   adminSetQueueEnabled: 'admin_set_queue_enabled',
   adminSetTicketSource: 'admin_set_ticket_source',
   customerLookupStopdesksSend: 'customer_lookup_stopdesks_send',
@@ -2183,7 +2197,7 @@ function switchAdminSubview(v){
   document.getElementById('subtab-shipped').classList.toggle('active', v==='shipped');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   document.getElementById('subtab-cleanup').classList.toggle('active', v==='cleanup');
-  if(v==='settings'){ loadTaskReminderMinutes(); loadQueueEnabled(); }
+  if(v==='settings'){ loadTaskReminderMinutes(); loadQueueEnabled(); loadRevenueReportEnabled(); }
   renderVisibleAdminSubview();
 
   // Auto-refresh while viewing Shipped, so Yalidine status updates (from the
@@ -5243,6 +5257,28 @@ async function loadTaskReminderMinutes(){
   if(res && res.ok && el) el.value = res.minutes;
   const cb = document.getElementById('task-timer-enabled');
   if(res && res.ok && cb) cb.checked = res.enabled !== false;
+}
+async function loadRevenueReportEnabled(){
+  const res = await apiGet('adminGetDailyRevenueReportEnabled');
+  const cb = document.getElementById('revenue-report-enabled');
+  if(res && res.ok && cb) cb.checked = res.enabled !== false;
+}
+function showRevenueReportMsg(txt){
+  const m = document.getElementById('revenue-report-msg'); if(!m) return;
+  m.textContent = txt; m.style.display = 'block'; setTimeout(()=>{ m.style.display = 'none'; }, 3500);
+}
+async function saveRevenueReportEnabled(flag){
+  const res = await apiGet('adminSetDailyRevenueReportEnabled', {enabled: !!flag});
+  if(!res.ok){ alert(res.error || 'Could not save.'); loadRevenueReportEnabled(); return; }
+  showRevenueReportMsg('✅ Saved.');
+}
+async function sendRevenueReportNow(){
+  const btn = document.getElementById('revenue-report-now-btn');
+  btn.disabled = true;
+  const res = await apiGet('adminSendRevenueReportNow');
+  btn.disabled = false;
+  if(!res.ok){ alert(res.error || 'Could not send.'); return; }
+  showRevenueReportMsg('✅ Sent to Telegram.');
 }
 async function loadQueueEnabled(){
   const res = await apiGet('adminGetQueueEnabled');
