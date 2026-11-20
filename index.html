@@ -956,6 +956,7 @@ textarea{resize:vertical;min-height:56px;}
           <div class="id-val mono" id="register-id-val"></div>
         </div>
         <div id="register-qr" style="margin-top:12px;"></div>
+        <div id="register-queue" style="display:none;margin-top:16px;padding:12px 14px;border:1px solid var(--trace);border-radius:12px;background:var(--surface-2);text-align:center;"></div>
         <div id="register-pkg-note" style="margin-top:18px;padding:14px 16px;border:2px solid #c9a227;border-radius:12px;color:#c9a227;font-weight:700;font-size:16px;line-height:1.5;"></div>
         <div id="register-ship-section" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
           <label data-i18n="pkg_info_heading">🚚 Your shipment details (optional)</label>
@@ -1328,6 +1329,7 @@ const PAYMENT_STATUSES = ['Unpaid','Partial','Paid'];
 const I18N = {
   en: {
     delivery_info: 'DELIVERY INFORMATIONS',
+    queue_reg_title: 'Your expected place in the queue', queue_reg_first: "You'd be first in line!", queue_reg_ahead: '{a} device(s) waiting ahead of you right now', queue_reg_note_shop: 'Approximate — you can follow it any time with the QR code or your repair number.', queue_reg_note_remote: 'Confirmed once we receive your device. Follow it any time with the QR code or your repair number.',
     queue_title: 'Your place in the queue', queue_next: "You're next — your device is first in line.", queue_ahead: '{a} device(s) ahead of you · {t} waiting in total', queue_wait_device: "We're waiting to receive your device.", queue_in_repair: 'Your device is being worked on.', queue_total: '{t} device(s) currently waiting in the queue', queue_note: 'Approximate — the order may change depending on the repair.',
     ship_yalidine_t: 'Yalidine', ship_yalidine_s: 'Pick-up office (stop-desk)', ship_other_t: 'Other delivery companies', ship_other_s: 'Home delivery address', ship_tel_t: 'Phone', ship_tel_s: 'Write it on the parcel / delivery form', copy_btn: '📋 Copy', copied_msg: '✓ Copied',
     yalidine_label: 'YALIDINE:',
@@ -1417,6 +1419,7 @@ const I18N = {
   },
   ar: {
     delivery_info: 'معلومات التسليم',
+    queue_reg_title: 'ترتيبك المتوقع في قائمة الانتظار', queue_reg_first: 'ستكون الأول في الدور!', queue_reg_ahead: 'يوجد {a} جهاز في الانتظار قبلك حالياً', queue_reg_note_shop: 'تقريبي — يمكنك متابعته في أي وقت بواسطة رمز QR أو رقم الإصلاح.', queue_reg_note_remote: 'يتأكد بعد استلام جهازك. تابعه في أي وقت بواسطة رمز QR أو رقم الإصلاح.',
     queue_title: 'ترتيبك في قائمة الانتظار', queue_next: 'أنت التالي — جهازك الأول في الدور.', queue_ahead: 'يوجد {a} جهاز قبلك · {t} في الانتظار إجمالاً', queue_wait_device: 'ننتظر وصول جهازك إلينا.', queue_in_repair: 'جهازك قيد الإصلاح الآن.', queue_total: '{t} جهاز في قائمة الانتظار حالياً', queue_note: 'تقريبي — قد يتغير الترتيب حسب نوع الإصلاح.',
     ship_yalidine_t: 'ياليدين', ship_yalidine_s: 'مكتب الاستلام (Stop-desk)', ship_other_t: 'شركات التوصيل الأخرى', ship_other_s: 'عنوان التوصيل للمنزل', ship_tel_t: 'الهاتف', ship_tel_s: 'اكتبه على الطرد / وثيقة التوصيل', copy_btn: '📋 نسخ', copied_msg: '✓ تم النسخ',
     yalidine_label: 'ياليدين:',
@@ -3115,6 +3118,7 @@ async function registerDevice(){
   lastRegisteredInfo = {name:name, phone:phone, device:[brand, model].filter(Boolean).join(' ')};
   applyRegisterSourceUI();
   lastRegisteredPhone = phone;
+  showRegisterQueue(res.id, phone, sourceVal);
   apiGet('customerSaveNameParts', {id: res.id, phone: phone, firstName: firstName, lastName: lastName});
   apiGet('customerSaveSource', {id: res.id, phone: phone, source: sourceVal});
   apiGet('customerSaveOriginWilaya', {id: res.id, phone: phone, wilaya: originWilaya});
@@ -3142,6 +3146,7 @@ async function registerDevice(){
 function resetRegisterForm(){
   document.getElementById('register-banner').classList.remove('show');
   document.getElementById('register-qr').innerHTML = '';
+  hideRegisterQueue();
   document.getElementById('register-again-btn').style.display = 'none';
   document.getElementById('register-shopinfo-panel').style.display = 'block';
   document.getElementById('register-form-fields').style.display = 'block';
@@ -3872,25 +3877,6 @@ async function saveDiagDetail(id, event){
 
 let diagnosedNoteOpenId = null;
 
-let customerNoteOpenId = null;
-function toggleCustomerNote(id, event){
-  if(event) event.stopPropagation();
-  customerNoteOpenId = customerNoteOpenId === id ? null : id;
-  renderVisibleAdminSubview();
-}
-async function saveCustomerNote(id, event){
-  if(event) event.stopPropagation();
-  const t = tickets.find(x=>x.id===id);
-  const note = document.getElementById('cust-note-'+id).value.trim();
-  const res = await apiGet('adminSaveNotes', {id:id, customerNote:note, internalNotes:(t ? t.internalNotes : '')});
-  if(!res.ok){
-    document.getElementById('save-error-banner').style.display = 'block';
-    return;
-  }
-  customerNoteOpenId = null;
-  await refreshTicketsOnly();
-}
-
 function toggleDiagnosticNote(id, event){
   if(event) event.stopPropagation();
   diagnosedNoteOpenId = diagnosedNoteOpenId === id ? null : id;
@@ -3999,7 +3985,6 @@ function renderDiagnosedList(){
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
           ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${escHtml(t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes)}</div>` : ''}
-          ${t.customerNote ? `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">💬 ${escHtml(t.customerNote.length>80 ? t.customerNote.slice(0,80)+'…' : t.customerNote)}</div>` : ''}
         </div>
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Fixable', event)">✅ Fixable</button>
@@ -4008,7 +3993,6 @@ function renderDiagnosedList(){
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard repair</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Waiting for Parts')">⏳ Waiting for parts</button>
         ${actionsMenuHtml(t.id, [
-          {label: t.customerNote ? '💬 Edit note for customer' : '💬 Add note for customer', onclick:`toggleCustomerNote('${t.id}', event)`},
           {label: t.diagnosticNotes ? '📝 Edit note' : '📝 Add note', onclick:`toggleDiagnosticNote('${t.id}', event)`},
           {label:'📄 Download report', onclick:`downloadDiagnosticReportPDF('${t.id}', event)`},
           {label:'↩️ Back to Tickets', onclick:`setTicketDiagnosed('${t.id}', false, event)`},
@@ -4016,16 +4000,6 @@ function renderDiagnosedList(){
         ])}
       </div>
       ${diagDetailHtml(t)}
-      ${customerNoteOpenId === t.id ? `
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);" onclick="event.stopPropagation()">
-          <label>Note for customer (shown on their status page)</label>
-          <textarea id="cust-note-${t.id}" dir="auto" placeholder="e.g. Your card needs a new VRM chip — we'll update you tomorrow.">${escHtml(t.customerNote||'')}</textarea>
-          <div style="display:flex;gap:8px;margin-top:8px;">
-            <button class="btn-ghost" style="background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="saveCustomerNote('${t.id}', event)">Save note</button>
-            <button class="btn-ghost" onclick="toggleCustomerNote('${t.id}', event)">Cancel</button>
-          </div>
-        </div>
-      ` : ''}
       ${noteOpen ? `
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
           <label>Diagnostic notes — what you found, what it needs</label>
@@ -4281,7 +4255,8 @@ async function removePartFromTicketTF(id, index){
 async function saveTaskNotes(id){
   const ticket = tickets.find(x=>x.id===id);
   const internalNotes = document.getElementById('task-note-'+id).value;
-  const res = await apiGet('adminSaveNotes', {id:id, customerNote: (ticket ? ticket.customerNote : ''), internalNotes:internalNotes});
+  const cnEl = document.getElementById('tf-cnote-'+id);
+  const res = await apiGet('adminSaveNotes', {id:id, customerNote: cnEl ? cnEl.value.trim() : (ticket ? ticket.customerNote : ''), internalNotes:internalNotes});
   if(!res.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
@@ -4311,8 +4286,9 @@ async function saveToFixTask(id){
   const ticket = tickets.find(x=>x.id===id);
   const internalNotes = document.getElementById('task-note-'+id).value;
   const repairCost = document.getElementById('tf-repaircost-'+id).value;
+  const cnEl = document.getElementById('tf-cnote-'+id);
 
-  const notesRes = await apiGet('adminSaveNotes', {id:id, customerNote: (ticket ? ticket.customerNote : ''), internalNotes:internalNotes});
+  const notesRes = await apiGet('adminSaveNotes', {id:id, customerNote: cnEl ? cnEl.value.trim() : (ticket ? ticket.customerNote : ''), internalNotes:internalNotes});
   if(!notesRes.ok){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
@@ -4350,6 +4326,7 @@ function toFixRowHtml(t, isNoFix){
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
           ${overdueBadge(t)}
+          ${t.customerNote ? `<div class="lowstock-flag" dir="auto" style="color:#c9a227;">💬 ${escHtml(t.customerNote.length>80 ? t.customerNote.slice(0,80)+'…' : t.customerNote)}</div>` : ''}
           ${taskTimerHtml(t)}
         </div>
         <div class="mono" style="font-size:15px;font-weight:700;color:var(--trace);">${formatPrice(combinedTotal) || '0 DA'}</div>
@@ -4360,6 +4337,9 @@ function toFixRowHtml(t, isNoFix){
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
         <label>What's been done</label>
         <textarea id="task-note-${t.id}" dir="auto" placeholder="e.g. Replaced VRM MOSFET, reflowed core, testing under load...">${(t.internalNotes||'')}</textarea>
+
+        <label style="margin-top:14px;">💬 Note for customer (shown on their status page)</label>
+        <textarea id="tf-cnote-${t.id}" dir="auto" placeholder="e.g. Your card needs a new VRM chip — we'll update you tomorrow.">${escHtml(t.customerNote||'')}</textarea>
 
         <label style="margin-top:14px;">Repair cost (labor)</label>
         <input id="tf-repaircost-${t.id}" type="number" value="${t.price||''}" placeholder="0" class="mono">
@@ -6628,6 +6608,28 @@ async function saveNotes(id){
   }
   document.getElementById('save-error-banner').style.display = 'none';
 }
+
+// Shown right under the QR code after registering: where the new device will stand in line
+async function showRegisterQueue(id, phone, source){
+  const box = document.getElementById('register-queue');
+  if(!box) return;
+  box.style.display = 'none'; box.innerHTML = '';
+  let res;
+  try{ res = await apiGet('customerLookup', {id:id, phone:phone}); }catch(e){ return; }
+  if(!res || !res.ok || !res.queue || !res.queue.enabled) return;
+  const q = res.queue;
+  const total = (q.state === 'queued') ? (q.position - 1) : (q.total || 0);   // devices already waiting
+  const place = total + 1;
+  const L = I18N[currentLang];
+  const ahead = total === 0 ? L.queue_reg_first : L.queue_reg_ahead.replace('{a}', `<b class="mono">${total}</b>`);
+  box.innerHTML = `
+    <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--trace);font-weight:700;">${L.queue_reg_title}</div>
+    <div style="font-size:34px;font-weight:800;line-height:1.1;margin:4px 0;" class="mono">#${place}</div>
+    <div style="font-size:13px;color:var(--text-muted);">${ahead}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px;opacity:.85;">${source === 'remote' ? L.queue_reg_note_remote : L.queue_reg_note_shop}</div>`;
+  box.style.display = 'block';
+}
+function hideRegisterQueue(){ const b = document.getElementById('register-queue'); if(b){ b.style.display = 'none'; b.innerHTML = ''; } }
 
 function queueBlockHtml(q){
   if(!q || !q.enabled || !q.state || q.state==='none') return '';
