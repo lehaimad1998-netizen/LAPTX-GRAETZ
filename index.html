@@ -1275,6 +1275,7 @@ const ACTION_TO_RPC = {
   adminGetTaskReminderMinutes: 'admin_get_task_reminder_minutes',
   adminSetTaskReminderMinutes: 'admin_set_task_reminder_minutes',
   adminSetTaskTimerEnabled: 'admin_set_task_timer_enabled',
+  adminTaskTimerAction: 'admin_task_timer_action',
   adminGetQueueEnabled: 'admin_get_queue_enabled',
   adminGetDailyRevenueReportEnabled: 'admin_get_daily_revenue_report_enabled',
   adminSetDailyRevenueReportEnabled: 'admin_set_daily_revenue_report_enabled',
@@ -5326,13 +5327,36 @@ function fmtDuration(ms){
 }
 function taskTimerHtml(t){
   if(t.status !== 'Repairing' || !t.taskStartedAt) return '';
-  return `<div class="mono task-timer" data-start="${t.taskStartedAt}" data-next="${t.taskNextReminderAt||''}" style="font-size:12px;color:#c9a227;margin-top:4px;"></div>`;
+  const btn = (label, action, extra) => `<button class="btn-ghost" style="width:auto;padding:3px 9px;font-size:11px;${extra||''}" onclick="taskTimerAction('${t.id}', '${action}', event)">${label}</button>`;
+  const paused = !!t.taskPausedAt, stopped = !!t.taskStopped;
+  const controls = stopped ? btn('↺ Restart', 'restart')
+    : paused ? btn('▶ Resume', 'resume', 'color:var(--trace);border-color:var(--trace);') + btn('⏹ Stop', 'stop', 'color:var(--danger);border-color:var(--danger);')
+    : btn('⏸ Pause', 'pause') + btn('⏹ Stop', 'stop', 'color:var(--danger);border-color:var(--danger);');
+  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;" onclick="event.stopPropagation()">
+    <span class="mono task-timer" data-start="${t.taskStartedAt}" data-next="${t.taskNextReminderAt||''}" data-paused="${t.taskPausedAt||''}" data-psec="${t.taskPausedSeconds||0}" data-stopped="${stopped?1:0}" style="font-size:12px;color:${stopped?'var(--text-muted)':(paused?'var(--text-muted)':'#c9a227')};"></span>
+    ${controls}
+  </div>`;
+}
+async function taskTimerAction(id, action, event){
+  if(event) event.stopPropagation();
+  if(action === 'stop' && !confirm('Stop the timer for this repair? The total time stays visible and you can restart it.')) return;
+  const btn = event && event.target; if(btn) btn.disabled = true;
+  const res = await apiGet('adminTaskTimerAction', {id:id, action:action});
+  if(!res.ok){ alert(res.error || 'Could not update the timer.'); if(btn) btn.disabled = false; return; }
+  await refreshTicketsOnly();
 }
 function tickTaskTimers(){
   document.querySelectorAll('.task-timer').forEach(el=>{
     const start = new Date(el.dataset.start).getTime();
     if(isNaN(start)) return;
-    let txt = '⏱ ' + fmtDuration(Date.now() - start);
+    const stopped = el.dataset.stopped === '1';
+    const pausedAt = el.dataset.paused ? new Date(el.dataset.paused).getTime() : NaN;
+    const psec = parseInt(el.dataset.psec, 10) || 0;
+    const end = !isNaN(pausedAt) ? pausedAt : Date.now();
+    const elapsed = end - start - psec*1000;
+    if(stopped){ el.textContent = '⏹ ' + fmtDuration(elapsed) + ' · stopped'; return; }
+    if(!isNaN(pausedAt)){ el.textContent = '⏸ ' + fmtDuration(elapsed) + ' · paused'; return; }
+    let txt = '⏱ ' + fmtDuration(elapsed);
     const next = el.dataset.next ? new Date(el.dataset.next).getTime() : NaN;
     if(!isNaN(next)){
       const left = next - Date.now();
