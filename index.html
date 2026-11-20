@@ -3921,11 +3921,59 @@ async function setDiagnosisResult(id, result, event){
   await refreshTicketsOnly();
 }
 
+// ✅ Fixable: classify AND send straight to To Fix (Repairing) in one click
+async function classifyFixable(id, event){
+  if(event) event.stopPropagation();
+  const r1 = await apiGet('adminSetDiagnosisResult', {id:id, result:'Fixable'});
+  if(!r1.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
+  const t = tickets.find(x=>x.id===id);
+  if(!t || t.status !== 'Repairing'){
+    const r2 = await apiGet('adminUpdateStatus', {id:id, status:'Repairing', note:''});
+    if(!r2.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
+  }
+  await refreshTicketsOnly();
+}
+
+// ❌ Not Fixable: ask for the fee, save only that price, send straight to To Pick Up.
+// Works from Awaiting classification AND from the To Fix tab (fixable -> not fixable).
+async function markNotFixableAndPrice(id, event){
+  if(event) event.stopPropagation();
+  const t = tickets.find(x=>x.id===id);
+  if(!t){ return; }
+  const fee = window.prompt('Diagnostic fee for #' + id + ' (DA) — leave blank to skip:', t.price || '500');
+  if(fee === null){ renderVisibleAdminSubview(); return; }   // cancelled: change nothing
+  const nParts = (t.partsUsed || []).length;
+  if(nParts > 0 && !window.confirm('#' + id + ' has ' + nParts + ' part(s) attached. They stay on the ticket and count in the total — remove them first if they were not used. Continue?')){
+    renderVisibleAdminSubview(); return;
+  }
+  const r1 = await apiGet('adminSetDiagnosisResult', {id:id, result:'Not Fixable'});
+  if(!r1.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
+  if(fee.trim() !== ''){
+    const r2 = await apiGet('adminSetPricing', {id:id, laborPrice:fee.trim(), paymentStatus:t.paymentStatus || 'Unpaid', amountPaid:t.amountPaid || ''});
+    if(!r2.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
+  }
+  const r3 = await apiGet('adminUpdateStatus', {id:id, status:'To Pick Up', note:''});
+  if(!r3.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
+  await refreshTicketsOnly();
+}
+
+// The Fix / No fix dropdown pill
+async function chooseFixNoFix(id, value, event){
+  if(event) event.stopPropagation();
+  if(value === 'Not Fixable') return markNotFixableAndPrice(id, event);
+  if(value === 'Fixable'){
+    const t = tickets.find(x=>x.id===id);
+    if(t && t.status === 'Repairing') return setDiagnosisResult(id, 'Fixable', event);
+    return classifyFixable(id, event);
+  }
+  return setDiagnosisResult(id, value, event);
+}
+
 function fixNoFixPillHtml(t){
   const val = t.diagnosisResult === 'Not Fixable' ? 'Not Fixable' : (t.diagnosisResult === 'Fixable' ? 'Fixable' : '');
   const style = val==='Not Fixable' ? 'background:var(--danger);color:#2A0E0C;border-color:var(--danger);'
               : (val==='Fixable' ? 'background:var(--trace);color:#0C1712;border-color:var(--trace);' : '');
-  return `<select class="status-pill mono status-pill-select" style="${style}" onclick="event.stopPropagation()" onchange="setDiagnosisResult('${t.id}', this.value, event)">
+  return `<select class="status-pill mono status-pill-select" style="${style}" onclick="event.stopPropagation()" onchange="chooseFixNoFix('${t.id}', this.value, event)">
       ${val==='' ? '<option value="" selected disabled>Fix / No fix</option>' : ''}
       <option value="Fixable" ${val==='Fixable'?'selected':''}>✅ Fix</option>
       <option value="Not Fixable" ${val==='Not Fixable'?'selected':''}>❌ No fix</option>
@@ -3987,8 +4035,8 @@ function renderDiagnosedList(){
           ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${escHtml(t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes)}</div>` : ''}
         </div>
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Fixable', event)">✅ Fixable</button>
-        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Not Fixable', event)">❌ Not Fixable</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="classifyFixable('${t.id}', event)">✅ Fixable → To Fix</button>
+        <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="markNotFixableAndPrice('${t.id}', event)">❌ Not Fixable → fee</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setDiagnosisResult('${t.id}', 'Tests OK', event)">🔧 Tests OK</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="setTicketFlag('${t.id}', true, event)">🏋️ Hard repair</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Waiting for Parts')">⏳ Waiting for parts</button>
@@ -4121,7 +4169,7 @@ function renderClassifiedList(containerId, result, emptyMsg){
         ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       ${result === 'Not Fixable' ? fixNoFixPillHtml(t) : ''}
-      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">📋 Evaluate</button>` : ''}
+      ${result === 'Not Fixable' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)" title="Set the fee and move straight to To Pick Up">📋 Evaluate — set fee</button>` : ''}
       ${result === 'Tests OK' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="notifyCustomerWhatsApp('${t.id}', event)">${t.notifiedDiagnosis ? '✅ Notified' : '📱 Notify customer'}</button>` : ''}
       ${showEndTask ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — move to To Pick Up</button>` : ''}
       ${actionsMenuHtml(t.id, [
@@ -4314,6 +4362,7 @@ function toFixRowHtml(t, isNoFix){
   const combinedTotal = (parseFloat(t.price)||0) + partsSubtotal(t);
   const actionButtons = `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="quickUpdateStatus('${t.id}', 'To Pick Up'); event.stopPropagation();">✅ Ready — To Pick Up</button>
     ${actionsMenuHtml(t.id, [
+      ...(t.diagnosisResult !== 'Not Fixable' ? [{label:'❌ Mark as Not Fixable (set fee → To Pick Up)', onclick:`markNotFixableAndPrice('${t.id}', event)`}] : []),
       {label:'↩️ Back to Diagnosed', onclick:`quickUpdateStatus('${t.id}', 'Diagnosing'); event.stopPropagation();`},
       {label:'🗑️ Delete', onclick:`deleteTicketWithConfirm('${t.id}', event)`, danger:true},
     ])}`;
