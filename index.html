@@ -194,6 +194,8 @@ textarea{resize:vertical;min-height:56px;}
 .parts-table-row-low{background:rgba(219,101,96,0.08);}
 .parts-line{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px;}
 .parts-subtotal{font-size:13px;color:var(--text-muted);margin:8px 0;}
+.row-flash{animation:rowflash 2.2s ease}
+@keyframes rowflash{0%,60%{box-shadow:0 0 0 2px var(--trace);background:var(--trace-dim)}100%{box-shadow:0 0 0 0 transparent}}
 .daily-bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px;}
 .daily-bar-day{width:70px;flex-shrink:0;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;}
 .daily-bar-track{flex:1;background:var(--surface-2);border-radius:4px;height:16px;overflow:hidden;}
@@ -1201,6 +1203,7 @@ textarea{resize:vertical;min-height:56px;}
    ============================================================ */
 const SUPABASE_URL = "https://oobnilmduyndwdsqpzxy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYm5pbG1kdXluZHdkc3Fwenh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2MjAxNDQsImV4cCI6MjEwMTE5NjE0NH0.pHSN0SKxyURd0N1BM9VJVUxluFEfT69HP_LlQpNJAYM";
+
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -4127,7 +4130,7 @@ function renderFixableSection(){
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
       ${fixNoFixPillHtml(t)}
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="startTaskAndOpen('${t.id}', event)">🔧 Start task</button>
       ${actionsMenuHtml(t.id, [
         {label:'📱 Notify customer', onclick:`notifyCustomerWhatsApp('${t.id}', event)`},
         {label:'🏷️ QR ticket', onclick:`downloadDiagnosisQRLabel('${t.id}', event)`},
@@ -4368,7 +4371,7 @@ function toFixRowHtml(t, isNoFix){
     ])}`;
 
   return `
-    <div class="ticket-row">
+    <div class="ticket-row" id="tofix-row-${t.id}">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;" onclick="jumpToTicket('${t.id}')">
         <div style="flex:1;min-width:180px;">
           <div class="ticket-id">#${t.id}</div>
@@ -4464,7 +4467,7 @@ function renderHardList(){
         ${t.diagnosticNotes ? `<div class="lowstock-flag" dir="auto" style="color:var(--trace);">📝 ${t.diagnosticNotes.length>80 ? t.diagnosticNotes.slice(0,80)+'…' : t.diagnosticNotes}</div>` : ''}
       </div>
       <div class="status-pill mono" style="${statusPillStyle(t.status)}">${t.status}</div>
-      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="event.stopPropagation(); quickUpdateStatus('${t.id}', 'Repairing')">🔧 Start task</button>
+      <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="startTaskAndOpen('${t.id}', event)">🔧 Start task</button>
       <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="endTaskBackToCustomer('${t.id}', event)">🏁 End task — close &amp; archive</button>
       ${actionsMenuHtml(t.id, [
         {label:'📱 Notify customer', onclick:`notifyCustomerWhatsApp('${t.id}', event)`},
@@ -6513,6 +6516,28 @@ async function updateStatus(id){
 }
 
 // Quick status change directly from the collapsed row's pill, without expanding the ticket
+// Start task: move to Repairing, then jump straight to that repair in the To Fix tab
+async function startTaskAndOpen(id, event){
+  if(event) event.stopPropagation();
+  const btn = event && event.target; if(btn) btn.disabled = true;
+  const res = await apiGet('adminUpdateStatus', {id:id, status:'Repairing', note:''});
+  if(!res.ok){
+    if(btn) btn.disabled = false;
+    document.getElementById('save-error-banner').style.display = 'block';
+    return;
+  }
+  await refreshTicketsOnly();
+  switchAdminSubview('tofix');
+  setTimeout(()=>{
+    const row = document.getElementById('tofix-row-' + id);
+    if(row){
+      row.scrollIntoView({behavior:'smooth', block:'center'});
+      row.classList.add('row-flash');
+      setTimeout(()=>row.classList.remove('row-flash'), 2200);
+    }
+  }, 80);
+}
+
 async function quickUpdateStatus(id, newStatus){
   let note = '';
   if(newStatus === 'Waiting for Parts'){
