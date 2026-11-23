@@ -2712,7 +2712,7 @@ function exportYalidineXlsx(){
       deviceLine,                                            // produit
       amountToCollect(t),                                    // prix = cash to collect on delivery
       '', '', '', '', '', '', '', '',                       // insurance, declared value, L/W/H, weight, free delivery, exchange, object to collect
-      '',                                                    // nombre de colis (empty = 1)
+      1,                                                     // nombre de colis (Yalidine's importer rejects an empty cell)
       YALIDINE_OPEN_ALLOWED                                  // ouverture autorisée (required)
     ]);
   });
