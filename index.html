@@ -259,18 +259,29 @@ textarea{resize:vertical;min-height:56px;}
 .empty-state{text-align:center;padding:40px 20px;color:var(--text-muted);}
 .empty-state .ti{font-size:28px;display:block;margin-bottom:10px;}
 
-.trace-track{display:flex;align-items:center;justify-content:space-between;margin:20px 0;}
-.trace-node-wrap{display:flex;flex-direction:column;align-items:center;flex:1;position:relative;}
-.trace-line{position:absolute;top:14px;left:-50%;width:100%;height:2px;background:var(--border);z-index:0;}
-.trace-node-wrap:first-child .trace-line{display:none;}
-.trace-line.done{background:var(--trace);}
-.trace-node{width:28px;height:28px;border-radius:50%;background:var(--surface-2);border:2px solid var(--border);
-  display:flex;align-items:center;justify-content:center;z-index:1;font-size:13px;}
-.trace-node.done{background:var(--trace);border-color:var(--trace);color:#0C1712;}
-.trace-node.current{background:var(--amber);border-color:var(--amber);color:#3A2A0A;}
-.trace-label{font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px;max-width:70px;line-height:1.3;}
-.trace-label.active{color:var(--text);font-weight:500;}
-@media (max-width:600px){.trace-label{display:none;}}
+.tl{margin:18px 0}
+.tl-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
+.tl-head b{font-size:14px;color:var(--text)}
+.tl-bar{height:8px;border-radius:6px;background:var(--surface-2);overflow:hidden;margin-bottom:18px}
+.tl-bar-fill{height:100%;background:linear-gradient(90deg,var(--trace),#7be0b0);border-radius:6px;transition:width .5s ease}
+.tl-list{list-style:none;margin:0;padding:0}
+.tl-item{display:flex;gap:14px;align-items:flex-start;position:relative;padding-bottom:16px}
+.tl-item:last-child{padding-bottom:0}
+.tl-item::before{content:'';position:absolute;inset-inline-start:15px;top:32px;bottom:0;width:2px;background:var(--border)}
+.tl-item:last-child::before{display:none}
+.tl-item.done::before,.tl-item.result::before,.tl-item.bad::before{background:var(--trace)}
+.tl-node{flex:none;width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--text-muted);position:relative;z-index:1}
+.tl-item.done .tl-node,.tl-item.result .tl-node{background:var(--trace);border-color:var(--trace);color:#0C1712}
+.tl-item.bad .tl-node{background:var(--danger);border-color:var(--danger);color:#2A0E0C}
+.tl-item.current .tl-node{background:var(--amber);border-color:var(--amber);color:#3A2A0A;box-shadow:0 0 0 5px rgba(240,180,41,.22);animation:tlpulse 2s ease-in-out infinite}
+@keyframes tlpulse{0%,100%{box-shadow:0 0 0 4px rgba(240,180,41,.25)}50%{box-shadow:0 0 0 8px rgba(240,180,41,.08)}}
+.tl-body{padding-top:5px;min-width:0}
+.tl-t{font-size:15px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tl-item.todo .tl-t{color:var(--text-muted);font-weight:500}
+.tl-item.bad .tl-t{color:var(--danger)}
+.tl-item.current .tl-t{font-size:17px;font-weight:800}
+.tl-now{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:10px;background:var(--amber);color:#3A2A0A}
+.tl-d{font-size:13px;color:var(--text-muted);line-height:1.5;margin-top:3px}
 
 .result-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;margin-bottom:16px;}
 .result-card-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;}
@@ -314,7 +325,6 @@ textarea{resize:vertical;min-height:56px;}
   .issue-line{font-size:15px;}
   .id-val{font-size:24px;}
   .callout,.disclaimer{font-size:14px;}
-  .trace-node{width:32px;height:32px;font-size:14px;}
 }
 </style>
 </head>
@@ -1430,6 +1440,7 @@ const PAYMENT_STATUSES = ['Unpaid','Partial','Paid'];
 const I18N = {
   en: {
     delivery_info: 'DELIVERY INFORMATIONS',
+    stepdesc_Registered: 'We have your registration. We\'re waiting for your device to arrive.', stepdesc_Received: 'Your device has arrived and is waiting for its turn to be diagnosed.', stepdesc_Diagnosing: 'We\'re testing your device to find the exact problem.', stepdesc_Waiting_for_Parts: 'We\'re waiting for a part to arrive so we can continue the repair.', stepdesc_Repairing: 'Your device is being repaired right now.', stepdesc_To_Pick_Up: 'Your device is ready! See below how to get it back.', stepdesc_Picked_Up: 'All done — thank you for trusting us!', progress_label: 'Progress', step_now: 'Now', steps_of: '{a} of {b}',
     howto_cta_t: 'How to send your card', howto_cta_s: 'Step-by-step guide · tap to open',
     howto_link: '📦 How to send your card — step by step ↓', howto_title: '📦 How to send your card', howto_short_t: 'In short', howto_short1: 'Use any delivery service you like', howto_short2: 'Send it to our HOME address — not a pick-up office', howto_short3: 'Write your repair number on the box', howto_expand: 'Open all steps', howto_collapse: 'Close all steps', howto_s1_t: 'Fill in the registration form', howto_s1_d: 'On this page, enter your name, phone number, wilaya and the device details, then submit. You will get a repair number and a QR code — save them.', howto_s2_t: 'Send it by any delivery service', howto_s2_d: 'Choose any delivery service. Give them this HOME delivery address (not a pick-up office):', howto_s2_addr: 'Address', howto_s2_phone: 'Phone (write it on the delivery form)', howto_s3_t: 'Pack the card safely', howto_s3_d: 'Put the card in an anti-static bag, wrap it in bubble wrap, and use a sturdy box so nothing can move or press on the connector.', howto_s4_t: 'Print the package slip and put it inside', howto_s4_d: 'After you register, tap "Download package slip", print it and put it inside the box.', howto_s5_t: 'Write your repair number on the box', howto_s5_d: 'Write your repair number big and clear on the outside of the package, with your name, like this:', howto_s5_ex: 'REPAIR #123 — Your name', howto_s6_t: 'Send it, then enter your tracking number', howto_s6_d: 'Once shipped, enter the delivery company and the tracking number in "Your shipment details" under your QR code. A photo of the package helps too.', howto_s7_t: 'Follow your repair online', howto_s7_d: 'Scan your QR code, or enter your repair number and phone in Check status, to see your place in the queue and every step until it is ready.', howto_help: 'Need help? Call or message us:', howto_copy: '📋 Copy', howto_copied: '✓ Copied',
     queue_reg_title: 'Your expected place in the queue', queue_reg_first: "You'd be first in line!", queue_reg_ahead: '{a} device(s) waiting ahead of you right now', queue_reg_note_shop: 'Approximate — you can follow it any time with the QR code or your repair number.', queue_reg_note_remote: 'Confirmed once we receive your device. Follow it any time with the QR code or your repair number.',
@@ -1522,6 +1533,7 @@ const I18N = {
   },
   ar: {
     delivery_info: 'معلومات التسليم',
+    stepdesc_Registered: 'سجّلنا طلبك. ننتظر وصول جهازك.', stepdesc_Received: 'وصل جهازك وهو في انتظار دوره للفحص.', stepdesc_Diagnosing: 'نفحص جهازك لمعرفة العطل بدقة.', stepdesc_Waiting_for_Parts: 'ننتظر وصول قطعة لمتابعة الإصلاح.', stepdesc_Repairing: 'جهازك قيد الإصلاح الآن.', stepdesc_To_Pick_Up: 'جهازك جاهز! اطّلع أدناه على طريقة استلامه.', stepdesc_Picked_Up: 'تم كل شيء — شكراً لثقتكم!', progress_label: 'التقدّم', step_now: 'الآن', steps_of: '{a} من {b}',
     howto_cta_t: 'كيف ترسل بطاقتك', howto_cta_s: 'شرح خطوة بخطوة · اضغط للفتح',
     howto_link: '📦 كيف ترسل بطاقتك — خطوة بخطوة ↓', howto_title: '📦 كيف ترسل بطاقتك', howto_short_t: 'باختصار', howto_short1: 'استعمل أي شركة توصيل تريدها', howto_short2: 'أرسله إلى عنوان المنزل عندنا — وليس مكتب الاستلام', howto_short3: 'اكتب رقم الإصلاح على العلبة', howto_expand: 'فتح كل الخطوات', howto_collapse: 'إغلاق كل الخطوات', howto_s1_t: 'املأ استمارة التسجيل', howto_s1_d: 'في هذه الصفحة أدخل اسمك، رقم هاتفك، ولايتك وتفاصيل الجهاز ثم اضغط إرسال. ستحصل على رقم إصلاح ورمز QR — احتفظ بهما.', howto_s2_t: 'أرسله بأي شركة توصيل', howto_s2_d: 'اختر أي شركة توصيل. أعطها عنوان التوصيل للمنزل هذا (وليس مكتب الاستلام):', howto_s2_addr: 'العنوان', howto_s2_phone: 'الهاتف (اكتبه على وثيقة التوصيل)', howto_s3_t: 'غلّف البطاقة جيداً', howto_s3_d: 'ضع البطاقة في كيس مضاد للكهرباء الساكنة، ثم لُفّها بغلاف الفقاعات واستعمل علبة متينة حتى لا يتحرك شيء ولا يضغط على الموصّل.', howto_s4_t: 'اطبع ورقة الطرد وضعها داخل العلبة', howto_s4_d: 'بعد التسجيل اضغط على "تحميل ورقة الطرد"، اطبعها وضعها داخل العلبة.', howto_s5_t: 'اكتب رقم الإصلاح على العلبة', howto_s5_d: 'اكتب رقم الإصلاح بخط كبير وواضح على الغلاف الخارجي للطرد مع اسمك، هكذا:', howto_s5_ex: 'إصلاح رقم 123 — اسمك', howto_s6_t: 'أرسله ثم أدخل رقم التتبع', howto_s6_d: 'بعد الإرسال أدخل شركة التوصيل ورقم التتبع في "معلومات شحنتك" تحت رمز QR. وصورة للطرد تفيدنا أيضاً.', howto_s7_t: 'تابع إصلاحك عبر الإنترنت', howto_s7_d: 'امسح رمز QR، أو أدخل رقم الإصلاح وهاتفك في "تتبع الحالة"، لترى ترتيبك في قائمة الانتظار وكل مرحلة حتى يصبح جاهزاً.', howto_help: 'تحتاج مساعدة؟ اتصل بنا أو راسلنا:', howto_copy: '📋 نسخ', howto_copied: '✓ تم النسخ',
     queue_reg_title: 'ترتيبك المتوقع في قائمة الانتظار', queue_reg_first: 'ستكون الأول في الدور!', queue_reg_ahead: 'يوجد {a} جهاز في الانتظار قبلك حالياً', queue_reg_note_shop: 'تقريبي — يمكنك متابعته في أي وقت بواسطة رمز QR أو رقم الإصلاح.', queue_reg_note_remote: 'يتأكد بعد استلام جهازك. تابعه في أي وقت بواسطة رمز QR أو رقم الإصلاح.',
@@ -6876,7 +6888,7 @@ function queueBlockHtml(q){
     <div style="font-size:11px;color:var(--text-muted);margin-top:6px;opacity:.8;">${L.queue_note}</div></div>`;
 }
 
-function traceHtml(status, diagnosisResult){
+function traceHtml(status, diagnosisResult, history){
   if(status==='Cancelled'){
     const msg = I18N[currentLang].cancelled_msg;
     return `<div style="text-align:center;padding:16px;color:var(--danger);font-weight:600;">${msg}</div>`;
@@ -6886,6 +6898,10 @@ function traceHtml(status, diagnosisResult){
 
   const skipRepair = diagnosisResult === 'Not Fixable' || diagnosisResult === 'Tests OK';
   const skipIndices = skipRepair ? [STATUSES.indexOf('Waiting for Parts'), STATUSES.indexOf('Repairing')] : [];
+  // Hide "Waiting for Parts" unless this device really went through it (or is in it now)
+  if(Array.isArray(history) && status !== 'Waiting for Parts' && !history.some(h=>h && h.status==='Waiting for Parts')){
+    skipIndices.push(STATUSES.indexOf('Waiting for Parts'));
+  }
 
   // Build the node list, inserting a Fixable/Not Fixable/Tests OK result node right after Diagnosing when set.
   // For Not Fixable / Tests OK, skip the repair-specific steps and relabel "Ready" as "Back to Customer",
@@ -6914,20 +6930,29 @@ function traceHtml(status, diagnosisResult){
     nodes.splice(diagIdx + 1, 0, resultNode);
   }
 
-  return '<div class="trace-track">' + nodes.map((n,i)=>{
-    const lineDone = i>0 && (n.done || n.current);
-    let icon = n.done ? '✓' : (i+1);
-    let nodeStyle = '';
-    if(n.isResult){
-      icon = n.notFixable ? '✕' : '✓';
-      nodeStyle = n.notFixable ? 'background:var(--danger);border-color:var(--danger);color:#2A0E0C;' : 'background:var(--trace);border-color:var(--trace);color:#0C1712;';
-    }
-    return `<div class="trace-node-wrap">
-      <div class="trace-line ${lineDone?'done':''}"></div>
-      <div class="trace-node ${n.done?'done':''} ${n.current?'current':''}" style="${nodeStyle}">${icon}</div>
-      <div class="trace-label ${n.current?'active':''}" style="${n.isResult && n.notFixable ? 'color:var(--danger);font-weight:600;' : ''}">${n.label}</div>
-    </div>`;
-  }).join('') + '</div>';
+  const L = I18N[currentLang];
+  const steps = nodes.filter(n=>!n.isResult);
+  const doneCount = steps.filter(n=>n.done).length;
+  const curIdx = steps.findIndex(n=>n.current);
+  const total = steps.length;
+  const pct = Math.round(((status==='Picked Up' ? total : doneCount + (curIdx>=0 ? 0.5 : 0)) / total) * 100);
+  const position = status==='Picked Up' ? total : (curIdx >= 0 ? curIdx + 1 : doneCount);
+
+  const rows = nodes.map(n=>{
+    const state = n.isResult ? (n.notFixable ? 'bad' : 'result') : (n.current ? 'current' : (n.done ? 'done' : 'todo'));
+    const icon = n.isResult ? (n.notFixable ? '✕' : '✓') : (n.done ? '✓' : (n.current ? '●' : ''));
+    const desc = (n.current && L['stepdesc_' + String(status).replace(/ /g,'_')]) ? `<div class="tl-d">${L['stepdesc_' + String(status).replace(/ /g,'_')]}</div>` : '';
+    return `<li class="tl-item ${state}">
+      <span class="tl-node">${icon}</span>
+      <div class="tl-body"><div class="tl-t">${n.label}${n.current ? `<span class="tl-now">${L.step_now}</span>` : ''}</div>${desc}</div>
+    </li>`;
+  }).join('');
+
+  return `<div class="tl">
+    <div class="tl-head"><span>${L.progress_label}</span><b class="mono">${L.steps_of.replace('{a}', position).replace('{b}', total)}</b></div>
+    <div class="tl-bar"><div class="tl-bar-fill" style="width:${pct}%"></div></div>
+    <ol class="tl-list">${rows}</ol>
+  </div>`;
 }
 
 let lastLookupId = null;
@@ -7042,7 +7067,7 @@ async function customerLookup(){
         </div>
         <div class="status-pill mono" style="${statusPillStyle(t.status)}">${statusLabel(t.status)}</div>
       </div>
-      ${traceHtml(t.status, t.diagnosisResult)}
+      ${traceHtml(t.status, t.diagnosisResult, t.history)}
       ${queueBlockHtml(res.queue)}
       <div class="field-line"><b>${I18N[currentLang].entry_date_field}</b> ${t.entryDate || new Date(t.createdAt).toLocaleDateString()}</div>
       ${t.price ? `<div class="field-line"><b>${I18N[currentLang].price_field}</b> ${formatPrice(t.price)} <span style="color:${t.paymentStatus==='Paid'?'var(--trace)':'var(--danger)'};font-weight:600;">(${paymentStatusLabel(t.paymentStatus||'Unpaid')})</span></div>` : ''}
