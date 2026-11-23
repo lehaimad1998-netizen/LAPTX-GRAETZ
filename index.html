@@ -194,6 +194,44 @@ textarea{resize:vertical;min-height:56px;}
 .parts-table-row-low{background:rgba(219,101,96,0.08);}
 .parts-line{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px;}
 .parts-subtotal{font-size:13px;color:var(--text-muted);margin:8px 0;}
+.howto>summary{cursor:pointer;font-weight:800;font-size:18px;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.howto>summary::-webkit-details-marker{display:none}
+.howto>summary::after{content:'▾';color:var(--trace);transition:transform .2s}
+.howto[open]>summary::after{transform:rotate(180deg)}
+.howto-body{margin-top:14px}
+.howto-step{padding:2px 0;border-top:1px dashed var(--border)}
+.howto-step:first-child{border-top:none}
+.howto-step>summary{display:flex;align-items:center;gap:12px;padding:9px 0;cursor:pointer;list-style:none}
+.howto-step>summary::-webkit-details-marker{display:none}
+.howto-step>summary::after{content:'▾';margin-inline-start:auto;color:var(--trace);transition:transform .2s}
+.howto-step[open]>summary::after{transform:rotate(180deg)}
+.howto-step>.howto-d{padding:0 0 12px;margin-inline-start:50px}
+.howto-num{flex:none;width:38px;height:38px;border-radius:10px;background:var(--trace-dim);display:flex;align-items:center;justify-content:center;font-size:19px}
+.howto-t{font-weight:700;font-size:14px}
+.howto-d{font-size:13px;color:var(--text-muted);line-height:1.55;margin-top:2px}
+.howto-short{background:var(--trace-dim);border:1px solid var(--trace);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.howto-short-t{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--trace);font-weight:700;margin-bottom:6px}
+.howto-short-i{display:flex;gap:10px;align-items:flex-start;font-size:14px;font-weight:600;padding:4px 0}
+.howto-toggle{width:auto;padding:5px 12px;font-size:12px;margin-bottom:6px}
+.howto-num{font-weight:800;font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--trace)}
+.howto-box{margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
+.howto-box-l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.howto-box-v{display:block;font-size:15px;font-weight:700;margin-top:2px;word-break:break-word;color:var(--text);text-decoration:none}
+.howto-label-sample{display:inline-block;margin-top:10px;padding:10px 16px;border:2px dashed var(--text);border-radius:6px;font-weight:800;letter-spacing:.03em;transform:rotate(-1.5deg)}
+.open-banner{align-items:center;justify-content:center;gap:14px;margin:0 0 16px;padding:16px 18px;border-radius:14px;border:2px solid var(--trace);background:rgba(51,196,129,.12)}
+.open-banner-dot{width:20px;height:20px;border-radius:50%;display:inline-block;flex:none;animation:openpulse 1.8s ease-in-out infinite}
+.open-banner-label{font-size:26px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+@keyframes openpulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:.7}}
+.howto-cta{display:flex;align-items:center;gap:14px;width:100%;margin:6px 0 4px;padding:16px 18px;border:none;border-radius:14px;background:var(--trace);color:#0C1712;cursor:pointer;text-align:start;font-family:inherit;box-shadow:0 4px 18px rgba(0,0,0,.25);transition:transform .15s}
+.howto-cta:active{transform:scale(.98)}
+.howto-cta-ico{font-size:34px;line-height:1}
+.howto-cta-txt{display:flex;flex-direction:column;gap:2px;flex:1}
+.howto-cta-t{font-size:19px;font-weight:800;line-height:1.2}
+.howto-cta-s{font-size:13px;font-weight:600;opacity:.8}
+.howto-cta-arrow{font-size:26px;font-weight:800}
+.howto-help a{color:var(--trace);font-weight:700;text-decoration:none}
+.howto-label-sample{color:var(--text)}
+.howto-help{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);font-size:13px;text-align:center}
 .row-flash{animation:rowflash 2.2s ease}
 @keyframes rowflash{0%,60%{box-shadow:0 0 0 2px var(--trace);background:var(--trace-dim)}100%{box-shadow:0 0 0 0 transparent}}
 .daily-bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px;}
@@ -937,21 +975,17 @@ textarea{resize:vertical;min-height:56px;}
       <div style="display:flex;justify-content:center;margin-bottom:14px;">
         <img src="logo.png" alt="LAPTX" style="width:72px;height:72px;">
       </div>
-      <div data-i18n="delivery_info" style="font-size:20px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;margin-bottom:12px;color:var(--text);text-align:center;">DELIVERY INFORMATIONS</div>
-      <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:12px;">
-        <div class="shop-name" style="font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--trace);">LAPTX GPU</div>
-        <div id="shop-open-status" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;">
-          <span id="shop-open-dot" style="width:9px;height:9px;border-radius:50%;display:inline-block;"></span>
-          <span id="shop-open-label"></span>
-        </div>
+      <div id="shop-open-status" class="open-banner" style="display:none;">
+        <span id="shop-open-dot" class="open-banner-dot"></span>
+        <span id="shop-open-label" class="open-banner-label"></span>
       </div>
+      <button type="button" class="howto-cta" onclick="openHowTo()">
+        <span class="howto-cta-ico">📦</span>
+        <span class="howto-cta-txt"><span class="howto-cta-t" data-i18n="howto_cta_t">How to send your card</span><span class="howto-cta-s" data-i18n="howto_cta_s">Step-by-step guide · tap to open</span></span>
+        <span class="howto-cta-arrow">↓</span>
+      </button>
       <div class="ship-card">
-        <div class="ship-card-h"><span class="ship-ico">🏢</span><div><div class="ship-t" data-i18n="ship_yalidine_t">Yalidine</div><div class="ship-s" data-i18n="ship_yalidine_s">Pick-up office (stop-desk)</div></div></div>
-        <div class="ship-addr" id="ship-addr-1" dir="ltr">BLIDA OULED YAICHE</div>
-        <button class="btn-ghost ship-copy" onclick="copyShopField('ship-addr-1', this)" data-i18n="copy_btn">📋 Copy</button>
-      </div>
-      <div class="ship-card">
-        <div class="ship-card-h"><span class="ship-ico">🏠</span><div><div class="ship-t" data-i18n="ship_other_t">Other delivery companies</div><div class="ship-s" data-i18n="ship_other_s">Home delivery address</div></div></div>
+        <div class="ship-card-h"><span class="ship-ico">🏠</span><div><div class="ship-t" data-i18n="ship_other_t">Send it with any delivery service</div><div class="ship-s" data-i18n="ship_other_s">To this HOME address — not a pick-up office</div></div></div>
         <div class="ship-addr" id="ship-addr-2" dir="ltr">BLIDA OULED YAICHE CITE POLICE LCL N&deg;83</div>
         <button class="btn-ghost ship-copy" onclick="copyShopField('ship-addr-2', this)" data-i18n="copy_btn">📋 Copy</button>
       </div>
@@ -1146,6 +1180,57 @@ textarea{resize:vertical;min-height:56px;}
       </div>
     </div>
     <div class="callout" id="reg-callout" data-i18n="reg_callout" style="max-width:520px;margin:16px auto 0;">⚠️ You'll be given a repair number after submitting — save it along with your phone number to check your status later.</div>
+    <details class="panel howto" id="register-howto" style="max-width:520px;margin:16px auto 0;">
+      <summary data-i18n="howto_title">📦 How to send your card</summary>
+      <div class="howto-body">
+        <div class="howto-short">
+          <div class="howto-short-t" data-i18n="howto_short_t">In short</div>
+          <div class="howto-short-i"><span>✅</span><span data-i18n="howto_short1">Use any delivery service you like</span></div>
+          <div class="howto-short-i"><span>🏠</span><span data-i18n="howto_short2">Send it to our HOME address — not a pick-up office</span></div>
+          <div class="howto-short-i"><span>✏️</span><span data-i18n="howto_short3">Write your repair number on the box</span></div>
+        </div>
+        <button type="button" class="btn-ghost howto-toggle" id="howto-toggle-btn" onclick="toggleHowToAll()" data-i18n="howto_expand">Open all steps</button>
+
+        <details class="howto-step">
+          <summary><span class="howto-num">1</span><span class="howto-t" data-i18n="howto_s1_t">Fill in the registration form</span></summary>
+          <div class="howto-d"><div data-i18n="howto_s1_d">On this page, enter your name, phone number, wilaya and the device details, then submit. You will get a repair number and a QR code — save them.</div></div>
+        </details>
+        <details class="howto-step">
+          <summary><span class="howto-num">2</span><span class="howto-t" data-i18n="howto_s2_t">Send it by any delivery service</span></summary>
+          <div class="howto-d"><div data-i18n="howto_s2_d">Choose any delivery service. Give them this HOME delivery address (not a pick-up office):</div>
+            <div class="howto-box">
+              <div class="howto-box-l" data-i18n="howto_s2_addr">Address</div>
+              <div class="howto-box-v" id="howto-addr" dir="ltr"></div>
+              <button type="button" class="btn-ghost ship-copy" onclick="copyShopField('howto-addr', this)" data-i18n="howto_copy">📋 Copy</button>
+              <div class="howto-box-l" style="margin-top:10px;" data-i18n="howto_s2_phone">Phone (write it on the delivery form)</div>
+              <a class="howto-box-v mono" id="howto-phone" dir="ltr" href="tel:0540174110"></a>
+              <button type="button" class="btn-ghost ship-copy" onclick="copyShopField('howto-phone', this)" data-i18n="howto_copy">📋 Copy</button>
+            </div></div>
+        </details>
+        <details class="howto-step">
+          <summary><span class="howto-num">3</span><span class="howto-t" data-i18n="howto_s3_t">Pack the card safely</span></summary>
+          <div class="howto-d"><div data-i18n="howto_s3_d">Put the card in an anti-static bag, wrap it in bubble wrap, and use a sturdy box so nothing can move or press on the connector.</div></div>
+        </details>
+        <details class="howto-step">
+          <summary><span class="howto-num">4</span><span class="howto-t" data-i18n="howto_s4_t">Print the package slip and put it inside</span></summary>
+          <div class="howto-d"><div data-i18n="howto_s4_d">After you register, tap "Download package slip", print it and put it inside the box.</div></div>
+        </details>
+        <details class="howto-step">
+          <summary><span class="howto-num">5</span><span class="howto-t" data-i18n="howto_s5_t">Write your repair number on the box</span></summary>
+          <div class="howto-d"><div data-i18n="howto_s5_d">Write your repair number big and clear on the outside of the package, with your name, like this:</div>
+            <div class="howto-label-sample" data-i18n="howto_s5_ex">REPAIR #123 — Your name</div></div>
+        </details>
+        <details class="howto-step">
+          <summary><span class="howto-num">6</span><span class="howto-t" data-i18n="howto_s6_t">Send it, then enter your tracking number</span></summary>
+          <div class="howto-d"><div data-i18n="howto_s6_d">Once shipped, enter the delivery company and the tracking number in "Your shipment details" under your QR code. A photo of the package helps too.</div></div>
+        </details>
+        <details class="howto-step">
+          <summary><span class="howto-num">7</span><span class="howto-t" data-i18n="howto_s7_t">Follow your repair online</span></summary>
+          <div class="howto-d"><div data-i18n="howto_s7_d">Scan your QR code, or enter your repair number and phone in Check status, to see your place in the queue and every step until it is ready.</div></div>
+        </details>
+        <div class="howto-help"><span data-i18n="howto_help">Need help? Call or message us:</span> <a class="mono" href="tel:0540174110" dir="ltr">0540174110</a></div>
+      </div>
+    </details>
   </div>
 
   <div id="conditions-modal-overlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeConditionsModal()">
@@ -1345,9 +1430,11 @@ const PAYMENT_STATUSES = ['Unpaid','Partial','Paid'];
 const I18N = {
   en: {
     delivery_info: 'DELIVERY INFORMATIONS',
+    howto_cta_t: 'How to send your card', howto_cta_s: 'Step-by-step guide · tap to open',
+    howto_link: '📦 How to send your card — step by step ↓', howto_title: '📦 How to send your card', howto_short_t: 'In short', howto_short1: 'Use any delivery service you like', howto_short2: 'Send it to our HOME address — not a pick-up office', howto_short3: 'Write your repair number on the box', howto_expand: 'Open all steps', howto_collapse: 'Close all steps', howto_s1_t: 'Fill in the registration form', howto_s1_d: 'On this page, enter your name, phone number, wilaya and the device details, then submit. You will get a repair number and a QR code — save them.', howto_s2_t: 'Send it by any delivery service', howto_s2_d: 'Choose any delivery service. Give them this HOME delivery address (not a pick-up office):', howto_s2_addr: 'Address', howto_s2_phone: 'Phone (write it on the delivery form)', howto_s3_t: 'Pack the card safely', howto_s3_d: 'Put the card in an anti-static bag, wrap it in bubble wrap, and use a sturdy box so nothing can move or press on the connector.', howto_s4_t: 'Print the package slip and put it inside', howto_s4_d: 'After you register, tap "Download package slip", print it and put it inside the box.', howto_s5_t: 'Write your repair number on the box', howto_s5_d: 'Write your repair number big and clear on the outside of the package, with your name, like this:', howto_s5_ex: 'REPAIR #123 — Your name', howto_s6_t: 'Send it, then enter your tracking number', howto_s6_d: 'Once shipped, enter the delivery company and the tracking number in "Your shipment details" under your QR code. A photo of the package helps too.', howto_s7_t: 'Follow your repair online', howto_s7_d: 'Scan your QR code, or enter your repair number and phone in Check status, to see your place in the queue and every step until it is ready.', howto_help: 'Need help? Call or message us:', howto_copy: '📋 Copy', howto_copied: '✓ Copied',
     queue_reg_title: 'Your expected place in the queue', queue_reg_first: "You'd be first in line!", queue_reg_ahead: '{a} device(s) waiting ahead of you right now', queue_reg_note_shop: 'Approximate — you can follow it any time with the QR code or your repair number.', queue_reg_note_remote: 'Confirmed once we receive your device. Follow it any time with the QR code or your repair number.',
     queue_title: 'Your place in the queue', queue_next: "You're next — your device is first in line.", queue_ahead: '{a} device(s) ahead of you · {t} waiting in total', queue_wait_device: "We're waiting to receive your device.", queue_in_repair: 'Your device is being worked on.', queue_total: '{t} device(s) currently waiting in the queue', queue_note: 'Approximate — the order may change depending on the repair.',
-    ship_yalidine_t: 'Yalidine', ship_yalidine_s: 'Pick-up office (stop-desk)', ship_other_t: 'Other delivery companies', ship_other_s: 'Home delivery address', ship_tel_t: 'Phone', ship_tel_s: 'Write it on the parcel / delivery form', copy_btn: '📋 Copy', copied_msg: '✓ Copied',
+    ship_yalidine_t: 'Yalidine', ship_yalidine_s: 'Pick-up office (stop-desk)', ship_other_t: 'Send it with any delivery service', ship_other_s: 'To this HOME address — not a pick-up office', ship_tel_t: 'Phone', ship_tel_s: 'Write it on the parcel / delivery form', copy_btn: '📋 Copy', copied_msg: '✓ Copied',
     yalidine_label: 'YALIDINE:',
     other_company_label: 'Other company:',
     tel_label: 'TEL:',
@@ -1435,9 +1522,11 @@ const I18N = {
   },
   ar: {
     delivery_info: 'معلومات التسليم',
+    howto_cta_t: 'كيف ترسل بطاقتك', howto_cta_s: 'شرح خطوة بخطوة · اضغط للفتح',
+    howto_link: '📦 كيف ترسل بطاقتك — خطوة بخطوة ↓', howto_title: '📦 كيف ترسل بطاقتك', howto_short_t: 'باختصار', howto_short1: 'استعمل أي شركة توصيل تريدها', howto_short2: 'أرسله إلى عنوان المنزل عندنا — وليس مكتب الاستلام', howto_short3: 'اكتب رقم الإصلاح على العلبة', howto_expand: 'فتح كل الخطوات', howto_collapse: 'إغلاق كل الخطوات', howto_s1_t: 'املأ استمارة التسجيل', howto_s1_d: 'في هذه الصفحة أدخل اسمك، رقم هاتفك، ولايتك وتفاصيل الجهاز ثم اضغط إرسال. ستحصل على رقم إصلاح ورمز QR — احتفظ بهما.', howto_s2_t: 'أرسله بأي شركة توصيل', howto_s2_d: 'اختر أي شركة توصيل. أعطها عنوان التوصيل للمنزل هذا (وليس مكتب الاستلام):', howto_s2_addr: 'العنوان', howto_s2_phone: 'الهاتف (اكتبه على وثيقة التوصيل)', howto_s3_t: 'غلّف البطاقة جيداً', howto_s3_d: 'ضع البطاقة في كيس مضاد للكهرباء الساكنة، ثم لُفّها بغلاف الفقاعات واستعمل علبة متينة حتى لا يتحرك شيء ولا يضغط على الموصّل.', howto_s4_t: 'اطبع ورقة الطرد وضعها داخل العلبة', howto_s4_d: 'بعد التسجيل اضغط على "تحميل ورقة الطرد"، اطبعها وضعها داخل العلبة.', howto_s5_t: 'اكتب رقم الإصلاح على العلبة', howto_s5_d: 'اكتب رقم الإصلاح بخط كبير وواضح على الغلاف الخارجي للطرد مع اسمك، هكذا:', howto_s5_ex: 'إصلاح رقم 123 — اسمك', howto_s6_t: 'أرسله ثم أدخل رقم التتبع', howto_s6_d: 'بعد الإرسال أدخل شركة التوصيل ورقم التتبع في "معلومات شحنتك" تحت رمز QR. وصورة للطرد تفيدنا أيضاً.', howto_s7_t: 'تابع إصلاحك عبر الإنترنت', howto_s7_d: 'امسح رمز QR، أو أدخل رقم الإصلاح وهاتفك في "تتبع الحالة"، لترى ترتيبك في قائمة الانتظار وكل مرحلة حتى يصبح جاهزاً.', howto_help: 'تحتاج مساعدة؟ اتصل بنا أو راسلنا:', howto_copy: '📋 نسخ', howto_copied: '✓ تم النسخ',
     queue_reg_title: 'ترتيبك المتوقع في قائمة الانتظار', queue_reg_first: 'ستكون الأول في الدور!', queue_reg_ahead: 'يوجد {a} جهاز في الانتظار قبلك حالياً', queue_reg_note_shop: 'تقريبي — يمكنك متابعته في أي وقت بواسطة رمز QR أو رقم الإصلاح.', queue_reg_note_remote: 'يتأكد بعد استلام جهازك. تابعه في أي وقت بواسطة رمز QR أو رقم الإصلاح.',
     queue_title: 'ترتيبك في قائمة الانتظار', queue_next: 'أنت التالي — جهازك الأول في الدور.', queue_ahead: 'يوجد {a} جهاز قبلك · {t} في الانتظار إجمالاً', queue_wait_device: 'ننتظر وصول جهازك إلينا.', queue_in_repair: 'جهازك قيد الإصلاح الآن.', queue_total: '{t} جهاز في قائمة الانتظار حالياً', queue_note: 'تقريبي — قد يتغير الترتيب حسب نوع الإصلاح.',
-    ship_yalidine_t: 'ياليدين', ship_yalidine_s: 'مكتب الاستلام (Stop-desk)', ship_other_t: 'شركات التوصيل الأخرى', ship_other_s: 'عنوان التوصيل للمنزل', ship_tel_t: 'الهاتف', ship_tel_s: 'اكتبه على الطرد / وثيقة التوصيل', copy_btn: '📋 نسخ', copied_msg: '✓ تم النسخ',
+    ship_yalidine_t: 'ياليدين', ship_yalidine_s: 'مكتب الاستلام (Stop-desk)', ship_other_t: 'أرسله بأي شركة توصيل', ship_other_s: 'إلى عنوان المنزل هذا — وليس مكتب الاستلام', ship_tel_t: 'الهاتف', ship_tel_s: 'اكتبه على الطرد / وثيقة التوصيل', copy_btn: '📋 نسخ', copied_msg: '✓ تم النسخ',
     yalidine_label: 'ياليدين:',
     other_company_label: 'شركة أخرى:',
     tel_label: 'الهاتف:',
@@ -1713,6 +1802,9 @@ function applyLanguage(){
   document.getElementById('lang-btn-ar').classList.toggle('active', currentLang==='ar');
   updatePkgNote();
   populateOriginWilayaOptions();
+  syncHowToContacts();
+  const tb = document.getElementById('howto-toggle-btn');
+  if(tb){ const open = Array.from(document.querySelectorAll('#register-howto .howto-step')).every(d=>d.open); tb.textContent = open ? dict.howto_collapse : dict.howto_expand; }
 }
 
 function setLanguage(lang){
@@ -3135,6 +3227,7 @@ async function registerDevice(){
   applyRegisterSourceUI();
   lastRegisteredPhone = phone;
   showRegisterQueue(res.id, phone, sourceVal);
+  if(sourceVal === 'remote'){ const hw = document.getElementById('register-howto'); if(hw) hw.open = true; }
   apiGet('customerSaveNameParts', {id: res.id, phone: phone, firstName: firstName, lastName: lastName});
   apiGet('customerSaveSource', {id: res.id, phone: phone, source: sourceVal});
   apiGet('customerSaveOriginWilaya', {id: res.id, phone: phone, wilaya: originWilaya});
@@ -5493,6 +5586,12 @@ async function loadShopOpenStatus(){
   if(wrap){
     wrap.style.display = 'flex';
     applyOpenStatusVisual(document.getElementById('shop-open-dot'), document.getElementById('shop-open-label'), res.open);
+    // big public banner: bigger wording + tinted box in the matching colour
+    const lbl = document.getElementById('shop-open-label');
+    if(lbl) lbl.textContent = currentLang === 'ar' ? (res.open ? 'نحن مفتوحون' : 'نحن مغلقون') : (res.open ? "We're OPEN" : "We're CLOSED");
+    const col = res.open ? '#33C481' : '#e5484d';
+    wrap.style.borderColor = col;
+    wrap.style.background = res.open ? 'rgba(51,196,129,.12)' : 'rgba(229,72,77,.12)';
   }
 
   updateAdminOpenToggleDisplay(res.open);
@@ -6717,6 +6816,24 @@ async function saveNotes(id){
 }
 
 // Shown right under the QR code after registering: where the new device will stand in line
+function syncHowToContacts(){
+  const a = document.getElementById('ship-addr-2'), p = document.getElementById('ship-addr-3');
+  const ha = document.getElementById('howto-addr'), hp = document.getElementById('howto-phone');
+  if(a && ha) ha.textContent = a.textContent.trim();
+  if(p && hp) hp.textContent = p.textContent.trim();
+}
+function toggleHowToAll(){
+  const steps = document.querySelectorAll('#register-howto .howto-step');
+  const anyClosed = Array.from(steps).some(d=>!d.open);
+  steps.forEach(d=>{ d.open = anyClosed; });
+  const b = document.getElementById('howto-toggle-btn');
+  if(b){ const L = I18N[currentLang]; b.textContent = anyClosed ? L.howto_collapse : L.howto_expand; }
+}
+function openHowTo(){
+  const d = document.getElementById('register-howto'); if(!d) return;
+  d.open = true;
+  d.scrollIntoView({behavior:'smooth', block:'start'});
+}
 async function showRegisterQueue(id, phone, source){
   const box = document.getElementById('register-queue');
   if(!box) return;
