@@ -229,6 +229,7 @@ textarea{resize:vertical;min-height:56px;}
 .howto-cta-t{font-size:19px;font-weight:800;line-height:1.2}
 .howto-cta-s{font-size:13px;font-weight:600;opacity:.8}
 .howto-cta-arrow{font-size:26px;font-weight:800}
+.tab-badge{display:inline-block;min-width:18px;padding:1px 6px;margin-inline-start:4px;border-radius:10px;background:var(--amber);color:#3A2A0A;font-size:11px;font-weight:800;text-align:center;line-height:16px}
 .howto-help a{color:var(--trace);font-weight:700;text-decoration:none}
 .howto-label-sample{color:var(--text)}
 .howto-help{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);font-size:13px;text-align:center}
@@ -388,7 +389,7 @@ textarea{resize:vertical;min-height:56px;}
       <button class="tab-btn active" id="subtab-tickets" onclick="switchAdminSubview('tickets')">Tickets</button>
       <button class="tab-btn" id="subtab-diagnosed" onclick="switchAdminSubview('diagnosed')">Diagnostics</button>
       <button class="tab-btn" id="subtab-tofix" onclick="switchAdminSubview('tofix')">To Fix</button>
-      <button class="tab-btn" id="subtab-shipping" onclick="switchAdminSubview('shipping')">To Pick Up</button>
+      <button class="tab-btn" id="subtab-shipping" onclick="switchAdminSubview('shipping')">To Pick Up <span id="ship-badge" class="tab-badge" style="display:none;"></span></button>
       <button class="tab-btn" id="subtab-shipped" onclick="switchAdminSubview('shipped')">🚚 Shipped</button>
       <button class="tab-btn" id="subtab-archive" onclick="switchAdminSubview('archive')">Archive</button>
       <button class="tab-btn" id="subtab-workshop" onclick="switchAdminSubview('workshop')">Revenue</button>
@@ -2368,7 +2369,15 @@ function renderMainShop(){
       </div>`).join('');
 }
 
+// Red-flag count on the To Pick Up tab: customers who entered delivery info and are waiting to be shipped
+function updateShipBadge(){
+  const b = document.getElementById('ship-badge'); if(!b) return;
+  const n = tickets.filter(t=>!t.archived && t.status==='To Pick Up' && t.shippingWilaya && !t.yalidineTracking).length;
+  b.textContent = n; b.style.display = n > 0 ? 'inline-block' : 'none';
+  b.title = n + ' device(s) with delivery info, ready to ship back';
+}
 function renderVisibleAdminSubview(){
+  updateShipBadge();
   if(currentAdminSubview==='mainshop'){ renderMainShop(); renderScheduler(); }
   else if(currentAdminSubview==='tickets') renderAdminList();
   else if(currentAdminSubview==='diagnosed'){ renderDiagnosedList(); renderWaitingPartsList(); renderFixableList(); renderNotFixableList(); renderTestsOkList(); renderHardList(); }
