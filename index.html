@@ -2711,7 +2711,9 @@ function exportYalidineXlsx(){
       t.id,                                                  // numero_commande = repair number
       deviceLine,                                            // produit
       amountToCollect(t),                                    // prix = cash to collect on delivery
-      '', '', '', '', '', '', '', '', '',                   // insurance, declared value, L/W/H, weight, free delivery, exchange, object to collect
+      'oui',                                                 // assurer le colis
+      Math.round((parseFloat(t.price) || 0) + partsSubtotal(t)),  // valeur déclarée = full repair price (labor + parts)
+      '', '', '', '', '', '', '',                           // L/W/H, weight, free delivery, exchange, object to collect, declared value, L/W/H, weight, free delivery, exchange, object to collect
       1,                                                     // nombre de colis (Yalidine's importer rejects an empty cell)
       YALIDINE_OPEN_ALLOWED                                  // ouverture autorisée (required)
     ]);
