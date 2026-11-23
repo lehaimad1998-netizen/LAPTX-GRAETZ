@@ -760,6 +760,16 @@ textarea{resize:vertical;min-height:56px;}
       </div>
 
       <div class="panel" style="max-width:520px;margin:0 auto 16px;">
+        <h2>🗄 Auto-archive unreceived devices</h2>
+        <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Every morning (9:15 AM) devices that were registered more than 7 days ago and still have not been received are moved to the Archive tab, and the Telegram bot lists them. Nothing is deleted — use ♻️ Restore to Tickets in the Archive if one still arrives.</div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="auto-archive-unreceived" style="width:auto;" onchange="saveAutoArchiveUnreceived(this.checked)">
+          <span>Auto-archive devices never received after 7 days</span>
+        </label>
+        <div id="auto-archive-msg" style="display:none;font-size:12px;color:var(--trace);margin-top:8px;">✅ Saved.</div>
+      </div>
+
+      <div class="panel" style="max-width:520px;margin:0 auto 16px;">
         <h2>📊 Daily revenue report</h2>
         <div class="disclaimer" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:14px;">Every day at 6:05 PM (just after the shop closes automatically) the Telegram bot sends the day's devices fixed, estimated revenue, estimated profit and amount already collected — the same figures as the "Fixed per day" section in Revenue.</div>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
@@ -1281,6 +1291,9 @@ const ACTION_TO_RPC = {
   adminSetTaskTimerEnabled: 'admin_set_task_timer_enabled',
   adminTaskTimerAction: 'admin_task_timer_action',
   adminGetQueueEnabled: 'admin_get_queue_enabled',
+  adminRestoreArchivedTicket: 'admin_restore_archived_ticket',
+  adminGetAutoArchiveUnreceived: 'admin_get_auto_archive_unreceived',
+  adminSetAutoArchiveUnreceived: 'admin_set_auto_archive_unreceived',
   adminGetDailyRevenueReportEnabled: 'admin_get_daily_revenue_report_enabled',
   adminSetDailyRevenueReportEnabled: 'admin_set_daily_revenue_report_enabled',
   adminSendRevenueReportNow: 'admin_send_revenue_report_now',
@@ -2213,7 +2226,7 @@ function switchAdminSubview(v){
   document.getElementById('subtab-shipped').classList.toggle('active', v==='shipped');
   document.getElementById('subtab-archive').classList.toggle('active', v==='archive');
   document.getElementById('subtab-cleanup').classList.toggle('active', v==='cleanup');
-  if(v==='settings'){ loadTaskReminderMinutes(); loadQueueEnabled(); loadRevenueReportEnabled(); }
+  if(v==='settings'){ loadTaskReminderMinutes(); loadQueueEnabled(); loadRevenueReportEnabled(); loadAutoArchiveUnreceived(); }
   renderVisibleAdminSubview();
 
   // Auto-refresh while viewing Shipped, so Yalidine status updates (from the
@@ -4736,6 +4749,7 @@ function renderArchiveList(){
           <div class="ticket-id">#${t.id}</div>
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          ${t.archivedReason==='unreceived' ? `<div class="lowstock-flag" style="color:#c9a227;">⏳ Auto-archived — never received (registered ${t.entryDate || new Date(t.createdAt).toLocaleDateString('en-GB')})</div>` : ''}
           ${t.diagnosisResult ? `<div class="lowstock-flag" style="color:${t.diagnosisResult==='Not Fixable' ? 'var(--danger)' : 'var(--trace)'};">${t.diagnosisResult==='Fixable' ? '✅' : (t.diagnosisResult==='Tests OK' ? '🔧' : '❌')} ${t.diagnosisResult}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -4747,6 +4761,7 @@ function renderArchiveList(){
       </div>
       ${deliveryCardHtml(t, false)}
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        ${t.archivedReason==='unreceived' ? `<button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="restoreArchivedTicket('${t.id}', event)">♻️ Restore to Tickets</button>` : ''}
         <button class="btn-ghost" style="width:auto;padding:7px 12px;" onclick="printReceipt('${t.id}')">🖨️ Print receipt</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;background:var(--trace);color:#0C1712;border-color:var(--trace);" onclick="reopenToPickup('${t.id}', event)">↩️ Back to To Pick Up</button>
         <button class="btn-ghost" style="width:auto;padding:7px 12px;color:var(--danger);border-color:var(--danger);" onclick="deleteArchivedTicket('${t.id}', event)">🗑️ Delete</button>
@@ -5299,6 +5314,24 @@ async function loadTaskReminderMinutes(){
   if(res && res.ok && el) el.value = res.minutes;
   const cb = document.getElementById('task-timer-enabled');
   if(res && res.ok && cb) cb.checked = res.enabled !== false;
+}
+async function loadAutoArchiveUnreceived(){
+  const res = await apiGet('adminGetAutoArchiveUnreceived');
+  const cb = document.getElementById('auto-archive-unreceived');
+  if(res && res.ok && cb) cb.checked = res.enabled !== false;
+}
+async function saveAutoArchiveUnreceived(flag){
+  const res = await apiGet('adminSetAutoArchiveUnreceived', {enabled: !!flag});
+  if(!res.ok){ alert(res.error || 'Could not save.'); loadAutoArchiveUnreceived(); return; }
+  const m = document.getElementById('auto-archive-msg');
+  m.style.display = 'block'; setTimeout(()=>{ m.style.display = 'none'; }, 2500);
+}
+async function restoreArchivedTicket(id, event){
+  if(event) event.stopPropagation();
+  if(!window.confirm('Restore #' + id + ' to the Tickets tab? It gets another 7 days before auto-archiving again.')) return;
+  const res = await apiGet('adminRestoreArchivedTicket', {id:id});
+  if(!res.ok){ alert(res.error || 'Could not restore.'); return; }
+  await refreshTicketsOnly();
 }
 async function loadRevenueReportEnabled(){
   const res = await apiGet('adminGetDailyRevenueReportEnabled');
