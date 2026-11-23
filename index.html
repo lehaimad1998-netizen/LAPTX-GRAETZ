@@ -2627,14 +2627,18 @@ const YALIDINE_HEADERS = [
   'numero_commande', 'produit', 'prix',
   'Assurer le colis ?\n(oui ou non)\nvoir condition dans le site',
   'valeur déclarée\n(la valeur du contenu du colis)',
-  'longueur (en CM)\nfacultatif sauf\nsi surpoids',
-  'largeur (en CM)\nfacultatif sauf\nsi surpoids',
-  'hauteur (en CM)\nfacultatif sauf\nsi surpoids',
-  'poids (en KG)\nfacultatif sauf\nsi surpoids',
+  'longueur (en CM)\nfacultatif sauf\nsi surpoids\n(total de l\u2019envoi multi-pièce)',
+  'largeur (en CM)\nfacultatif sauf\nsi surpoids\n(total de l\u2019envoi multi-pièce)',
+  'hauteur (en CM)\nfacultatif sauf\nsi surpoids\n(total de l\u2019envoi multi-pièce)',
+  'poids (en KG)\nfacultatif sauf\nsi surpoids\n(total de l\u2019envoi multi-pièce)',
   'livraison gratuite\n(si oui mettez OUI\nsinon laissez vide)',
   'FAIRE UN ECHANGE?\n(si oui mettez OUI\nsinon laissez vide)',
-  'OBJET A RECUPERER'
+  'OBJET A RECUPERER',
+  'NOMBRE DE COLIS\n(de 1 à 100 ; vide = 1)',
+  'OUVERTURE AUTORISÉE ?\n(OUI ou NON obligatoire)'
 ];
+// Yalidine requires this column (OUI/NON). Change here if you let customers open the parcel before paying.
+const YALIDINE_OPEN_ALLOWED = 'OUI';
 
 let yalidineSelectedIds = new Set();
 
@@ -2707,12 +2711,14 @@ function exportYalidineXlsx(){
       t.id,                                                  // numero_commande = repair number
       deviceLine,                                            // produit
       amountToCollect(t),                                    // prix = cash to collect on delivery
-      '', '', '', '', '', '', '', '', ''
+      '', '', '', '', '', '', '', '',                       // insurance, declared value, L/W/H, weight, free delivery, exchange, object to collect
+      '',                                                    // nombre de colis (empty = 1)
+      YALIDINE_OPEN_ALLOWED                                  // ouverture autorisée (required)
     ]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [10,16,16,14,28,18,16,12,10,24,10].map(w=>({wch:w}));
+  ws['!cols'] = [18,18,14,24,30,15,12,18,17,18,12,14,14,12,12,12,12,14,14,16,16,22].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Feuil1');
   const dateStr = new Date().toISOString().slice(0,10);
