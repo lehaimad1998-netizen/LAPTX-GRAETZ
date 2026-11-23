@@ -911,6 +911,15 @@ textarea{resize:vertical;min-height:56px;}
           <option value="Partial">Partial</option>
           <option value="Paid">Paid</option>
         </select>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">📊 Excel for Yalidine (upload manually)</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button class="btn-ghost" style="width:auto;" onclick="selectReadyToShip()">☑️ Select all ready to ship</button>
+            <button class="btn" id="yal-export-btn" style="width:auto;" onclick="exportYalidineXlsx()" disabled>⬇️ Export to Excel</button>
+            <span id="yal-export-count" class="mono" style="font-size:12px;color:var(--trace);"></span>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">"Ready to ship" = customer entered delivery info and no tracking number yet. Names are split into first / family name, and the price column is the cash to collect on delivery.</div>
+        </div>
       </div>
 
       <div class="panel" style="margin-top:16px;">
@@ -2378,6 +2387,7 @@ function updateShipBadge(){
 }
 function renderVisibleAdminSubview(){
   updateShipBadge();
+  updateYalExportCount();
   if(currentAdminSubview==='mainshop'){ renderMainShop(); renderScheduler(); }
   else if(currentAdminSubview==='tickets') renderAdminList();
   else if(currentAdminSubview==='diagnosed'){ renderDiagnosedList(); renderWaitingPartsList(); renderFixableList(); renderNotFixableList(); renderTestsOkList(); renderHardList(); }
@@ -2633,59 +2643,84 @@ function toggleYalidineSelect(id){
   else yalidineSelectedIds.add(id);
 }
 
-function toggleYalidineSelectAll(scope){
-  const source = scope === 'archive'
-    ? tickets.filter(t=>t.archived)
-    : tickets.filter(t=>!t.archived && t.status==='To Pick Up');
-  const allSelected = source.length>0 && source.every(t=>yalidineSelectedIds.has(t.id));
-  source.forEach(t=>{
-    if(allSelected) yalidineSelectedIds.delete(t.id);
-    else yalidineSelectedIds.add(t.id);
-  });
-  if(scope==='archive') renderArchiveList(); else renderShippingList();
+// Customers registered before the first/last split only have one combined name: first word = prénom, the rest = nom
+function splitCustomerName(t){
+  let first = (t.customerFirstName || '').trim(), last = (t.customerLastName || '').trim();
+  if(first || last) return {first: first || '.', last: last || '.'};
+  const parts = (t.customerName || '').trim().split(/\s+/).filter(Boolean);
+  if(parts.length === 0) return {first:'Client', last:'.'};
+  if(parts.length === 1) return {first: parts[0], last: '.'};
+  return {first: parts[0], last: parts.slice(1).join(' ')};
+}
+// Cash to collect from the receiver on delivery = labor + parts - what the customer already paid
+function amountToCollect(t){
+  const total = (parseFloat(t.price) || 0) + partsSubtotal(t);
+  const paidAmt = parseFloat(t.amountPaid) || 0;
+  const status = t.paymentStatus || 'Unpaid';
+  const paid = status === 'Paid' ? (paidAmt > 0 ? paidAmt : total) : (status === 'Partial' ? paidAmt : 0);
+  return Math.max(Math.round(total - paid), 0);
+}
+function isReadyToShip(t){ return !t.archived && t.status === 'To Pick Up' && !!t.shippingWilaya && !t.yalidineTracking; }
+
+function updateYalExportCount(){
+  const el = document.getElementById('yal-export-count'); if(!el) return;
+  const n = yalidineSelectedIds.size;
+  el.textContent = n > 0 ? n + ' selected' : '';
+  const btn = document.getElementById('yal-export-btn'); if(btn) btn.disabled = n === 0;
+}
+function selectReadyToShip(){
+  const ready = tickets.filter(isReadyToShip);
+  const allSelected = ready.length > 0 && ready.every(t=>yalidineSelectedIds.has(t.id));
+  ready.forEach(t=>{ if(allSelected) yalidineSelectedIds.delete(t.id); else yalidineSelectedIds.add(t.id); });
+  renderVisibleAdminSubview();
+  updateYalExportCount();
+}
+function onYalCheckbox(id, event){
+  if(event) event.stopPropagation();
+  toggleYalidineSelect(id);
+  updateYalExportCount();
 }
 
-function exportYalidineXlsx(scope){
-  const fullSource = scope === 'archive'
-    ? tickets.filter(t=>t.archived)
-    : tickets.filter(t=>!t.archived && t.status==='To Pick Up');
-
-  const source = fullSource.filter(t=>yalidineSelectedIds.has(t.id));
-
+function exportYalidineXlsx(){
+  const source = tickets.filter(t=>yalidineSelectedIds.has(t.id));
   if(source.length === 0){
-    alert('Select at least one repair (using the checkboxes) before exporting.');
+    alert('Tick at least one repair first (or press "Select all ready to ship").');
     return;
   }
 
   const rows = [YALIDINE_HEADERS];
   source.forEach(t=>{
-    // Strip the "16 - " numbering prefix from our wilaya field, Yalidine's template just wants the plain name
+    // Yalidine's template wants the plain wilaya name, without our "16 - " number prefix
     const wilayaName = (t.shippingWilaya || '').replace(/^\d+\s*-\s*/, '');
     const deviceLine = [t.deviceBrand, t.deviceModel].filter(Boolean).join(' ') || 'GPU repair';
+    const nm = splitCustomerName(t);
+    const isStop = t.shippingDeliveryType === 'stopdesk';
     rows.push([
-      'Blida',                      // Wilaya de départ — your shop's wilaya
-      t.customerLastName || t.customerName || '',  // nom — real last name if we have it, else full combined name
-      t.customerFirstName || '',    // prénom — real first name if we have it, blank for older tickets without the split
-      t.phone || '',
-      t.shippingStopdesk || '',     // adresse — we don't collect a street address; using the customer's free-text stop-desk note as a reference
-      t.shippingCommune || '',      // commune (nom) — from the customer's shipping info
-      wilayaName,
-      '',                            // STOP DESK ID — we only have a free-text name, not the real numeric ID; fill in manually
-      t.id,                          // numero_commande
-      deviceLine,                    // produit
-      t.price || '',                 // prix
+      'Blida',                                               // Wilaya de départ — the shop
+      nm.last,                                               // nom
+      nm.first,                                              // prénom
+      String(t.phone || '').replace(/\D/g, ''),              // téléphone (digits only)
+      isStop ? (t.shippingStopdeskName || t.shippingStopdesk || '') : (t.shippingStopdesk || ''),  // adresse (we don't collect a street address)
+      t.shippingCommune || '',                               // commune (nom)
+      wilayaName,                                            // wilaya (nom)
+      isStop && t.shippingStopdeskId ? t.shippingStopdeskId : '',  // STOP DESK (id) — empty for home delivery
+      t.id,                                                  // numero_commande = repair number
+      deviceLine,                                            // produit
+      amountToCollect(t),                                    // prix = cash to collect on delivery
       '', '', '', '', '', '', '', '', ''
     ]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [10,16,16,14,28,18,16,12,10,24,10].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Feuil1');
   const dateStr = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, 'yalidine-export-' + scope + '-' + dateStr + '.xlsx');
+  XLSX.writeFile(wb, 'yalidine-export-' + dateStr + '.xlsx');
 
-  source.forEach(t=>yalidineSelectedIds.delete(t.id));
-  if(scope==='archive') renderArchiveList(); else renderShippingList();
+  yalidineSelectedIds.clear();
+  renderVisibleAdminSubview();
+  updateYalExportCount();
 }
 
 function downloadDiagnosisQRLabel(id, event){
@@ -4721,10 +4756,13 @@ function shippingRowHtml(t){
   return `
     <div class="ticket-row">
       <div class="ticket-row-top">
-        <div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          ${(!t.yalidineTracking && t.status==='To Pick Up') ? `<input type="checkbox" style="width:auto;margin-top:4px;" title="Include in the Excel export" onclick="onYalCheckbox('${t.id}', event)" ${yalidineSelectedIds.has(t.id)?'checked':''}>` : ''}
+          <div>
           <div class="ticket-id">#${t.id}</div>
           <div class="ticket-meta">${t.customerName || 'No name on file'} · ${t.phone}</div>
           ${deviceLine ? `<div class="ticket-device">${deviceLine}</div>` : ''}
+          </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
           <select class="status-pill mono status-pill-select" style="${statusPillStyle(t.status)}" onclick="event.stopPropagation()" onchange="quickUpdateStatus('${t.id}', this.value)">
@@ -4742,7 +4780,8 @@ function shippingRowHtml(t){
         ${actionsMenuHtml(t.id, [
           {label:'🖨️ Print receipt', onclick:`printReceipt('${t.id}')`},
           {label:'📱 Notify customer', onclick:`notifyCustomerPickupWhatsApp('${t.id}', event)`},
-          ...(!t.yalidineTracking ? [{label:'📮 Create Yalidine parcel', onclick:`createYalidineParcel('${t.id}', event)`}] : []),
+          ...(!t.yalidineTracking ? [{label:'🔖 Add tracking number (parcel made on Yalidine site)', onclick:`addTrackingManually('${t.id}', event)`}] : []),
+          ...(!t.yalidineTracking ? [{label:'📮 Create Yalidine parcel (API)', onclick:`createYalidineParcel('${t.id}', event)`}] : []),
           ...(t.yalidineTracking ? [{label:'🔄 Check Yalidine status now', onclick:`checkYalidineStatusNow('${t.id}', event)`}] : []),
           ...(t.yalidineTracking ? [{label:'🗑️ Clear Yalidine tracking', onclick:`clearYalidineTracking('${t.id}', event)`}] : []),
           {label:'↩️ Back to To Fix', onclick:`quickUpdateStatus('${t.id}', 'Repairing')`},
@@ -5873,6 +5912,18 @@ async function clearYalidineTracking(id, event){
     document.getElementById('save-error-banner').style.display = 'block';
     return;
   }
+  await refreshTicketsOnly();
+}
+
+// After uploading the Excel on Yalidine's website: type the tracking number here so the parcel moves to Shipped
+async function addTrackingManually(id, event){
+  if(event) event.stopPropagation();
+  const v = window.prompt('Yalidine tracking number for #' + id + ' (from the Yalidine website):', '');
+  if(v === null) return;
+  const tracking = v.trim();
+  if(!tracking){ alert('Tracking number is empty — nothing saved.'); return; }
+  const res = await apiGet('adminSaveYalidineTracking', {id:id, tracking:tracking});
+  if(!res.ok){ document.getElementById('save-error-banner').style.display = 'block'; return; }
   await refreshTicketsOnly();
 }
 
